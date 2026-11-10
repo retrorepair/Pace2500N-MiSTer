@@ -21,6 +21,34 @@ video_on, audio_on, live, mp2_synced, mp2_err, busy, 00, dropped}.
 - Menu music: firmware never requests background audio in the Guide with either
   linkage variant (`--music 4152,288 [--music-linkage]`); the Guide is o-code.
 
+### Menu music investigation (10-11 Nov, night) - not solved yet
+
+Tools: `tools/opentv_natives.py` resolves o-code natives (module, function) to
+firmware functions from a live RAM snapshot (checked against the reference
+project's known mappings); `+NATIVETRACE` logs every native call in sim.
+Hardware register trace on the debug UART: `tools/mister_uart_trace.py`.
+
+Facts established:
+- Module 3 is the A/V library: (3,0x02..0x10) post A/V manager commands
+  1..0x13 for sessions 0-5 (0x03 play = cmd 2, 0x06 start component = cmd 5,
+  0x07/0x08 = cmd 6/7 enter/leave Guide, 0x0B = cmd 0x0A).
+- The resident Guide o-code in flash never calls play or start-component;
+  its only A/V calls are 0x07/0x08, 0x0B, 0x15, 0x1A-0x23, 0x2C, 0x3C-0x40.
+  On Guide entry: (1,0x5C) (3,0x15) (1,0xD2 fill colour) (3,0x0B) (3,0x07).
+- Entering the Guide from a playing channel: video PID off (B000A094=1FFF),
+  audio PID left routed (B000A098 unchanged), B0002494 A0000000 -> 0,
+  B0002490 0040CC00 -> 00008800, B0002498 3 -> 0 -> 3. So the firmware appears
+  to stop decode in the Guide; the core still plays the routed audio PID
+  (B0002494/B0002490 are not modelled - their exact meaning is unverified).
+- The firmware never requests the PMT of the "EPG Background Audio" service
+  (`--music 4152,288`), and pointing the 0x91 guide linkage at it breaks the
+  listings. B0008xxx is the teletext/VBI inserter, not an audio player.
+- The Background Music setting lives in the Guide's o-code heap
+  (0x8047722B, 1 = ON); the checkpoint has it ON.
+Open: where the firmware takes the background audio from. Next leads: the
+A/V manager's "type 6" component path (case 5, own state at 80056D74), the
+audio-related natives in modules 1/7, and the o-code that reads the setting.
+
 ## v0.5.6 (10 Nov) - lean demux and peripheral CSRs, deployed
 
 Same behaviour, smaller core: 18,812 ALMs (45%), was 25,090 (60%) in v055.
