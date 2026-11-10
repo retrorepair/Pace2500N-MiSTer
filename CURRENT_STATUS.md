@@ -63,6 +63,27 @@ Next: find the tune-request path (device-20 ops / command 1 poster) and why it
 is not issued from this checkpoint; then model the B0002/B0008 registers the
 firmware drives and connect the decoders.
 
+Update (later the same evening), runs `re/transport/av_select*`, `av_mgr*`:
+- Device 20 is the frontend device. Its callback 80032D6C maps op 0x0B ->
+  8002FCE8 (status copy), **0x0C -> 8002F514 -> tune builder 8002F81C**,
+  0x0D -> 8002F1DC, 0x0E -> stop 8002F474, 0x0F -> start 8002F44C. Request
+  enqueue is 800284D8 (0x50-byte struct, command at +0).
+- Typing a channel number only produces op 0x0F ~16 s after the checkpoint
+  (it is periodic, key-independent) -> command 4 in state 0 -> status 5.
+- **Selecting a programme in ALL CHANNELS does tune**: op 0x0C (arg
+  80494D18), 0x3E, 0x0D (BCD frequency 01177800 = 11778.00 MHz from the NIT),
+  frontend command 3 -> state 5 -> poll 5 -> publish status 1 -> state 7,
+  flag 80105C00 = 1, all within 0.6M instructions. The lock model works.
+- After lock the firmware reprograms the demux for the tuned transponder:
+  channel 24 PID 0x0010 (NIT), 23 PID 0x0011 (SDT/BAT), 21 PID 0x0032
+  (titles), with new match rules, and reads the rings.
+- It still ends on "No satellite signal is being received" with the frontend
+  in state 7 (locked). B4180000 is a write-only output latch (shadowed,
+  80024F78 set/clear masks); bit 3 toggles ~3,150 times after the tune.
+- So the remaining blocker is the check that raises that dialog after lock
+  (service acquisition / signal-quality layer above the frontend task), then
+  the PAT/PMT -> A/V select -> B0002/B0008 path behind it.
+
 ## Session 4 (10 Nov) - instruction timebase, I-cache, BT.601 video
 
 Root cause of the listings abort (from Session 3 evidence): the model gave the
