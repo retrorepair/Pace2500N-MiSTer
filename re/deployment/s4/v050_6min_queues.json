@@ -1,0 +1,239 @@
+{
+  "source": "re\\deployment\\s4\\v050_6min_ram.bin",
+  "table": "801163DC",
+  "free_messages": 270,
+  "queued_messages": 0,
+  "queues": [
+    {
+      "task": "8017314C",
+      "name": "TASK0",
+      "metadata": "80314340",
+      "message_size": 12,
+      "waiting": 1,
+      "queued": 0,
+      "callback_counts": {},
+      "payload_first_word_counts": {},
+      "messages": []
+    },
+    {
+      "task": "80176068",
+      "name": "TASK1",
+      "metadata": "80314AD4",
+      "message_size": 20,
+      "waiting": 1,
+      "queued": 0,
+      "callback_counts": {},
+      "payload_first_word_counts": {},
+      "messages": []
+    },
+    {
+      "task": "8017B4E4",
+      "name": "TASK2",
+      "metadata": "80314030",
+      "message_size": 12,
+      "waiting": 0,
+      "queued": 0,
+      "callback_counts": {},
+      "payload_first_word_counts": {},
+      "messages": []
+    },
+    {
+      "task": "8017CDE0",
+      "name": "TASK3",
+      "metadata": "80313E3C",
+      "message_size": 12,
+      "waiting": 1,
+      "queued": 0,
+      "callback_counts": {},
+      "payload_first_word_counts": {},
+      "messages": []
+    },
+    {
+      "task": "80184198",
+      "name": "TASK5",
+      "metadata": "80313C28",
+      "message_size": 16,
+      "waiting": 1,
+      "queued": 0,
+      "callback_counts": {},
+      "payload_first_word_counts": {},
+      "messages": []
+    },
+    {
+      "task": "8018B090",
+      "name": "TASK10",
+      "metadata": "80313840",
+      "message_size": 36,
+      "waiting": 1,
+      "queued": 0,
+      "callback_counts": {},
+      "payload_first_word_counts": {},
+      "messages": []
+    },
+    {
+      "task": "8018D18C",
+      "name": "TASK11",
+      "metadata": "8031364C",
+      "message_size": 12,
+      "waiting": 0,
+      "queued": 0,
+      "callback_counts": {},
+      "payload_first_word_counts": {},
+      "messages": []
+    },
+    {
+      "task": "801993FC",
+      "name": "TASK15",
+      "metadata": "802D7AAC",
+      "message_size": 12,
+      "waiting": 1,
+      "queued": 0,
+      "callback_counts": {},
+      "payload_first_word_counts": {},
+      "messages": []
+    },
+    {
+      "task": "801B4700",
+      "name": "TASK16",
+      "metadata": "802C1E20",
+      "message_size": 12,
+      "waiting": 1,
+      "queued": 0,
+      "callback_counts": {},
+      "payload_first_word_counts": {},
+      "messages": []
+    },
+    {
+      "task": "801B6FFC",
+      "name": "TASK17",
+      "metadata": "802C1AD4",
+      "message_size": 16,
+      "waiting": 1,
+      "queued": 0,
+      "callback_counts": {},
+      "payload_first_word_counts": {},
+      "messages": []
+    },
+    {
+      "task": "801C1800",
+      "name": "TASK20",
+      "metadata": "802BD690",
+      "message_size": 20,
+      "waiting": 1,
+      "queued": 0,
+      "callback_counts": {},
+      "payload_first_word_counts": {},
+      "messages": []
+    },
+    {
+      "task": "801C54FC",
+      "name": "TASK21",
+      "metadata": "802BD1F0",
+      "message_size": 16,
+      "waiting": 1,
+      "queued": 0,
+      "callback_counts": {},
+      "payload_first_word_counts": {},
+      "messages": []
+    },
+    {
+      "task": "801C7258",
+      "name": "TASK22",
+      "metadata": "802BCB48",
+      "message_size": 12,
+      "waiting": 1,
+      "queued": 0,
+      "callback_counts": {},
+      "payload_first_word_counts": {},
+      "messages": []
+    },
+    {
+      "task": "801C8B54",
+      "name": "TASK23",
+      "metadata": "802BC940",
+      "message_size": 12,
+      "waiting": 1,
+      "queued": 0,
+      "callback_counts": {},
+      "payload_first_word_counts": {},
+      "messages": []
+    },
+    {
+      "task": "801CBC50",
+      "name": "TASK24",
+      "metadata": "802BC648",
+      "message_size": 12,
+      "waiting": 0,
+      "queued": 0,
+      "callback_counts": {},
+      "payload_first_word_counts": {},
+      "messages": []
+    },
+    {
+      "task": "801CDE5C",
+      "name": "TASK25",
+      "metadata": "802BB03C",
+      "message_size": 12,
+      "waiting": 1,
+      "queued": 0,
+      "callback_counts": {},
+      "payload_first_word_counts": {},
+      "messages": []
+    },
+    {
+      "task": "801D0758",
+      "name": "TASK26",
+      "metadata": "802BAE20",
+      "message_size": 20,
+      "waiting": 1,
+      "queued": 0,
+      "callback_counts": {},
+      "payload_first_word_counts": {},
+      "messages": []
+    },
+    {
+      "task": "801D1854",
+      "name": "TASK27",
+      "metadata": "802B5314",
+      "message_size": 12,
+      "waiting": 1,
+      "queued": 0,
+      "callback_counts": {},
+      "payload_first_word_counts": {},
+      "messages": []
+    },
+    {
+      "task": "801D2950",
+      "name": "TASK28",
+      "metadata": "802B5108",
+      "message_size": 12,
+      "waiting": 1,
+      "queued": 0,
+      "callback_counts": {},
+      "payload_first_word_counts": {},
+      "messages": []
+    },
+    {
+      "task": "801D3A4C",
+      "name": "TASK29",
+      "metadata": "802B4EB4",
+      "message_size": 12,
+      "waiting": 1,
+      "queued": 0,
+      "callback_counts": {},
+      "payload_first_word_counts": {},
+      "messages": []
+    },
+    {
+      "task": "801D5B48",
+      "name": "TASK30",
+      "metadata": "802AFBFC",
+      "message_size": 12,
+      "waiting": 0,
+      "queued": 0,
+      "callback_counts": {},
+      "payload_first_word_counts": {},
+      "messages": []
+    }
+  ]
+}

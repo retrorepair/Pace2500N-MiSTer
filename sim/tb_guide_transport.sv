@@ -60,7 +60,7 @@ module tb_guide_transport;
  reg[31:0] inject3_at=0,key3_arg=0,inject4_at=0,key4_arg=0;
  integer ring_reads=0,demux_acks=0,trace,decoded=0,title_callbacks=0,row_callbacks=0,title_decodes=0;
  integer nvram_reads=0,favourites_fetches=0,application_loop_fetches=0;
- integer event8_messages=0,k;reg [63:0] cycles=0;reg ca_trace=0,io_trace=0;reg [31:0] sp_lo=0,sp_hi=0,watch_addr=0;reg [19:0] io_page=20'hb2006;reg [31:0] stack_value;
+ integer event8_messages=0,k;reg [63:0] cycles=0;integer race_writes=0,hazard_writes=0,cache_ops=0;reg [31:0] hazard_row=0;reg ca_trace=0,io_trace=0,gpu_trace=0;reg [31:0] sp_lo=0,sp_hi=0,watch_addr=0;reg [19:0] io_page=20'hb2006;reg [31:0] stack_value;
  reg [31:0] next_progress=225000000;
  reg [31:0] previous_pc=0;string ts_hex="re/transport/diagnostic64.hex",out_prefix="re/transport/native";
  function automatic [31:0] guest_word(input [31:0] address);
@@ -117,6 +117,11 @@ module tb_guide_transport;
    if(pc==32'h8007fe1e)
     $fdisplay(trace,"UI_CALLBACK RET %d FN %h A %h %h DATA %h %h %h",retired,cpu.gpr[3],cpu.gpr[4],cpu.gpr[5],guest_word(cpu.gpr[5]),guest_word(cpu.gpr[5]+4),guest_word(cpu.gpr[5]+8));
   end
+   if(gpu_trace && cpu.state==2 && !cpu.mips16 && cpu.instruction[31:26]==6'd47 && cache_ops<200)begin cache_ops<=cache_ops+1;
+   $fdisplay(trace,"CACHE_OP RET %d PC %h OP %h EA %h",retired,pc,cpu.instruction[20:16],cpu.gpr[cpu.instruction[25:21]]+{{16{cpu.instruction[15]}},cpu.instruction[15:0]});end
+ if(gpu_trace && gpu_start)$fdisplay(trace,"GPU_START RET %d DESC %h PC %h",retired,gpu_descriptor,pc);
+  if(gpu_trace && gpu.state==4)$fdisplay(trace,"GPU_CMD RET %d OP %h SRC %h EVEN %h ODD %h STRIDE %h XY %h WH %h COL %h",retired,gpu.words[0],gpu.words[1],gpu.words[7],gpu.words[8],gpu.words[11],gpu.words[12],gpu.words[13],gpu.words[14]);
+  if(gpu_trace && gpu_done)$fdisplay(trace,"GPU_DONE RET %d",retired);
   response<=0;
   if(pending)begin pending<=0;response<=1;end
   if(bus_req && !pending)begin
@@ -132,6 +137,11 @@ module tb_guide_transport;
    end else $fatal(1,"unmapped memory %h",bus_addr);
    if(!bus_write)begin pending<=1;response_owner<=owner;end
    if(owner==0 && !bus_write && bus_addr>=29'h060f4000 && bus_addr<29'h06100000)ring_reads<=ring_reads+1;
+   if(gpu_trace && owner==0 && bus_write && gpu.busy && gpu.copy8 && bus_addr>=29'h06000000+gpu.source[23:3] && bus_addr<29'h06000000+gpu.source[23:3]+29'h800)begin
+    race_writes<=race_writes+1;
+    hazard_row=((bus_addr-29'h06000000)*8-{5'd0,gpu.source})/gpu.width;
+    if(hazard_row>=gpu.row)begin hazard_writes<=hazard_writes+1;if(hazard_writes<40)$fdisplay(trace,"SRC_HAZARD VA %h RET %d PC %h RA %h SRC_ROW %0d BLIT_ROW %0d BLIT_COL %0d XY %h",cpu.bus_virtual,retired,pc,cpu.gpr[31],hazard_row,gpu.row,gpu.column,gpu.words[12]);end
+   end
    if(watch_addr!=0 && owner==0 && bus_write && bus_addr==29'h06000000+watch_addr[23:3])
     $fdisplay(trace,"WATCH RET %d PC %h BE %h DATA %h OLD %h RA %h SP %h",retired,pc,bus_be,bus_data,ram[bus_addr-29'h06000000],cpu.gpr[31],cpu.gpr[29]);
    if(owner==0 && bus_write && bus_addr==29'h060860de)
@@ -153,7 +163,7 @@ module tb_guide_transport;
   $fdisplay(fd,"PARSERS Huffman %d title %d row %d B5 %d OSD %h",decoded,title_callbacks,row_callbacks,title_decodes,osd_root);
   $fdisplay(fd,"APPLICATION NVRAM_READS %d FAVOURITES_FETCHES %d MAIN_LOOP_FETCHES %d",nvram_reads,favourites_fetches,application_loop_fetches);
   $fdisplay(fd,"PC %08x RETIRED %d MODE %d HI %08x LO %08x IRQ %d GPU %d VA %08x",pc,retired,cpu.mips16,cpu.hi,cpu.lo,cpu.interrupt_count,gpu_count,cpu.bus_virtual);
-  $fdisplay(fd,"CYCLES %0d ICACHE_HITS %0d TIMER_ACKS %0d",cycles,cpu.icache_hits,devices.timer_acks);
+  $fdisplay(fd,"CYCLES %0d ICACHE_HITS %0d TIMER_ACKS %0d SRC_RACE_WRITES %0d HAZARD %0d",cycles,cpu.icache_hits,devices.timer_acks,race_writes,hazard_writes);
   for(i=0;i<32;i=i+1)$fdisplay(fd,"R %d %08x CP0 %08x",i,cpu.gpr[i],cpu.cp0[i]);
   $fdisplay(fd,"TIMER %08x PENDING %d ACK %d KEYFRAMES %d SERIALFRAMES %d",devices.timer_remaining,devices.timer_pending,devices.timer_acks,devices.key_frames,devices.serial_frames);
   $fclose(fd);
@@ -169,7 +179,7 @@ module tb_guide_transport;
   if($value$plusargs("KEY3_AT=%d",inject3_at))begin end
   if($value$plusargs("KEY4=%h",key4_arg))begin end
   if($value$plusargs("KEY4_AT=%d",inject4_at))begin end
-  disable_ts=$test$plusargs("NO_TS");ca_trace=$test$plusargs("CATRACE");io_trace=$test$plusargs("IOTRACE");if($value$plusargs("SPLO=%h",sp_lo))begin end if($value$plusargs("SPHI=%h",sp_hi))begin end if($value$plusargs("WATCH=%h",watch_addr))begin end if($value$plusargs("IOPAGE=%h",io_page))begin end
+  disable_ts=$test$plusargs("NO_TS");ca_trace=$test$plusargs("CATRACE");io_trace=$test$plusargs("IOTRACE");gpu_trace=$test$plusargs("GPUTRACE");if($value$plusargs("SPLO=%h",sp_lo))begin end if($value$plusargs("SPHI=%h",sp_hi))begin end if($value$plusargs("WATCH=%h",watch_addr))begin end if($value$plusargs("IOPAGE=%h",io_page))begin end
   $readmemh("re/fpga_guide_checkpoint/ram64.hex",ram);
   $readmemh("re/fpga_guide_checkpoint/flash64.hex",flash);
   $readmemh("rom/checkpoint_cpu.hex",state_words);

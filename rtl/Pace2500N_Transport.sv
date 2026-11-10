@@ -3,7 +3,7 @@
 module emu (
 `include "sys/emu_ports.vh"
 );
-localparam CONF_STR={"Pace2500N_TS;;","F0,BIN,Load FLASH_U202.bin;","F1,BIN,Load RAM checkpoint;","F2,BIN,Load CPU state;","F3,TS,Load SI replay (1MiB max);","O3,Display,Guide,Diagnostics;","O4,Diagnostic RF lock,From TS,Off;","-;","R0,Reset (reload checkpoint);","V,0.5.0 timebase BT.601 video"};
+localparam CONF_STR={"Pace2500N_TS;;","F0,BIN,Load FLASH_U202.bin;","F1,BIN,Load RAM checkpoint;","F2,BIN,Load CPU state;","F3,TS,Load SI replay (1MiB max);","O3,Display,Guide,Diagnostics;","O4,Diagnostic RF lock,From TS,Off;","O5,Broadcast clock (TOT),MiSTer RTC,TS file;","-;","R0,Reset (reload checkpoint);","V,0.5.2 broadcast clock from RTC"};
 wire clk_sys,clk_video,pll_locked;
 pll pll(.refclk(CLK_50M),.rst(1'b0),.outclk_0(clk_sys),.outclk_1(clk_video),.locked(pll_locked));
 // Unused platform interfaces: MiSTer sys_top remains responsible for
@@ -52,13 +52,14 @@ assign DDRAM_BURSTCNT=8'd1;
 wire [1:0] buttons;
 wire [127:0] status;
 wire [10:0] ps2_key;
+wire [64:0] rtc;
 wire ioctl_download,ioctl_wr;
 wire [15:0] ioctl_index,ioctl_dout;
 wire [26:0] ioctl_addr;
 wire ioctl_wait;
 hps_io #(.CONF_STR(CONF_STR),.WIDE(1)) io (
  .clk_sys(clk_sys),.HPS_BUS(HPS_BUS),.buttons(buttons),.status(status),.status_in(status),
- .status_set(1'b0),.status_menumask(16'h0000),.ps2_key(ps2_key),
+ .status_set(1'b0),.status_menumask(16'h0000),.ps2_key(ps2_key),.RTC(rtc),
  .video_rotated(1'b0),.new_vmode(1'b0),
  .ioctl_download(ioctl_download),.ioctl_wr(ioctl_wr),.ioctl_index(ioctl_index),
  .ioctl_addr(ioctl_addr),.ioctl_dout(ioctl_dout),.ioctl_wait(ioctl_wait),
@@ -109,6 +110,7 @@ assign device_ready=demux_selected?device_req && demux_config_ready:prdy;
 pace_mmio_response mmio_bus(.clk(clk_sys),.reset(core_reset),.hold(holding),.cpu_req(iq),
  .cpu_ready(irdy),.cpu_data(ir),.device_req(device_req),.device_ready(device_ready),.device_data(demux_selected?dir:pir));
 wire ts_valid,ts_ready,demux_irq;wire [7:0] ts_data;
+wire raw_valid,raw_ready;wire [7:0] raw_data;wire [31:0] tot_rewrites;
 wire [31:0] ts_loops,ts_packets,ts_sections,ts_dropped,ts_crc_errors;
 wire [31:0] pc,inst,retired,ram_writes,last_ram,mmio_address,mmio_value,mmio_read,mmio_writes,guessed_reads,interrupt_count;
 wire [7:0] cpu_halt,model_halt,gpu_error,video_error;
@@ -116,7 +118,7 @@ wire mips16;
 wire gpu_start,gpu_done,gpu_busy;
 wire [31:0] gpu_descriptor,osd_root,gpu_count,gpu_last,serial_frames,key_frames,timer_acks,gpu_acks,video_frames,video_underruns;
 wire [7:0] halt_code=cpu_halt!=0?cpu_halt:model_halt!=0?model_halt:gpu_error!=0?gpu_error:video_error;
-pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1),.ICACHE(1)) cpu(
+pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1),.ICACHE(0)) cpu( // I-cache off until the blitter bursts (see CURRENT_STATUS)
  .clk(clk_sys),.reset(core_reset),.full_flash_loaded(loaded_flash),.mmio_policy(2'd1),
  .checkpoint_hold(holding),.checkpoint_wr(state_write),.checkpoint_index(ioctl_addr[8:2]),.checkpoint_data(state_data),
  .io_req(iq),.io_we(iw),.io_addr(ia),.io_wdata(id),.io_size(iz),.io_rdata(ir),.io_ready(irdy),.io_irq(irq),
@@ -136,8 +138,11 @@ pace_guide_blitter gpu(.clk(clk_sys),.reset(core_reset),.hold(holding),.start(gp
  .mem_accept(ga),.mem_rvalid(gv),.mem_rdata(DDRAM_DOUT));
 
 pace_ts_replay transport(.clk(clk_sys),.reset(core_reset || stream_loading),.hold(holding),
- .enabled(loaded_stream),.length(stream_length),.valid(ts_valid),.ready(ts_ready),.data(ts_data),.loops(ts_loops),
+ .enabled(loaded_stream),.length(stream_length),.valid(raw_valid),.ready(raw_ready),.data(raw_data),.loops(ts_loops),
  .mem_req(tq),.mem_addr(tad),.mem_accept(ta),.mem_rvalid(tv),.mem_rdata(DDRAM_DOUT));
+// The replayed broadcast's TOT carries today's date/time from the MiSTer RTC.
+pace_tot_clock broadcast_clock(.clk(clk_sys),.reset(core_reset || stream_loading),.enable(!status[5]),.rtc(rtc),
+ .in_valid(raw_valid),.in_ready(raw_ready),.in_data(raw_data),.out_valid(ts_valid),.out_ready(ts_ready),.out_data(ts_data),.rewritten(tot_rewrites));
 pace_section_demux demux(.clk(clk_sys),.reset(core_reset),.stream_reset(stream_loading),.hold(holding),
  .ts_valid(ts_valid),.ts_ready(ts_ready),.ts_data(ts_data),
  .io_req(device_req && demux_selected),.io_we(iw),.io_addr(ia),.io_wdata(id),.io_size(iz),.io_rdata(dir),.irq(demux_irq),.config_ready(demux_config_ready),

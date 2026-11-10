@@ -54,6 +54,39 @@ B0002xxx A/V block and the 13-channel DMA engine (FUN_80005900). No B0002
 accesses occur in 30M instructions after Select with the current synthetic SI.
 Selection of the music service by the OpenTV Guide is not yet traced.
 
+v050 deployed (seed 3; core +1.720 ns, video +4.061 ns, hold +0.248 ns;
+MiSTer HDMI scaler `ascal` -0.107 ns). 6-minute soak: message pool 270 free
+(was 0 on v049). Screenshot 720x576 matches the guest framebuffer exactly.
+
+Regression found by the user: listing-row bars and a clipped heading behind
+the ALL CHANNELS dialog on v049/v050, absent on v048 and in the software
+reference. Cause, proven in simulation: the Guide copies text via DMA 00AC
+from one source buffer at 0x55C288 that the CPU refills through KSEG1
+(uncached, loop at 80000E4C called from 800847E5) while the previous copy is
+in flight. Real uncached VR4110 stores are slow bus transactions and the
+EMMA DMA is fast, so the firmware never sees the overlap. The model's blitter
+did one DDR write per pixel; with the I-cache the CPU overtook it (19,002
+writes ahead of the copy position vs 0 without the cache). The firmware
+issues CACHE 0x19 (Hit Writeback D) only for the 80108C40 display list.
+- `pace_guide_blitter.sv` now merges pixels into 64-bit word writes and reads
+  each source word once. Cache off + word blitter: frame identical to the
+  clean reference (0 index pixels differ). Cache on + word blitter: heading
+  fixed, bars remain, so the blitter must also burst-read before the I-cache
+  can return.
+- v051 = v050 with ICACHE=0 and the word blitter: all timing positive (core
+  +1.876, video +4.550, HDMI +0.223, hold +0.255 ns). Hardware: the screen
+  behind the dialog is clean again.
+
+Next CPU-speed step: burst DDR reads in the blitter (DDRAM_BURSTCNT>1) so a
+copy outruns the CPU's uncached refill, then re-enable ICACHE.
+
+Broadcast clock (v052): `pace_tot_clock.sv` rewrites TOT (0x73, PID 0x14)
+UTC_time from the MiSTer RTC (hps_io, BCD; MiSTer Linux syncs it from the
+internet) and recomputes CRC32; OSD "Broadcast clock (TOT)" MiSTer RTC / TS
+file. `sim/tb_tot_clock.sv`: 5/5 TOTs rewritten to MJD 61354 12:34:56 with
+valid CRC, no other byte changed. Listings in the fixture are still dated
+2002-09-01; the "time travel" year (OSD) is future work.
+
 ## Session 3 (9 Nov, evening) - investigation only, stopped early at user request
 
 No RTL, ROM, MiSTer file or core was changed. Nothing was pushed to GitHub (no

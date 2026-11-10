@@ -1,0 +1,3 @@
+[111328610000] %Fatal: tb_guide_transport.sv:209: Assertion failed in tb_guide_transport: registered MMIO broke native keyboard/graphics
+%Error: sim/tb_guide_transport.sv:209: Verilog $stop
+Aborting...

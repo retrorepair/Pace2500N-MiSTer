@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Actual guest DMA12 packets:418F fill16,01AC index8 fill,00AC packed copy.
 // No host text/assets. Completion asserts only after all RAM writes finish.
+// Destination pixels are merged into whole 64-bit DDR words (byte enables)
+// and each source word is read once, as a word-wide DMA engine does. The
+// earlier one-DDR-write-per-pixel model was so slow relative to the CPU that
+// the firmware's next CPU rasterisation into the shared source buffer
+// (80000E2C) overtook an in-progress copy, corrupting the Guide.
 module pace_guide_blitter (
  input wire clk,reset,hold,start,
  input wire [31:0] descriptor,
@@ -16,7 +21,8 @@ module pace_guide_blitter (
  input wire [63:0] mem_rdata
 );
  localparam IDLE=0,READ_REQ=1,READ_WAIT=2,DECODE_DESC=3,DECODE_CMD=4,
-            PIXEL=5,SOURCE_REQ=6,SOURCE_WAIT=7,WRITE_REQ=8,NEXT_PIXEL=9;
+            PIXEL=5,SOURCE_REQ=6,SOURCE_WAIT=7,WRITE_REQ=8,NEXT_PIXEL=9,
+            MERGE=10,FINISH=11;
  reg [3:0] state=0;
  reg command_phase=0;
  reg [4:0] word_index=0;
@@ -32,6 +38,13 @@ module pace_guide_blitter (
  reg source_valid=0;
  reg [23:0] pixel_destination=0,pixel_source=0;
  reg [7:0] pixel_value=0;
+ // Pending destination word being assembled.
+ reg pend_valid=0;reg [20:0] pend_addr=0;reg [63:0] pend_data=0;reg [7:0] pend_be=0;
+ reg [3:0] flush_return=0;
+ wire [2:0] lane=pixel_destination[2:0];
+ wire [7:0] new_be=fill16 ? (8'h03<<lane) : (8'h01<<lane);
+ wire [63:0] new_data=fill16 ? ({48'd0,even_color[7:0],even_color[15:8]}<<(lane*8)) : ({56'd0,pixel_value}<<(lane*8));
+ wire [63:0] new_mask={{8{new_be[7]}},{8{new_be[6]}},{8{new_be[5]}},{8{new_be[4]}},{8{new_be[3]}},{8{new_be[2]}},{8{new_be[1]}},{8{new_be[0]}}};
  wire [11:0] frame_line=y+row;
  wire [31:0] src_offset={8'd0,source}+row*width+column;
  wire [31:0] dest_offset=fill16 ? ({8'd0,base_even}+(y+row)*stride+(x+column)*2) :
@@ -43,7 +56,7 @@ module pace_guide_blitter (
  endfunction
  always @(posedge clk)begin
   done<=0;
-  if(reset)begin state<=IDLE;mem_req<=0;source_valid<=0;error<=0;completions<=0;last_opcode<=0;end
+  if(reset)begin state<=IDLE;mem_req<=0;source_valid<=0;error<=0;completions<=0;last_opcode<=0;pend_valid<=0;pend_be<=0;end
   else if(!hold && error==0)begin
    if(start && state!=IDLE)error<=8'hb0;
    case(state)
@@ -73,7 +86,7 @@ module pace_guide_blitter (
      stride<=({1'b0,words[11][10:0]}+1)*(words[0]==32'h418f0000 ? 2 : 1);
      x<=words[12][10:0];y<=words[12][26:16];
      width<={1'b0,words[13][10:0]}+1;height<={1'b0,words[13][25:16]}+1;
-     column<=0;row<=0;source_valid<=0;
+     column<=0;row<=0;source_valid<=0;pend_valid<=0;pend_be<=0;
      if(words[0]!=32'h418f0000 && words[0]!=32'h01ac0000 && words[0]!=32'h00ac0000)error<=8'hb3;
      else if(words[7]>=32'h01000000 || words[8]>=32'h01000000 ||
        ({1'b0,words[12][10:0]}+{1'b0,words[13][10:0]}+1) > ({1'b0,words[11][10:0]}+1))error<=8'hb4;
@@ -85,9 +98,11 @@ module pace_guide_blitter (
      if(dest_offset>=32'h01000000 || (copy8 && src_offset>=32'h01000000))error<=8'hb6;
      else if(copy8)begin
       if(source_valid && source_tag==src_offset[23:3])begin
-       pixel_value<=source_cache[src_offset[2:0]*8+:8];state<=WRITE_REQ;
+       pixel_value<=source_cache[src_offset[2:0]*8+:8];state<=MERGE;
+      end else if(pend_valid && pend_addr==src_offset[23:3])begin
+       flush_return<=PIXEL;state<=WRITE_REQ; // write back before reading the same word
       end else state<=SOURCE_REQ;
-     end else begin pixel_value<=frame_line[0]?odd_color[7:0]:even_color[7:0];state<=WRITE_REQ;end
+     end else begin pixel_value<=frame_line[0]?odd_color[7:0]:even_color[7:0];state<=MERGE;end
     end
     SOURCE_REQ:begin
      mem_req<=1;mem_we<=0;mem_addr<=29'h06000000+{8'd0,pixel_source[23:3]};mem_be<=8'hff;
@@ -95,22 +110,31 @@ module pace_guide_blitter (
     end
     SOURCE_WAIT:if(mem_rvalid)begin
      source_cache<=mem_rdata;source_tag<=pixel_source[23:3];source_valid<=1;
-     pixel_value<=mem_rdata[pixel_source[2:0]*8+:8];state<=WRITE_REQ;
+     pixel_value<=mem_rdata[pixel_source[2:0]*8+:8];state<=MERGE;
+    end
+    MERGE:begin
+     if(pend_valid && pend_addr!=pixel_destination[23:3])begin flush_return<=MERGE;state<=WRITE_REQ;end
+     else begin
+      pend_data<=(pend_data&~new_mask)|new_data;
+      pend_be<=(pend_valid?pend_be:8'd0)|new_be;
+      pend_addr<=pixel_destination[23:3];pend_valid<=1;state<=NEXT_PIXEL;
+     end
     end
     WRITE_REQ:begin
-     mem_req<=1;mem_we<=1;mem_addr<=29'h06000000+{8'd0,pixel_destination[23:3]};
-     mem_wdata<=fill16 ? ({48'd0,even_color[7:0],even_color[15:8]}<<(pixel_destination[2:0]*8)) :
-                               ({56'd0,pixel_value}<<(pixel_destination[2:0]*8));
-     mem_be<=(fill16?8'h03:8'h01)<<pixel_destination[2:0];
-     if(mem_req && mem_accept)begin mem_req<=0;state<=NEXT_PIXEL;end
+     mem_req<=1;mem_we<=1;mem_addr<=29'h06000000+{8'd0,pend_addr};
+     mem_wdata<=pend_data;mem_be<=pend_be;
+     if(mem_req && mem_accept)begin mem_req<=0;pend_valid<=0;pend_be<=0;state<=flush_return;end
     end
     NEXT_PIXEL:begin
      if(column+1==width)begin
       column<=0;
-      if(row+1==height)begin done<=1;completions<=completions+1'b1;state<=IDLE;end
-      else begin row<=row+1'b1;state<=PIXEL;end
+      if(row+1==height)begin
+       if(pend_valid)begin flush_return<=FINISH;state<=WRITE_REQ;end
+       else state<=FINISH;
+      end else begin row<=row+1'b1;state<=PIXEL;end
      end else begin column<=column+1'b1;state<=PIXEL;end
     end
+    FINISH:begin done<=1;completions<=completions+1'b1;state<=IDLE;end
     default:error<=8'hbf;
    endcase
   end
