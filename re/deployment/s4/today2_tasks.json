@@ -1,0 +1,615 @@
+{
+  "source": "re\\deployment\\s4\\today2_ram.bin",
+  "object_count": 236,
+  "task_count": 41,
+  "tasks": [
+    {
+      "address": "8011B6C4",
+      "type": "TASK",
+      "name": "SMTTask",
+      "status": 7,
+      "runs": 1038,
+      "waits": [
+        {
+          "object": "8011B9A4",
+          "name": "SMTEvts",
+          "type": "EVNT",
+          "suspension": "801775D8"
+        }
+      ]
+    },
+    {
+      "address": "8011B108",
+      "type": "TASK",
+      "name": "SMHKTask",
+      "status": 7,
+      "runs": 14,
+      "waits": [
+        {
+          "object": "8011B368",
+          "name": "SHKEvts",
+          "type": "EVNT",
+          "suspension": "801779F8"
+        }
+      ]
+    },
+    {
+      "address": "80116FE8",
+      "type": "TASK",
+      "name": "FETask",
+      "status": 6,
+      "runs": 9812,
+      "waits": [
+        {
+          "object": "80117090",
+          "name": "FeCmd",
+          "type": "SEMA",
+          "suspension": "80179C2C"
+        }
+      ]
+    },
+    {
+      "address": "8017B4E4",
+      "type": "TASK",
+      "name": "TASK2",
+      "status": 7,
+      "runs": 3917,
+      "waits": [
+        {
+          "object": "8017B4B0",
+          "name": "EVENT00",
+          "type": "EVNT",
+          "suspension": "8017B3F0"
+        }
+      ]
+    },
+    {
+      "address": "8017CDE0",
+      "type": "TASK",
+      "name": "TASK3",
+      "status": 7,
+      "runs": 1,
+      "waits": [
+        {
+          "object": "8017CDAC",
+          "name": "EVENT00",
+          "type": "EVNT",
+          "suspension": "8017CCAC"
+        }
+      ]
+    },
+    {
+      "address": "8017F87C",
+      "type": "TASK",
+      "name": "TASK4",
+      "status": 6,
+      "runs": 1,
+      "waits": [
+        {
+          "object": "801474A8",
+          "name": "CMOD SEM",
+          "type": "SEMA",
+          "suspension": "8017F7B4"
+        }
+      ]
+    },
+    {
+      "address": "80184198",
+      "type": "TASK",
+      "name": "TASK5",
+      "status": 7,
+      "runs": 6,
+      "waits": [
+        {
+          "object": "80184164",
+          "name": "EVENT00",
+          "type": "EVNT",
+          "suspension": "80184074"
+        }
+      ]
+    },
+    {
+      "address": "801845B8",
+      "type": "TASK",
+      "name": "TASK6",
+      "status": 4,
+      "runs": 83,
+      "waits": [
+        {
+          "object": "80184250",
+          "name": "BlitReq",
+          "type": "QUEU",
+          "suspension": "80184520"
+        }
+      ]
+    },
+    {
+      "address": "801868BC",
+      "type": "TASK",
+      "name": "TASK7",
+      "status": 4,
+      "runs": 86,
+      "waits": [
+        {
+          "object": "80184670",
+          "name": "dmxmsgQ",
+          "type": "QUEU",
+          "suspension": "801867B8"
+        }
+      ]
+    },
+    {
+      "address": "801879B8",
+      "type": "TASK",
+      "name": "TASK8",
+      "status": 6,
+      "runs": 1187,
+      "waits": [
+        {
+          "object": "801705D0",
+          "name": "dmxExISR",
+          "type": "SEMA",
+          "suspension": "80187910"
+        }
+      ]
+    },
+    {
+      "address": "80188AB4",
+      "type": "TASK",
+      "name": "TASK9",
+      "status": 6,
+      "runs": 1,
+      "waits": [
+        {
+          "object": "80170608",
+          "name": "dmxExPES",
+          "type": "SEMA",
+          "suspension": "80188A0C"
+        }
+      ]
+    },
+    {
+      "address": "8018B090",
+      "type": "TASK",
+      "name": "TASK10",
+      "status": 7,
+      "runs": 6,
+      "waits": [
+        {
+          "object": "8018B05C",
+          "name": "EVENT00",
+          "type": "EVNT",
+          "suspension": "8018AF24"
+        }
+      ]
+    },
+    {
+      "address": "8018D18C",
+      "type": "TASK",
+      "name": "TASK11",
+      "status": 6,
+      "runs": 1,
+      "waits": [
+        {
+          "object": "80170838",
+          "name": "SEMA22",
+          "type": "SEMA",
+          "suspension": "8018D0BC"
+        }
+      ]
+    },
+    {
+      "address": "8018D7DC",
+      "type": "TASK",
+      "name": "TASK12",
+      "status": 6,
+      "runs": 8,
+      "waits": [
+        {
+          "object": "80170918",
+          "name": "ndsRunSy",
+          "type": "SEMA",
+          "suspension": "8018D780"
+        }
+      ]
+    },
+    {
+      "address": "8018E9EC",
+      "type": "TASK",
+      "name": "TASK13",
+      "status": 4,
+      "runs": 1,
+      "waits": [
+        {
+          "object": "8018D894",
+          "name": "NDSCASec",
+          "type": "QUEU",
+          "suspension": "8018E94C"
+        }
+      ]
+    },
+    {
+      "address": "801900E0",
+      "type": "TASK",
+      "name": "TASK14",
+      "status": 4,
+      "runs": 1,
+      "waits": [
+        {
+          "object": "8018EAA4",
+          "name": "taskexit",
+          "type": "QUEU",
+          "suspension": "80190004"
+        }
+      ]
+    },
+    {
+      "address": "801993FC",
+      "type": "TASK",
+      "name": "TASK15",
+      "status": 7,
+      "runs": 105,
+      "waits": [
+        {
+          "object": "801993C8",
+          "name": "EVENT00",
+          "type": "EVNT",
+          "suspension": "801992D0"
+        }
+      ]
+    },
+    {
+      "address": "801B4700",
+      "type": "TASK",
+      "name": "TASK16",
+      "status": 7,
+      "runs": 3,
+      "waits": [
+        {
+          "object": "801B46CC",
+          "name": "EVENT00",
+          "type": "EVNT",
+          "suspension": "801B45D4"
+        }
+      ]
+    },
+    {
+      "address": "801B6FFC",
+      "type": "TASK",
+      "name": "TASK17",
+      "status": 7,
+      "runs": 1,
+      "waits": [
+        {
+          "object": "801B6FC8",
+          "name": "EVENT00",
+          "type": "EVNT",
+          "suspension": "801B6ED8"
+        }
+      ]
+    },
+    {
+      "address": "801BC190",
+      "type": "TASK",
+      "name": "TASK18",
+      "status": 4,
+      "runs": 1,
+      "waits": [
+        {
+          "object": "801BA0E4",
+          "name": "ttxtmxq",
+          "type": "QUEU",
+          "suspension": "801BC0B4"
+        }
+      ]
+    },
+    {
+      "address": "801BEF04",
+      "type": "TASK",
+      "name": "TASK19",
+      "status": 4,
+      "runs": 1,
+      "waits": [
+        {
+          "object": "801BCE58",
+          "name": "subtmxq",
+          "type": "QUEU",
+          "suspension": "801BEE30"
+        }
+      ]
+    },
+    {
+      "address": "801C1800",
+      "type": "TASK",
+      "name": "TASK20",
+      "status": 7,
+      "runs": 3604,
+      "waits": [
+        {
+          "object": "801C17CC",
+          "name": "EVENT00",
+          "type": "EVNT",
+          "suspension": "801C16CC"
+        }
+      ]
+    },
+    {
+      "address": "801C54FC",
+      "type": "TASK",
+      "name": "TASK21",
+      "status": 7,
+      "runs": 1,
+      "waits": [
+        {
+          "object": "801C54C8",
+          "name": "EVENT00",
+          "type": "EVNT",
+          "suspension": "801C53D0"
+        }
+      ]
+    },
+    {
+      "address": "8012F218",
+      "type": "TASK",
+      "name": "ECM",
+      "status": 4,
+      "runs": 137,
+      "waits": [
+        {
+          "object": "801C55B4",
+          "name": "ECM",
+          "type": "QUEU",
+          "suspension": "80131210"
+        }
+      ]
+    },
+    {
+      "address": "80131320",
+      "type": "TASK",
+      "name": "EMM",
+      "status": 4,
+      "runs": 7,
+      "waits": [
+        {
+          "object": "801C5694",
+          "name": "EMM",
+          "type": "QUEU",
+          "suspension": "80133318"
+        }
+      ]
+    },
+    {
+      "address": "80133428",
+      "type": "TASK",
+      "name": "UTIL",
+      "status": 2,
+      "runs": 313,
+      "waits": []
+    },
+    {
+      "address": "80135530",
+      "type": "TASK",
+      "name": "CB",
+      "status": 4,
+      "runs": 4,
+      "waits": [
+        {
+          "object": "801C5854",
+          "name": "CB",
+          "type": "QUEU",
+          "suspension": "80137528"
+        }
+      ]
+    },
+    {
+      "address": "80137638",
+      "type": "TASK",
+      "name": "BG",
+      "status": 4,
+      "runs": 3,
+      "waits": [
+        {
+          "object": "801C5934",
+          "name": "BG",
+          "type": "QUEU",
+          "suspension": "80139630"
+        }
+      ]
+    },
+    {
+      "address": "801C7258",
+      "type": "TASK",
+      "name": "TASK22",
+      "status": 7,
+      "runs": 1,
+      "waits": [
+        {
+          "object": "801C7224",
+          "name": "EVENT00",
+          "type": "EVNT",
+          "suspension": "801C7124"
+        }
+      ]
+    },
+    {
+      "address": "801C8B54",
+      "type": "TASK",
+      "name": "TASK23",
+      "status": 7,
+      "runs": 1,
+      "waits": [
+        {
+          "object": "801C8B20",
+          "name": "EVENT00",
+          "type": "EVNT",
+          "suspension": "801C89F8"
+        }
+      ]
+    },
+    {
+      "address": "801CBC50",
+      "type": "TASK",
+      "name": "TASK24",
+      "status": 7,
+      "runs": 1976,
+      "waits": [
+        {
+          "object": "801CBC1C",
+          "name": "EVENT00",
+          "type": "EVNT",
+          "suspension": "801CBA6C"
+        }
+      ]
+    },
+    {
+      "address": "801CDE5C",
+      "type": "TASK",
+      "name": "TASK25",
+      "status": 7,
+      "runs": 1,
+      "waits": [
+        {
+          "object": "801CDE28",
+          "name": "EVENT00",
+          "type": "EVNT",
+          "suspension": "801CDD00"
+        }
+      ]
+    },
+    {
+      "address": "801D0758",
+      "type": "TASK",
+      "name": "TASK26",
+      "status": 7,
+      "runs": 1,
+      "waits": [
+        {
+          "object": "801D0724",
+          "name": "EVENT00",
+          "type": "EVNT",
+          "suspension": "801D0634"
+        }
+      ]
+    },
+    {
+      "address": "801D1854",
+      "type": "TASK",
+      "name": "TASK27",
+      "status": 7,
+      "runs": 3,
+      "waits": [
+        {
+          "object": "801D1820",
+          "name": "EVENT00",
+          "type": "EVNT",
+          "suspension": "801D16F8"
+        }
+      ]
+    },
+    {
+      "address": "801D2950",
+      "type": "TASK",
+      "name": "TASK28",
+      "status": 7,
+      "runs": 2,
+      "waits": [
+        {
+          "object": "801D291C",
+          "name": "EVENT00",
+          "type": "EVNT",
+          "suspension": "801D27EC"
+        }
+      ]
+    },
+    {
+      "address": "801D3A4C",
+      "type": "TASK",
+      "name": "TASK29",
+      "status": 7,
+      "runs": 1,
+      "waits": [
+        {
+          "object": "801D3A18",
+          "name": "EVENT00",
+          "type": "EVNT",
+          "suspension": "801D3918"
+        }
+      ]
+    },
+    {
+      "address": "801D5B48",
+      "type": "TASK",
+      "name": "TASK30",
+      "status": 7,
+      "runs": 6393,
+      "waits": [
+        {
+          "object": "801D5B14",
+          "name": "EVENT00",
+          "type": "EVNT",
+          "suspension": "801D510C"
+        }
+      ]
+    },
+    {
+      "address": "8017314C",
+      "type": "TASK",
+      "name": "TASK0",
+      "status": 7,
+      "runs": 6212,
+      "waits": [
+        {
+          "object": "80173118",
+          "name": "EVENT00",
+          "type": "EVNT",
+          "suspension": "80173028"
+        }
+      ]
+    },
+    {
+      "address": "8011E374",
+      "type": "TASK",
+      "name": "EVTTask",
+      "status": 6,
+      "runs": 17730,
+      "waits": [
+        {
+          "object": "8011E444",
+          "name": "EVTTick",
+          "type": "SEMA",
+          "suspension": "801737C8"
+        }
+      ]
+    },
+    {
+      "address": "80176068",
+      "type": "TASK",
+      "name": "TASK1",
+      "status": 7,
+      "runs": 25,
+      "waits": [
+        {
+          "object": "80176034",
+          "name": "EVENT00",
+          "type": "EVNT",
+          "suspension": "80175F34"
+        }
+      ]
+    },
+    {
+      "address": "8011B48C",
+      "type": "TASK",
+      "name": "SMNTask",
+      "status": 7,
+      "runs": 5839,
+      "waits": [
+        {
+          "object": "8011B650",
+          "name": "SMNEvts",
+          "type": "EVNT",
+          "suspension": "80176450"
+        }
+      ]
+    }
+  ]
+}

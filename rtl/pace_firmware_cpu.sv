@@ -13,7 +13,14 @@ module pace_firmware_cpu #(
     // the NEC VR4110 also caches KSEG0). 16 KiB, direct mapped, 16-byte
     // lines with a valid bit per 8-byte DDR word, so CACHE index/hit
     // operations address the same lines as the real primary I-cache.
-    parameter ICACHE=0
+    parameter ICACHE=0,
+    // WALL_COUNT=1: CP0 Count runs at its real 20.25 MHz MasterOut rate in
+    // wall time (81 per 200 core clocks), matching WALL_TIMER in the EMMA
+    // timer model. Overrides the per-retire Count of RETIRE_TIMING.
+    parameter WALL_COUNT=0,
+    // Simulation/diagnostic option: Count increments per retired instruction
+    // (0 = the 1-per-4 instruction-domain rate). Not used by the core build.
+    parameter [7:0] COUNT_PER_RETIRE=0
 ) (
     input  wire        clk,
     input  wire        reset,
@@ -86,6 +93,9 @@ module pace_firmware_cpu #(
     // the instruction-domain timebase (see pace_guide_peripherals).
     reg [1:0] count_prescale=0;
     wire count_step=count_prescale==2'd3;
+    reg [8:0] wall_count_acc=0;
+    wire [8:0] wall_count_sum=wall_count_acc+9'd81;
+    wire wall_count_step=wall_count_sum>=9'd200;
     wire [5:0] delay_opcode=instruction[31:26];
     wire timer_match=!RETIRE_TIMING && timer_armed && (cp0[9]+32'd1==cp0[11]);
     wire [31:0] cause_with_timer=(EXTERNAL_MMIO ? ((cp0[13]&32'hfffffbff)|(io_irq?32'h400:32'd0)) : cp0[13]) | (timer_match?32'h8000:32'd0);
@@ -250,7 +260,10 @@ module pace_firmware_cpu #(
             branch_to16 <= target_mode16;
             m16_extended <= 0;
             retired <= retired+1'd1;
-            if(RETIRE_TIMING)begin
+            if(RETIRE_TIMING && !WALL_COUNT && COUNT_PER_RETIRE!=0)begin
+                cp0[9]<=count_before_retire+{24'd0,COUNT_PER_RETIRE};
+                if(timer_armed && (cp0[11]-count_before_retire)!=0 && (cp0[11]-count_before_retire)<={24'd0,COUNT_PER_RETIRE})cp0[13][15]<=1;
+            end else if(RETIRE_TIMING && !WALL_COUNT)begin
                 count_prescale<=count_prescale+2'd1;
                 cp0[9]<=count_before_retire+{31'd0,count_step};
                 if(timer_armed && count_step && (cp0[11]-count_before_retire)==32'd1)cp0[13][15]<=1;
@@ -427,6 +440,13 @@ module pace_firmware_cpu #(
             // retirement and DDR stalls. Exact NEC master-clock ratio remains
             // unmeasured; 50 MHz is an explicit experimental approximation.
             if(!RETIRE_TIMING)cp0[9]<=cp0[9]+32'd1;
+            if(WALL_COUNT)begin
+                wall_count_acc<=wall_count_step ? wall_count_sum-9'd200 : wall_count_sum;
+                if(wall_count_step)begin
+                    cp0[9]<=cp0[9]+32'd1;
+                    if(timer_armed && cp0[9]+32'd1==cp0[11])cp0[13][15]<=1;
+                end
+            end
             if(EXTERNAL_MMIO)cp0[13][10]<=io_irq;
             if(timer_match)cp0[13][15]<=1;
             case(state)
@@ -512,7 +532,7 @@ module pace_firmware_cpu #(
                               mips16<=cp0[12][2] ? cp0[30][0] : cp0[14][0];
                               if(cp0[12][2])cp0[12][2]<=0;else cp0[12][1]<=0;
                               branch_pending<=0;delay_slot<=0;retired<=retired+1'd1;state<=RETIRE_TIMING?S_BOUNDARY:S_FETCH;
-                              if(RETIRE_TIMING)begin
+                              if(RETIRE_TIMING && !WALL_COUNT)begin
                                   count_prescale<=count_prescale+2'd1;
                                   cp0[9]<=cp0[9]+{31'd0,count_step};
                                   if(timer_armed && count_step && (cp0[11]-cp0[9])==32'd1)cp0[13][15]<=1;

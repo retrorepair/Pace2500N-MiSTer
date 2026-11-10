@@ -1,0 +1,13 @@
+PROGRESS RET  225000000 GPU         23 SECTIONS         48 NVRAM_READS           0 FAVOURITES_FETCHES           0 MAIN_LOOP_FETCHES           6
+PROGRESS RET  250000000 GPU         23 SECTIONS         93 NVRAM_READS           0 FAVOURITES_FETCHES           0 MAIN_LOOP_FETCHES           7
+PROGRESS RET  275000000 GPU         23 SECTIONS        138 NVRAM_READS           0 FAVOURITES_FETCHES           0 MAIN_LOOP_FETCHES           7
+PROGRESS RET  300000000 GPU         23 SECTIONS        183 NVRAM_READS           0 FAVOURITES_FETCHES           0 MAIN_LOOP_FETCHES           7
+PROGRESS RET  325000000 GPU         23 SECTIONS        228 NVRAM_READS           0 FAVOURITES_FETCHES           0 MAIN_LOOP_FETCHES          10
+PROGRESS RET  350000000 GPU         23 SECTIONS        273 NVRAM_READS           0 FAVOURITES_FETCHES           0 MAIN_LOOP_FETCHES          10
+PROGRESS RET  375000000 GPU         23 SECTIONS        318 NVRAM_READS           0 FAVOURITES_FETCHES           0 MAIN_LOOP_FETCHES          10
+PROGRESS RET  400000000 GPU         26 SECTIONS        363 NVRAM_READS          31 FAVOURITES_FETCHES           0 MAIN_LOOP_FETCHES          12
+PASS native firmware PC 800d35f0 RET  420000000 sections        472 ring reads       11284 acks         472
+- sim/tb_guide_transport.sv:213: Verilog $finish
+- S i m u l a t i o n   R e p o r t: Verilator 5.044 2026-01-01
+- Verilator: $finish at 13s; walltime 1685.759 s; speed 8.231 ms/s
+- Verilator: cpu 1616.172 s on 1 threads; alloced 0 MB

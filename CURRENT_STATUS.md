@@ -118,6 +118,28 @@ Open: the firmware reports "No satellite signal" (frontend state 7, flag
 80105C00=0) and then stops taking new TOTs, so its clock only advances at
 guest speed (~14x slower than real time). Next: the frontend lock model.
 
+**v054 (current hardware)**, `_Other/Pace2500N_V054.rbf`: real-time timers.
+EMMA timer at 81 MHz and CP0 Count at 20.25 MHz of wall time (exact
+accumulators; `WALL_TIMER`/`WALL_COUNT`), replacing the instruction-domain
+timebase now that the message-pool abort is known to be the smartcard bug.
+Sim: 183.1M clocks -> 366 ticks (exact). Timing core +2.521, video +4.677,
+HDMI +0.061, hold +0.252 ns. Key presses are all delivered.
+
+Listings populated on hardware (16:47 UTC): ALL CHANNELS grid with "Today
+4.30pm/5.00pm/5.30pm", LOCAL TEST ONE/TWO now and TEST ONE/TWO 17:00 next.
+Needed: titles for the current day on PID 0x30|(MJD&7) (launcher
+`Pace2500N_V054_Today.mgl`, broadcast-paced 8 s stream, tables every 4 s), and
+opening the Guide twice (first visit registers the subscription; matches the
+GoRetroTv notes). `Pace2500N_V054_2026-11-11.mgl` carries 11 Nov titles (PID
+0x33). Generator runs on MiSTer: games/Pace2500N_TS/broadcast/.
+
+Open: ~26 s after the frontend starts, frontend_publish_status(4) style
+traffic sends device-20 operation 14, which the device-20 dispatcher
+(80032D6C) maps to the stop API 8002F474 -> command 5. The firmware clock then
+freezes (TOT still consumed). Command 4 (start) poster 8002FD8C, command 5
+poster 8002FD68, request enqueue 800284D8. Not yet traced: the first sender
+of operation 14. Paused at user request in favour of video playback.
+
 ## Session 3 (9 Nov, evening) - investigation only, stopped early at user request
 
 No RTL, ROM, MiSTer file or core was changed. Nothing was pushed to GitHub (no

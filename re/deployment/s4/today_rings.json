@@ -1,0 +1,200 @@
+{
+  "live_non_atomic_readback": true,
+  "memory_writes": false,
+  "circular_crc_scan_performed": true,
+  "ring_base_may_contain_wrapped_payload": true,
+  "transport_file": "/media/fat/games/Pace2500N_TS/guide_today.ts",
+  "bytes": 1000160,
+  "transport_ddr_sha256": "f4289f660bf0e81fe76770789c8f7bb6b46ce73582b3c114d729701e7a877035",
+  "rings": [
+    {
+      "channel": 20,
+      "first_table": "00",
+      "first_section_crc_valid": false,
+      "guest_isr_write_pointer": "0003DD3C",
+      "descriptor": [
+        "A07DC000",
+        "A07DEFFF",
+        "A07DC000",
+        "A07DDD3C",
+        "801AFC70"
+      ],
+      "descriptor_changed_from_checkpoint": true,
+      "complete_crc_valid_records": 268,
+      "record_samples": [
+        {
+          "offset": "000A",
+          "table": "C1",
+          "bytes": 12,
+          "extension": "0041"
+        },
+        {
+          "offset": "0017",
+          "table": "C1",
+          "bytes": 12,
+          "extension": "0042"
+        },
+        {
+          "offset": "0024",
+          "table": "C1",
+          "bytes": 12,
+          "extension": "0043"
+        }
+      ]
+    },
+    {
+      "channel": 21,
+      "first_table": "55",
+      "first_section_crc_valid": false,
+      "guest_isr_write_pointer": "00041711",
+      "descriptor": [
+        "A07DF000",
+        "A07E1FFF",
+        "A07DF000",
+        "A07E1711",
+        "801A7813"
+      ],
+      "descriptor_changed_from_checkpoint": true,
+      "complete_crc_valid_records": 68,
+      "record_samples": [
+        {
+          "offset": "0075",
+          "table": "A3",
+          "bytes": 182,
+          "extension": "0BB8"
+        },
+        {
+          "offset": "012C",
+          "table": "A2",
+          "bytes": 176,
+          "extension": "0BB9"
+        },
+        {
+          "offset": "01DD",
+          "table": "A3",
+          "bytes": 176,
+          "extension": "0BB9"
+        }
+      ]
+    },
+    {
+      "channel": 22,
+      "first_table": "73",
+      "first_section_crc_valid": true,
+      "guest_isr_write_pointer": "00042474",
+      "descriptor": [
+        "A07E2000",
+        "A07E4FFF",
+        "A07E2000",
+        "A07E2474",
+        "801A538C"
+      ],
+      "descriptor_changed_from_checkpoint": true,
+      "complete_crc_valid_records": 38,
+      "record_samples": [
+        {
+          "offset": "0000",
+          "table": "73",
+          "bytes": 29,
+          "extension": null
+        },
+        {
+          "offset": "001E",
+          "table": "73",
+          "bytes": 29,
+          "extension": null
+        },
+        {
+          "offset": "003C",
+          "table": "73",
+          "bytes": 29,
+          "extension": null
+        }
+      ]
+    },
+    {
+      "channel": 23,
+      "first_table": "42",
+      "first_section_crc_valid": true,
+      "guest_isr_write_pointer": "00046B54",
+      "descriptor": [
+        "A07E5000",
+        "A07E7FFF",
+        "A07E5000",
+        "A07E6B54",
+        "8019A415"
+      ],
+      "descriptor_changed_from_checkpoint": true,
+      "complete_crc_valid_records": 70,
+      "record_samples": [
+        {
+          "offset": "0000",
+          "table": "42",
+          "bytes": 109,
+          "extension": "0000"
+        },
+        {
+          "offset": "006E",
+          "table": "42",
+          "bytes": 109,
+          "extension": "0000"
+        },
+        {
+          "offset": "00DC",
+          "table": "42",
+          "bytes": 109,
+          "extension": "0000"
+        }
+      ]
+    },
+    {
+      "channel": 24,
+      "first_table": "40",
+      "first_section_crc_valid": true,
+      "guest_isr_write_pointer": "0004890E",
+      "descriptor": [
+        "A07E8000",
+        "A07EAFFF",
+        "A07E8000",
+        "A07E890E",
+        "80199B4C"
+      ],
+      "descriptor_changed_from_checkpoint": true,
+      "complete_crc_valid_records": 38,
+      "record_samples": [
+        {
+          "offset": "0000",
+          "table": "40",
+          "bytes": 60,
+          "extension": "0020"
+        },
+        {
+          "offset": "003D",
+          "table": "40",
+          "bytes": 60,
+          "extension": "0020"
+        },
+        {
+          "offset": "007A",
+          "table": "40",
+          "bytes": 60,
+          "extension": "0020"
+        }
+      ]
+    }
+  ],
+  "firmware_state": {
+    "frontend_state_800fcdc4": 0,
+    "frontend_flag_80105c00": 1,
+    "av_active_byte_80161d3c": 0,
+    "av_selection_80161d40": "FFFFFFFF",
+    "checkpoint_default_80054f84": "00000000",
+    "checkpoint_readiness_80430a28": 1
+  },
+  "decoded_text_locations": {
+    "LOCAL TEST ONE": [],
+    "LOCAL TEST TWO": [],
+    "NEXT TEST ONE": [],
+    "NEXT TEST TWO": []
+  }
+}

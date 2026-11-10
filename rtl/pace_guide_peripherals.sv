@@ -2,7 +2,13 @@
 // FPGA implementation of the disclosed software diagnostic's runtime profile.
 // Resume-only, no RF, diagnostic EEPROM/unknown-MMIO-zero/transport ACK policy.
 module pace_guide_peripherals #(
- parameter [31:0] TIMER_COUNTS_PER_INSTRUCTION=1
+ parameter [31:0] TIMER_COUNTS_PER_INSTRUCTION=1,
+ // WALL_TIMER=1: the EMMA timer counts at its real 81 MHz in wall time
+ // (exactly 81 counts per 50 core clocks). Guest timers, the firmware clock,
+ // key repeat and menu timeouts then run in real time; only the CPU itself is
+ // slower than the NEC part (a platform limit). WALL_TIMER=0 keeps the
+ // instruction-domain timebase (TIMER_COUNTS_PER_INSTRUCTION per retire).
+ parameter WALL_TIMER=1
 ) (
  input wire clk,reset,hold,
  input wire [31:0] retired,
@@ -27,6 +33,10 @@ module pace_guide_peripherals #(
  reg [31:0] last_retired=0;
  wire tick=retired!=last_retired;
  reg [31:0] timer_remaining=740656;
+ reg [7:0] wall_acc=0;
+ wire [7:0] wall_sum=wall_acc+8'd81;
+ wire [1:0] wall_step=wall_sum>=8'd100 ? 2'd2 : 2'd1;
+ wire [31:0] timer_step=WALL_TIMER ? {30'd0,wall_step} : (tick ? TIMER_COUNTS_PER_INSTRUCTION : 32'd0);
  reg timer_pending=0,gpu_pending=0;
  reg [13:0] clock_delay=0;
  reg clock_waiting=0;
@@ -104,7 +114,7 @@ module pace_guide_peripherals #(
    for(n=0;n<128;n=n+1)csr[n]<=seed[n];
    for(n=0;n<8;n=n+1)uart[n]<=0;
    uart[3]<=3;
-   last_retired<=retired;timer_remaining<=740656;timer_pending<=0;gpu_pending<=0;
+   last_retired<=retired;timer_remaining<=740656;timer_pending<=0;gpu_pending<=0;wall_acc<=0;
    clock_waiting<=0;serial_rx<=0;clock_delay<=0;tx_count<=0;tx_escape<=0;
    ack_pending<=0;key_write<=0;key_read<=0;wire_active<=0;wire_escape<=0;
    i2c_delay<=0;serial0_delay<=0;i2c_address_valid<=0;i2c_start<=0;
@@ -133,23 +143,21 @@ module pace_guide_peripherals #(
    if(ee_commit_count!=0)begin
     ee_commit_index<=ee_commit_index+1'b1;ee_commit_count<=ee_commit_count-1'b1;
    end
-   if(tick)begin
-    // Instruction-domain timebase (platform workaround, FPGA CPU speed).
-    // The NEC part runs ~81M instructions/s; this FPGA CPU retires ~2.5M/s,
-    // so guest time is defined by retired instructions, not wall clock.
+   // EMMA timer0 (see WALL_TIMER above).
+   if(WALL_TIMER)wall_acc<=wall_sum-(wall_step==2'd2 ? 8'd100 : 8'd50);
+   if(timer_step!=0)begin
     // Firmware evidence: EMMA timer reload 810000 and CP0 Compare reload
-    // 202500 (exactly 810000/4) are both the Nucleus tick, i.e. an 81 MHz
-    // timer clock (3 x 27 MHz) and 10 ms tick. NEC rates the uPD6103x CPU at
-    // 66-100 MIPS, so one timer count per retired instruction (81 MIPS) is
-    // used. The previous 32 counts/instruction gave the firmware ~25K
-    // instructions per tick instead of ~810K, starving its UI task.
+    // 202500 (= 810000/4) are the same 10 ms Nucleus tick, so the timer
+    // clock is 81 MHz (3 x 27 MHz) and CP0 Count runs at 20.25 MHz.
     if((regval(32'hb000d030)&1)!=0 && regval(32'hb000d050)!=0)begin
-      if(timer_remaining<=TIMER_COUNTS_PER_INSTRUCTION)begin
+      if(timer_remaining<=timer_step)begin
        timer_pending<=1;
-       if((regval(32'hb000d020)&1)!=0)timer_remaining<=regval(32'hb000d050)+timer_remaining-TIMER_COUNTS_PER_INSTRUCTION;
+       if((regval(32'hb000d020)&1)!=0)timer_remaining<=regval(32'hb000d050)+timer_remaining-timer_step;
        else begin timer_remaining<=0;csr[csr_index(32'hb000d030)]<=regval(32'hb000d030)&32'hfffffffe;end
-      end else timer_remaining<=timer_remaining-TIMER_COUNTS_PER_INSTRUCTION;
+      end else timer_remaining<=timer_remaining-timer_step;
     end
+   end
+   if(tick)begin
     if(clock_waiting)begin
      if(clock_delay>1)clock_delay<=clock_delay-1'b1;
      else begin

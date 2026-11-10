@@ -1,0 +1,143 @@
+
+// ===== 8002fd80 is inside function 8002fd68 body [[8002fd68, 8002fd8b]]
+
+void FUN_8002fd68(void)
+
+{
+  undefined4 uVar1;
+  
+  uVar1 = uRam8002fe44;
+  (*pcRam8002fe30)(uRam8002fe44,uRam8002fe34);
+  *puRam8002fe48 = 5;
+  (*pcRam8002fe40)(uVar1);
+                    /* WARNING: Treating indirect jump as return */
+  return;
+}
+
+
+
+// ===== 8002fd40 is inside function 8002fce8 body [[8002fce8, 8002fd43]]
+
+undefined4 FUN_8002fce8(uint *param_1)
+
+{
+  uint *puVar1;
+  undefined4 uVar2;
+  undefined4 in_zero;
+  uint uVar3;
+  uint uVar4;
+  
+  uVar2 = uRam8002fe2c;
+  (*pcRam8002fe30)(uRam8002fe2c,uRam8002fe34);
+  puVar1 = puRam8002fe04;
+  if ((((*param_1 < uRam8002fe38) || (uRam8002fe3c < *param_1)) || (param_1[1] < uRam8002fe38)) ||
+     (uRam8002fe3c < param_1[1])) {
+    in_zero = 1;
+  }
+  else {
+    uVar4 = param_1[1];
+    uVar3 = param_1[2];
+    *puRam8002fe04 = *param_1;
+    puVar1[1] = uVar4;
+    puVar1[2] = uVar3;
+  }
+  (*pcRam8002fe40)(uVar2);
+                    /* WARNING: Treating indirect jump as return */
+  return in_zero;
+}
+
+
+
+// 8002fd00 in already printed function 8002fce8
+
+// ===== 800f87c0 is inside function 800f8738 body [[800f8738, 800f8763] [800f880c, 800f880f]]
+
+void FUN_800f8738(int param_1)
+
+{
+  code *UNRECOVERED_JUMPTABLE;
+  
+  (*pcRam800f87d4)();
+  if (**(char **)(param_1 + 4) == '0') {
+    (*pcRam800f87d8)();
+  }
+  else {
+    (*pcRam800f8808)();
+  }
+                    /* WARNING: Could not recover jumptable at 0x800f880c. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+
+
+// 800f8780 in already printed function 800f8738
+
+// 800f8740 in already printed function 800f8738
+
+// ===== 800f8700 is inside function 800f8690 body [[800f8690, 800f8737]]
+
+void FUN_800f8690(undefined4 param_1,int param_2,undefined4 param_3,undefined4 param_4)
+
+{
+  code *pcVar1;
+  code *UNRECOVERED_JUMPTABLE;
+  undefined4 uStack_58;
+  undefined4 uStack_54;
+  undefined1 uStack_50;
+  undefined4 uStack_4c;
+  undefined4 uStack_48;
+  int iStack_44;
+  undefined1 uStack_3f;
+  undefined1 uStack_3e;
+  undefined4 uStack_38;
+  undefined4 uStack_34;
+  undefined4 uStack_30;
+  
+  pcVar1 = pcRam800f87f0;
+  if (*piRam800f87ec == 0) {
+    *piRam800f87ec = 1;
+    (*pcVar1)();
+    (*pcRam800f87f4)();
+  }
+  uStack_58 = 2;
+  uStack_54 = param_1;
+  uStack_50 = (*pcRam800f87f8)(param_2);
+  iStack_44 = param_2 / 1000;
+  uStack_48 = 2;
+  uStack_4c._3_1_ = (undefined1)param_3;
+  uStack_3e = (undefined1)uStack_4c;
+  uStack_34 = 1;
+  uStack_30 = 1;
+  uStack_4c = param_3;
+  uStack_3f = uStack_50;
+  uStack_38 = param_4;
+  (*pcRam800f87fc)(&uStack_58);
+  (*pcRam800f8800)(10);
+  uStack_58 = 1;
+  (*pcRam800f87fc)(&uStack_58);
+  (*pcRam800f8800)(0x32);
+  (*pcRam800f8804)();
+                    /* WARNING: Could not recover jumptable at 0x800f8734. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+
+
+// ===== 8002fa40 is inside function 8002fa3c body [[8002fa3c, 8002fa51]]
+
+void FUN_8002fa3c(void)
+
+{
+  undefined4 auStack_58 [21];
+  
+  auStack_58[0] = *puRam8002fa80;
+  (*pcRam8002fa84)(auStack_58);
+                    /* WARNING: Treating indirect jump as return */
+  return;
+}
+
+

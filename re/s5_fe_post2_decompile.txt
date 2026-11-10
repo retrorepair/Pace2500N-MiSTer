@@ -1,0 +1,86 @@
+
+// ===== 80028430 is inside function 80028428 body [[80028428, 800284d7]]
+
+void FUN_80028428(void)
+
+{
+  undefined4 uVar1;
+  undefined4 uVar2;
+  undefined4 in_zero;
+  uint uVar3;
+  uint uVar4;
+  uint uVar5;
+  code *UNRECOVERED_JUMPTABLE;
+  undefined1 auStack_14 [4];
+  undefined4 uStack_10;
+  
+  uVar2 = uRam8002874c;
+  uVar1 = uRam80028748;
+  if (*pcRam80028740 == '\0') {
+    *pcRam80028740 = '\x01';
+    (*pcRam80028750)(uVar2,uVar1);
+    uStack_10 = uRam80028758;
+    (*pcRam80028750)(uRam80028758,uRam80028754,in_zero,6);
+    uVar3 = (*pcRam80028750)(uRam8002875c,uRam80028760,in_zero,6);
+    uVar4 = (*pcRam80028750)(uRam80028764,uRam80028768,1,6);
+    uVar5 = (*pcRam80028770)(*puRam8002876c,auStack_14,0x2000,in_zero);
+    uVar5 = uVar3 | uVar4 | uVar5;
+    if (uVar5 == 0) {
+      uVar5 = (*pcRam80028780)(uRam80028778,uRam8002877c,uRam80028774,in_zero);
+    }
+    if (uVar5 == 0) {
+      (*pcRam80028784)(uStack_10,uRam80028744);
+      (*pcRam80028788)(uStack_10);
+    }
+  }
+                    /* WARNING: Could not recover jumptable at 0x800284d4. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+
+
+// ===== 800284f0 is inside function 800284d8 body [[800284d8, 8002852d]]
+
+void FUN_800284d8(undefined1 *param_1)
+
+{
+  undefined1 uVar1;
+  undefined4 uVar2;
+  undefined4 *puVar3;
+  undefined4 *puVar4;
+  undefined4 uVar5;
+  undefined1 *puVar6;
+  code *UNRECOVERED_JUMPTABLE;
+  undefined4 auStack_58 [20];
+  undefined4 uStack_8;
+  
+  uVar2 = uRam80028764;
+  puVar3 = auStack_58;
+  puVar6 = param_1 + 0x50;
+  do {
+    uVar1 = *param_1;
+    param_1 = param_1 + 1;
+    *(undefined1 *)puVar3 = uVar1;
+    puVar3 = (undefined4 *)((int)puVar3 + 1);
+  } while (puVar6 != param_1);
+  (*pcRam80028784)(uRam80028764,uRam80028744);
+  puVar4 = auStack_58;
+  puVar3 = puRam8002878c;
+  do {
+    uVar5 = *puVar4;
+    puVar4 = puVar4 + 1;
+    *puVar3 = uVar5;
+    puVar3 = puVar3 + 1;
+  } while (&uStack_8 != puVar4);
+  *puRam80028790 = *puRam8002878c;
+  (*pcRam80028794)(uVar2);
+  (*pcRam80028794)(uRam8002874c);
+                    /* WARNING: Could not recover jumptable at 0x8002852a. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+

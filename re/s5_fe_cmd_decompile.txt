@@ -1,0 +1,102 @@
+
+// ===== 80028d00 is inside function 80028d00 body [[80028d00, 80028d35]]
+
+void FUN_80028d00(void)
+
+{
+  int *piVar1;
+  undefined4 uVar2;
+  code *pcVar3;
+  int in_zero;
+  code *UNRECOVERED_JUMPTABLE;
+  
+  uVar2 = uRam80028db8;
+  piVar1 = piRam80028db4;
+  if (*piRam80028db4 != 0) {
+    (*pcRam80028d94)(uRam80028db8,uRam80028dbc);
+    pcVar3 = pcRam80028dc0;
+    piVar1[1] = *piVar1;
+    *piVar1 = in_zero;
+    (*pcVar3)(uVar2);
+  }
+                    /* WARNING: Could not recover jumptable at 0x80028d32. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+
+
+// ===== 80028d38 is inside function 80028d38 body [[80028d38, 80028d59]]
+
+void FUN_80028d38(undefined1 param_1)
+
+{
+  undefined4 uVar1;
+  
+  uVar1 = (*pcRam80028dc4)();
+  (*pcRam80028dc8)(uVar1,param_1);
+                    /* WARNING: Treating indirect jump as return */
+  return;
+}
+
+
+
+// ===== 80028d5c is inside function 80028d5c body [[80028d5c, 80028d73]]
+
+void FUN_80028d5c(void)
+
+{
+  code *UNRECOVERED_JUMPTABLE;
+  
+  if (*pcRam80028dcc != '\x01') {
+    (*pcRam80028dd0)();
+  }
+                    /* WARNING: Could not recover jumptable at 0x80028d70. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+
+
+// ===== 80032d0c is inside function 80032d0c body [[80032d0c, 80032d6b]]
+
+void frontend_publish_status(ushort param_1)
+
+{
+  char in_zero;
+  int iVar1;
+  code *UNRECOVERED_JUMPTABLE;
+  
+  if (*pcRam80032ec0 == '\x01') goto LAB_80032d66;
+  iVar1 = iRam80032ec4;
+  if (param_1 != 0) {
+    if (param_1 < 4) {
+LAB_80032d36:
+      iVar1 = 0xd;
+    }
+    else if (param_1 == 4) {
+      iVar1 = 0xe;
+    }
+    else if (param_1 < 6) {
+      iVar1 = 0xf;
+    }
+    else if (param_1 == 6) goto LAB_80032d36;
+  }
+  if (iVar1 != iRam80032ec4) {
+    if ((*pcRam80032ec8 == '\x01') && (iVar1 == 0xf)) {
+      *pcRam80032ec8 = in_zero;
+    }
+    else {
+      (*pcRam80032ecc)(*puRam80032ebc);
+    }
+  }
+LAB_80032d66:
+                    /* WARNING: Could not recover jumptable at 0x80032d68. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+

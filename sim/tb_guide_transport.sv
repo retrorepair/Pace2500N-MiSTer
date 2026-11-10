@@ -1,3 +1,12 @@
+`ifndef TB_WALL
+`define TB_WALL 1
+`endif
+`ifndef TB_TIMER_PER_RETIRE
+`define TB_TIMER_PER_RETIRE 1
+`endif
+`ifndef TB_COUNT_PER_RETIRE
+`define TB_COUNT_PER_RETIRE 0
+`endif
 `ifndef TB_ICACHE
 `define TB_ICACHE 1
 `endif
@@ -35,13 +44,13 @@ module tb_guide_transport;
  assign da=bus_req && owner==2 && !pending;
  assign ta=bus_req && owner==3 && !pending;
  assign cv=response && response_owner==0;assign gv=response && response_owner==1;assign tv=response && response_owner==3;
- pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1),.ICACHE(`TB_ICACHE)) cpu(
+ pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1),.WALL_COUNT(`TB_WALL),.COUNT_PER_RETIRE(`TB_COUNT_PER_RETIRE),.ICACHE(`TB_ICACHE)) cpu(
   .clk(clk),.reset(reset),.full_flash_loaded(1'b1),.mmio_policy(2'd1),
   .checkpoint_hold(hold),.checkpoint_wr(restore_wr),.checkpoint_index(restore_index),.checkpoint_data(restore_data),
   .io_req(iq),.io_we(iw),.io_addr(ia),.io_wdata(id),.io_size(iz),.io_rdata(ir),.io_ready(irdy),.io_irq(irq),
   .mem_req(cq),.mem_we(cw),.mem_addr(cad),.mem_wdata(cwd),.mem_be(cbe),.mem_accept(ca),.mem_rvalid(cv),.mem_rdata(returned),
   .pc(pc),.retired(retired),.halt_code(cpu_halt));
- pace_guide_peripherals devices(.clk(clk),.reset(reset),.hold(hold),.retired(retired),
+ pace_guide_peripherals #(.WALL_TIMER(`TB_WALL),.TIMER_COUNTS_PER_INSTRUCTION(`TB_TIMER_PER_RETIRE)) devices(.clk(clk),.reset(reset),.hold(hold),.retired(retired),
   .io_req(device_req && !selected),.io_we(iw),.io_addr(ia),.io_wdata(id),.io_size(iz),.io_rdata(pir),.io_ready(prdy),.io_irq(irq),
   .key_valid(key_valid),.key_pressed(1'b1),.key_code(key),.gpu_start(gpu_start),.gpu_descriptor(gpu_descriptor),
   .osd_root(osd_root),.gpu_done(gpu_done),.transport_irq(demux_irq),.transport_lock(ts_packets>=3),.model_halt(model_halt));
@@ -61,7 +70,7 @@ module tb_guide_transport;
  reg[31:0] inject3_at=0,key3_arg=0,inject4_at=0,key4_arg=0;
  integer ring_reads=0,demux_acks=0,trace,decoded=0,title_callbacks=0,row_callbacks=0,title_decodes=0;
  integer nvram_reads=0,favourites_fetches=0,application_loop_fetches=0;
- integer event8_messages=0,k;reg [63:0] cycles=0;integer race_writes=0,hazard_writes=0,cache_ops=0;reg [31:0] hazard_row=0;reg ca_trace=0,io_trace=0,gpu_trace=0;reg [31:0] sp_lo=0,sp_hi=0,watch_addr=0;reg [19:0] io_page=20'hb2006;reg [31:0] stack_value;
+ integer event8_messages=0,k;reg [63:0] cycles=0;integer race_writes=0,hazard_writes=0,cache_ops=0;reg [31:0] hazard_row=0;reg ca_trace=0,io_trace=0,gpu_trace=0,fe_trace=0;reg [31:0] sp_lo=0,sp_hi=0,watch_addr=0;reg [19:0] io_page=20'hb2006;reg [31:0] stack_value;
  reg [31:0] next_progress=225000000;
  reg [31:0] previous_pc=0;string ts_hex="re/transport/diagnostic64.hex",out_prefix="re/transport/native";
  function automatic [31:0] guest_word(input [31:0] address);
@@ -92,6 +101,15 @@ module tb_guide_transport;
      end
      $fdisplay(trace,"");
     end
+   end
+   if(fe_trace)begin
+    if(pc==32'h80032d0c)$fdisplay(trace,"FE_PUBLISH RET %d status %h RA %h",retired,cpu.gpr[4],cpu.gpr[31]);
+    if(pc==32'h80032d6c)$fdisplay(trace,"DEV20_CB RET %d op %h arg %h flags %h RA %h",retired,cpu.gpr[4],cpu.gpr[5],cpu.gpr[6],cpu.gpr[31]);
+    if(pc==32'h8002f474)$fdisplay(trace,"FE_STOP_API RET %d RA %h",retired,cpu.gpr[31]);
+    if(pc==32'h8002f44c)$fdisplay(trace,"FE_START_API RET %d RA %h",retired,cpu.gpr[31]);
+    if(pc==32'h8007e6d8)$fdisplay(trace,"DEV_SEND RET %d res %h a1 %h a2 %h a3 %h RA %h",retired,cpu.gpr[4],cpu.gpr[5],cpu.gpr[6],cpu.gpr[7],cpu.gpr[31]);
+    if(pc==32'h800284d8)$fdisplay(trace,"FE_POST RET %d cmd %h RA %h",retired,guest_word(cpu.gpr[4]),cpu.gpr[31]);
+    if(pc==32'h80028530)$fdisplay(trace,"FE_TASK_START RET %d",retired);
    end
    if(pc==32'h8001ecf8)begin
     $fdisplay(trace,"APPLICATION_ABORT RET %d CODE %h RA %h SP %h",retired,cpu.gpr[4],cpu.gpr[31],cpu.gpr[29]);
@@ -182,7 +200,7 @@ module tb_guide_transport;
   if($value$plusargs("KEY3_AT=%d",inject3_at))begin end
   if($value$plusargs("KEY4=%h",key4_arg))begin end
   if($value$plusargs("KEY4_AT=%d",inject4_at))begin end
-  disable_ts=$test$plusargs("NO_TS");ca_trace=$test$plusargs("CATRACE");io_trace=$test$plusargs("IOTRACE");gpu_trace=$test$plusargs("GPUTRACE");if($value$plusargs("SPLO=%h",sp_lo))begin end if($value$plusargs("SPHI=%h",sp_hi))begin end if($value$plusargs("WATCH=%h",watch_addr))begin end if($value$plusargs("IOPAGE=%h",io_page))begin end
+  disable_ts=$test$plusargs("NO_TS");ca_trace=$test$plusargs("CATRACE");io_trace=$test$plusargs("IOTRACE");gpu_trace=$test$plusargs("GPUTRACE");fe_trace=$test$plusargs("FETRACE");if($value$plusargs("SPLO=%h",sp_lo))begin end if($value$plusargs("SPHI=%h",sp_hi))begin end if($value$plusargs("WATCH=%h",watch_addr))begin end if($value$plusargs("IOPAGE=%h",io_page))begin end
   $readmemh("re/fpga_guide_checkpoint/ram64.hex",ram);
   $readmemh("re/fpga_guide_checkpoint/flash64.hex",flash);
   $readmemh("rom/checkpoint_cpu.hex",state_words);

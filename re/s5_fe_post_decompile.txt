@@ -1,0 +1,49 @@
+
+// ===== 8002fe20 is inside function 8002fddc body [[8002fddc, 8002fdef] [8002fe50, 8002fe7b]]
+
+void FUN_8002fddc(void)
+
+{
+  int in_zero;
+  undefined4 *puVar1;
+  undefined4 *puVar2;
+  undefined4 uVar3;
+  undefined4 auStack_48 [17];
+  
+  puVar1 = auStack_48;
+  puVar2 = puRam8002fe4c;
+  do {
+    uVar3 = *puVar2;
+    puVar2 = puVar2 + 1;
+    *puVar1 = uVar3;
+    puVar1 = puVar1 + 1;
+  } while (puRam8002fe4c + 0x10 != puVar2);
+  (*pcRam8002fe7c)(0x10);
+  do {
+    (*pcRam8002fe80)(auStack_48[in_zero],in_zero);
+    in_zero = in_zero + 1;
+  } while (in_zero < 0x10);
+                    /* WARNING: Treating indirect jump as return */
+  return;
+}
+
+
+
+// 8002fde0 in already printed function 8002fddc
+
+// ===== 8002fda0 is inside function 8002fd8c body [[8002fd8c, 8002fdaf]]
+
+void FUN_8002fd8c(void)
+
+{
+  undefined4 uVar1;
+  
+  uVar1 = uRam8002fe44;
+  (*pcRam8002fe30)(uRam8002fe44,uRam8002fe34);
+  *puRam8002fe48 = 4;
+  (*pcRam8002fe40)(uVar1);
+                    /* WARNING: Treating indirect jump as return */
+  return;
+}
+
+
