@@ -2,6 +2,6 @@
   <rbf>_Other/Pace2500N_V056</rbf>
   <file delay="1" type="f" index="0" path="/media/fat/games/Pace2500N/FLASH_U202.bin"/>
   <file delay="1" type="f" index="1" path="/media/fat/games/Pace2500N_GUIDE/RAM.bin"/>
-  <file delay="1" type="f" index="3" path="/media/fat/games/Pace2500N_TS/guide_server_tonight.ts"/>
+  <file delay="1" type="f" index="3" path="/media/fat/games/Pace2500N_TS/guide_server_es.ts"/>
   <file delay="1" type="f" index="2" path="/media/fat/games/Pace2500N_GUIDE/STATE.bin"/>
 </mistergamedescription>

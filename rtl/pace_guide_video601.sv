@@ -21,12 +21,17 @@ module pace_guide_video601 (
  input wire [9:0] x,y,
  input wire ce,visible,hs,vs,field,
  output reg out_ce=0,out_visible=0,out_hs=1,out_vs=1,out_field=0,
- output reg [23:0] rgb=0
+ output reg [23:0] rgb=0,
+ // 1 = no OSD pixel here: CLUT entry 0x0000 (the value the firmware uses for
+ // its cleared plane in live viewing), or no OSD line available.
+ output reg key=1
 );
  localparam IDLE=0,REQUEST=1,WAIT_DATA=2,PALETTE_WRITE=3;
  // ---------------- shared memories (write clk, read vclk) ----------------
  (* ramstyle="M10K" *) reg [63:0] line_ram[0:179];
  (* ramstyle="M10K" *) reg [95:0] palette_ram[0:63];  // 4 x RGB888 per word
+ reg [3:0] key_ram[0:63];                               // 4 x transparent flag per word
+ reg [3:0] key_q=0;
  // ---------------- video domain ----------------
  reg [1:0] vreset_s=2'b11;
  wire vreset=vreset_s[1];
@@ -53,8 +58,8 @@ module pace_guide_video601 (
   // Pipeline: line RAM -> palette RAM -> RGB, controls delayed to match.
   line_q<=line_ram[line_word];lane_q<=x[2:0];show1<=vpal_s[1] && line_ok;
   ctrl1<={ce,visible,hs,vs,field};
-  pal_q<=palette_ram[pixel_index[7:2]];sel2<=pixel_index[1:0];show2<=show1;ctrl2<=ctrl1;
-  rgb<=show2?pal_q[sel2*24+:24]:24'd0;
+  pal_q<=palette_ram[pixel_index[7:2]];key_q<=key_ram[pixel_index[7:2]];sel2<=pixel_index[1:0];show2<=show1;ctrl2<=ctrl1;
+  rgb<=show2?pal_q[sel2*24+:24]:24'd0;key<=show2 ? key_q[sel2] : 1'b1;
   {out_ce,out_visible,out_hs,out_vs,out_field}<=ctrl2;
   if(vreset)begin
    vlast_field<=field;vready<=0;
@@ -97,10 +102,10 @@ module pace_guide_video601 (
  wire [31:0] line_address=(fetch_line[0]?{8'd0,odd_base}:{8'd0,even_base})+(fetch_line>>1)*720;
  // Memory write ports (core clock).
  reg line_we=0,palette_we=0;reg [7:0] line_waddr=0;reg [63:0] line_wdata=0;
- reg [5:0] palette_waddr=0;reg [95:0] palette_wdata=0;
+ reg [5:0] palette_waddr=0;reg [95:0] palette_wdata=0;reg [3:0] key_wdata=0;
  always @(posedge clk)begin
   if(line_we)line_ram[line_waddr]<=line_wdata;
-  if(palette_we)palette_ram[palette_waddr]<=palette_wdata;
+  if(palette_we)begin palette_ram[palette_waddr]<=palette_wdata;key_ram[palette_waddr]<=key_wdata;end
  end
  always @(posedge clk)begin
   req_s<={req_s[1:0],vreq_toggle};field_s<={field_s[1:0],vfield_toggle};under_s<={under_s[1:0],vunder_toggle};
@@ -164,6 +169,7 @@ module pace_guide_video601 (
      palette_we<=1;palette_waddr<=read_index[5:0];
      palette_wdata<={colour(palette_high[15:0]),colour(palette_high[31:16]),
                      colour(palette_low[15:0]),colour(palette_low[31:16])};
+     key_wdata<={palette_high[15:0]==0,palette_high[31:16]==0,palette_low[15:0]==0,palette_low[31:16]==0};
      if(read_index==63)begin palette_valid<=1;phase<=3;fetch_line<=requested_line;line_pending<=0;read_index<=0;state<=REQUEST;end
      else begin read_index<=read_index+1'b1;state<=REQUEST;end
     end

@@ -9,9 +9,19 @@
 // 1,250 half-lines per 25 Hz frame; odd/even fields separated by 625
 // half-lines. Equalising/serration pulses remain simplified, as in
 // pace_pal576i.
-module pace_pal576i601 (
+module pace_pal576i601 #(
+    // Raster position loaded by `sync` (see below).
+    parameter [8:0] SYNC_X=9'd0,
+    parameter [1:0] SYNC_PHASE=2'd0
+) (
     input  wire        clk,
     input  wire        reset,
+    // Lock to an external 625-line source (the MPEG decoder's raster, same
+    // clock family and line/field structure): `sync` marks the first active
+    // sample of a field (sync_field 0 = top). The counters jump there once;
+    // while the source keeps time the reload is a no-op.
+    input  wire        sync,
+    input  wire        sync_field,
     output wire        ce_pixel,
     output wire [9:0]  x,
     output wire [9:0]  y,
@@ -21,12 +31,13 @@ module pace_pal576i601 (
     output wire        field
 );
     reg [1:0] divider=0;
-    always @(posedge clk) divider <= divider+2'd1;
+    always @(posedge clk) divider <= sync ? SYNC_PHASE : divider+2'd1;
     assign ce_pixel=(divider==2'd3);
     reg [8:0] half_x=0;        // 0..431, half-line sample counter
     reg [10:0] half_line=0;    // 0..1249, entire interlaced frame
     always @(posedge clk) begin
         if(reset)begin half_x<=0;half_line<=0;end
+        else if(sync)begin half_x<=SYNC_X;half_line<=sync_field ? 11'd666 : 11'd40;end
         else if(ce_pixel)begin
             if(half_x==9'd431)begin
                 half_x<=0;

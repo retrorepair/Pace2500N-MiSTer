@@ -1,0 +1,322 @@
+/* 
+ * resample.v
+ * 
+ * Copyright (c) 2007 Koen De Vleeschauwer. 
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND 
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE 
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+ * SUCH DAMAGE.
+ */
+
+/*
+ * resample - Main chroma resampling module. Synchronizes resampling and motion compensation.
+ */
+
+`include "timescale.v"
+
+`undef DEBUG
+//`define DEBUG 1
+
+`undef CHECK
+`ifdef __IVERILOG__
+`define CHECK 1
+`endif
+
+module resample(
+  clk, rst, 
+  output_frame, output_frame_valid, output_frame_rd,
+  progressive_sequence, progressive_frame, top_field_first, repeat_first_field, mb_width, mb_height, horizontal_size, vertical_size, resample_wr_overflow,
+  informative,                    // DVD-FORK (film evidence gate): this displayed picture carried real evidence
+  output_pts, output_pts_valid, output_pts_2nd,     // DVD-FORK (PTS association): the picture's PTS tag (through to addrgen)
+  pickup_tick,                                      // DVD-FORK (PTS scheduling): one pulse per pickup, to disp_sched
+  sched_due, sched_next_due,                        // DVD-FORK (PTS scheduling): from disp_sched
+  disp_wr_addr_full, disp_wr_addr_almost_full, disp_wr_addr_en, disp_wr_addr_ack, disp_wr_addr, disp_rd_dta_empty, disp_rd_dta_en, disp_rd_dta_valid, disp_rd_dta,
+  pixel_wr_almost_full, interlaced, deinterlace, persistence, repeat_frame,
+  y, u, v, osd_out, position_out, pixel_wr_en,
+  frame_late,                                       // DVD-FORK (frame-drop governor O[19])
+  pickup_cnt,                                       // DVD-FORK (telemetry): frames picked up for display
+  video_live,                                       // DVD-FORK (av_sync STC reference)
+  pickup_hold,                                      // DVD-FORK (STD mux-lead hold)
+  pause,                                            // DVD-FORK (gamepad transport): freeze frame while paused
+  step_req,                                         // DVD-FORK (frame step B18): advance exactly one picture while paused
+  film_det_ntsc, film_det_pal,                      // DVD-FORK (Film 24p auto-detect)
+  raster_par_err,                                   // DVD-FORK (field-parity corrector): mixer frame-top parity mismatch (synced level)
+  par_heal,                                         // DVD-FORK (field start telemetry): one pulse per feedback insertion
+  vscale_mode,                                      // DVD-FORK (CRT anamorphic vertical scaler)
+  hcrop_en,                                        // DVD-FORK (CRT anamorphic horizontal crop)
+  still_en, scan_start, scan_half,                 // DVD-FORK (pause field still): see dvd/resample_addrgen.v
+  blend_en, scan_blend,                            // DVD-FORK (field blend): see dvd/resample_addrgen.v
+  bob_en, scan_bob, scan_bob_bot                   // DVD-FORK (progressive bob): see dvd/resample_addrgen.v
+  );
+
+  input              clk;                      // clock
+  input              rst;                      // synchronous active low reset
+
+  input        [2:0]output_frame;              // frame to be displayed
+  input             output_frame_valid;        // asserted when output_frame valid
+  output            output_frame_rd;           // assert for next output frame
+
+  input             progressive_sequence;
+  input             progressive_frame;
+  input             informative;  // DVD-FORK (film evidence gate)
+  input       [32:0]output_pts;       // DVD-FORK (PTS association): tag of the picture at picbuf's output
+  input             output_pts_valid;
+  input             output_pts_2nd;
+  input             sched_due;        // DVD-FORK (PTS scheduling): the waiting picture is due
+  input             sched_next_due;   // DVD-FORK (PTS scheduling): the timeline has passed the next picture
+  input             top_field_first;
+  input             repeat_first_field;
+  input        [7:0]mb_width;                  // par. 6.3.3. width of the encoded luminance component of pictures in macroblocks
+  input        [7:0]mb_height;                 // par. 6.3.3. height of the encoded luminance component of frame pictures in macroblocks
+  input       [13:0]horizontal_size;           // par. 6.2.2.1, par. 6.3.3 
+  input       [13:0]vertical_size;             // par. 6.2.2.1, par. 6.3.3
+
+  /* reading reconstructed frame */
+  /* reading reconstructed frame: writing address */
+  input            disp_wr_addr_full;
+  input            disp_wr_addr_almost_full;
+  output           disp_wr_addr_en;
+  input            disp_wr_addr_ack;
+  output     [21:0]disp_wr_addr;
+  /* reading reconstructed frame: reading data */
+  input            disp_rd_dta_empty;
+  output           disp_rd_dta_en;
+  input            disp_rd_dta_valid;
+  input      [63:0]disp_rd_dta;
+
+  input            interlaced;                // asserted if display modeline is interlaced
+  input            deinterlace;               // asserted if video has to be deinterlaced
+  input            persistence;               // asserted if last shown image persists
+  input       [4:0]repeat_frame;
+
+  input              pixel_wr_almost_full;
+  output        [7:0]y;
+  output        [7:0]u;
+  output        [7:0]v;
+  output        [7:0]osd_out;
+  output        [2:0]position_out;
+  output             pixel_wr_en;
+  output             frame_late;                 // DVD-FORK (frame-drop governor O[19]): decode deadline-miss pulse
+  /* DVD-FORK (telemetry): free-running count of frames picked up for display,
+   * passed straight through from resample_addrgen. See dvd/dvd_telem.sv. */
+  output    [15:0] pickup_cnt;
+  output             video_live;                 // DVD-FORK (av_sync STC reference): sticky "first frame displayed"
+  input              pickup_hold;                 // DVD-FORK (STD mux-lead hold): defer the FIRST display pickup
+  input              pause;                        // DVD-FORK (gamepad transport): freeze the displayed frame while paused
+  input              step_req;                     // DVD-FORK (frame step B18): one-cycle request, clk_dec
+  output             pickup_tick;                 // DVD-FORK (PTS scheduling): one pulse per pickup, to disp_sched
+  output             film_det_ntsc;               // DVD-FORK (Film 24p auto-detect): sustained 3:2 telecine verdict (NTSC 24p)
+  output             film_det_pal;                // DVD-FORK (Film 24p auto-detect): sustained progressive verdict (PAL 25p)
+  input              raster_par_err;              // DVD-FORK (field-parity corrector): mixer frame-top parity mismatch (2-FF synced level)
+  output             par_heal;                    // DVD-FORK (field start telemetry): one pulse per feedback insertion (resample_addrgen)
+  input        [1:0] vscale_mode;                 // DVD-FORK (CRT anamorphic vscale): 0=fit 1=letterbox
+  input              hcrop_en;                    // DVD-FORK (CRT anamorphic horizontal crop / pan-scan)
+  input              still_en;                    // DVD-FORK (pause field still): 1 = may engage
+  output             scan_start;                  // DVD-FORK (pause field still): one pulse per frame-top scan
+  output             scan_half;                   // DVD-FORK (pause field still): that scan is the interpolated slot
+  input              blend_en;                    // DVD-FORK (field blend): the feature is on
+  output             scan_blend;                  // DVD-FORK (field blend): that scan is a filtered scan (H+1 lines), blend OR bob
+  input              bob_en;                      // DVD-FORK (progressive bob): the feature is on
+  output             scan_bob;                    // DVD-FORK (progressive bob): that scan uses the bob kernel
+  output             scan_bob_bot;                // DVD-FORK (progressive bob): ... and keeps the BOTTOM field
+
+  /* resample fifo */
+  wire          [9:0]resample_wr_dta;                 // DVD-FORK FIX (F2): position code + chroma reuse flags
+  wire               resample_wr_en;
+  output             resample_wr_overflow;           // to probe
+  wire               resample_wr_almost_full;
+  wire          [9:0]resample_rd_dta;
+  wire               resample_rd_en;
+  wire               resample_rd_valid;
+
+  wire               resample_addr_busy;
+
+  wire         [12:0]mb_width_ext = {5'b0, mb_width};
+
+`include "fifo_size.v"
+
+  /* DVD-FORK FIX (F1): ONE knob for both ends of the display read -- the address
+   * generator's requests and resample_dta's reads must agree word for word. 0 = no OSD
+   * reads (the OSD layer is tied off); 1 = the original structure (bench baseline). */
+  parameter OSD_READS = 0;
+  /* DVD-FORK FIX (F2): ONE knob for chroma row reuse, likewise shared: the address
+   * generator decides which chroma words exist, resample_dta must pop exactly those. 1 =
+   * reuse (requires OSD_READS = 0); 0 = the F1 structure (bench baseline). The resample
+   * fifo carries the reuse flags only when it is on. docs/decode_pacing.md §7 F2. */
+  parameter CHROMA_REUSE = 1;
+  localparam [8:0] RESAMPLE_WIDTH = CHROMA_REUSE ? 9'd10 : 9'd3;
+
+  // Generates the memory read requests for displaying a frame
+  resample_addrgen #(.OSD_READS(OSD_READS), .CHROMA_REUSE(CHROMA_REUSE)) resample_addrgen (
+    .clk(clk), 
+    .clk_en(1'b1),
+    .rst(rst), 
+    .output_frame(output_frame), 
+    .output_frame_valid(output_frame_valid), 
+    .output_frame_rd(output_frame_rd),
+    .progressive_sequence(progressive_sequence), 
+    .progressive_frame(progressive_frame), 
+    .informative(informative),                               // DVD-FORK (film evidence gate)
+    .output_pts(output_pts),                                 // DVD-FORK (PTS association)
+    .output_pts_valid(output_pts_valid),
+    .output_pts_2nd(output_pts_2nd),
+    .sched_due(sched_due),                                   // DVD-FORK (PTS scheduling)
+    .sched_next_due(sched_next_due),
+    .top_field_first(top_field_first), 
+    .repeat_first_field(repeat_first_field), 
+    .mb_width(mb_width),
+    .mb_height(mb_height),
+    .horizontal_size(horizontal_size),
+    .vertical_size(vertical_size),
+
+    .disp_wr_addr_full(disp_wr_addr_full), 
+    .disp_wr_addr_en(disp_wr_addr_en), 
+    .disp_wr_addr_ack(disp_wr_addr_ack), 
+    .disp_wr_addr(disp_wr_addr),
+
+    .interlaced(interlaced),
+    .deinterlace(deinterlace),
+    .persistence(persistence),
+    .repeat_frame(repeat_frame),
+
+    .resample_wr_dta(resample_wr_dta),
+    .resample_wr_en(resample_wr_en),
+    
+    .disp_wr_addr_almost_full(disp_wr_addr_almost_full),
+    .resample_wr_almost_full(resample_wr_almost_full),
+    .busy(resample_addr_busy),
+    .frame_late(frame_late),                       // DVD-FORK (frame-drop governor O[19])
+    .pickup_cnt(pickup_cnt),                       // DVD-FORK (telemetry)
+    .video_live(video_live),                       // DVD-FORK (av_sync STC reference)
+    .pickup_hold(pickup_hold),                     // DVD-FORK (STD mux-lead hold)
+    .pause(pause),                                 // DVD-FORK (gamepad transport): freeze frame while paused
+    .step_req(step_req),                           // DVD-FORK (frame step B18)
+    .pickup_tick(pickup_tick),                     // DVD-FORK (PTS scheduling)
+    .film_det_ntsc(film_det_ntsc),                 // DVD-FORK (Film 24p auto-detect)
+    .film_det_pal(film_det_pal),
+    .raster_par_err(raster_par_err),               // DVD-FORK (field-parity corrector)
+    .par_heal(par_heal),                           // DVD-FORK (field start telemetry)
+    .vscale_mode(vscale_mode),                     // DVD-FORK (CRT anamorphic vscale)
+    .hcrop_en(hcrop_en),                          // DVD-FORK (CRT anamorphic horizontal crop)
+    .still_en(still_en),                          // DVD-FORK (pause field still)
+    .scan_start(scan_start),
+    .scan_half(scan_half),
+    .blend_en(blend_en),                          // DVD-FORK (field blend)
+    .scan_blend(scan_blend),
+    .bob_en(bob_en),                              // DVD-FORK (progressive bob)
+    .scan_bob(scan_bob),
+    .scan_bob_bot(scan_bob_bot)
+    );
+
+  wire        fifo_read;
+  wire        fifo_valid;
+  wire [127:0]fifo_osd;          /* osd data */
+  wire [127:0]fifo_y;            /* lumi */
+  wire  [63:0]fifo_u_upper;      /* chromi, upper row */
+  wire  [63:0]fifo_u_lower;      /* chromi, lower row */
+  wire  [63:0]fifo_v_upper;      /* chromi, upper row */
+  wire  [63:0]fifo_v_lower;      /* chromi, lower row */
+  wire   [2:0]fifo_position;     /* position of pixels, as in  resample_codes */
+
+  // Reads the pixels from memory fifo
+  resample_dta #(.OSD_READS(OSD_READS), .CHROMA_REUSE(CHROMA_REUSE)) resample_dta (
+    .clk(clk), 
+    .clk_en(1'b1),
+    .rst(rst), 
+    .fifo_read(fifo_read),
+    .fifo_valid(fifo_valid),
+    .disp_rd_dta_empty(disp_rd_dta_empty), 
+    .disp_rd_dta_en(disp_rd_dta_en), 
+    .disp_rd_dta_valid(disp_rd_dta_valid), 
+    .disp_rd_dta(disp_rd_dta), 
+    .resample_rd_dta(resample_rd_dta),
+    .resample_rd_en(resample_rd_en),
+    .resample_rd_valid(resample_rd_valid),
+    .fifo_osd(fifo_osd), 
+    .fifo_y(fifo_y), 
+    .fifo_u_upper(fifo_u_upper), 
+    .fifo_u_lower(fifo_u_lower), 
+    .fifo_v_upper(fifo_v_upper), 
+    .fifo_v_lower(fifo_v_lower),
+    .fifo_position(fifo_position)
+    );
+
+  // bilinear chroma upscaling, 4:2:0 to 4:4:4
+  resample_bilinear resample_bilinear (
+    .clk(clk), 
+    .clk_en(1'b1),
+    .rst(rst), 
+    .fifo_read(fifo_read),
+    .fifo_valid(fifo_valid),
+    .fifo_osd(fifo_osd), 
+    .fifo_y(fifo_y), 
+    .fifo_u_upper(fifo_u_upper), 
+    .fifo_u_lower(fifo_u_lower), 
+    .fifo_v_upper(fifo_v_upper), 
+    .fifo_v_lower(fifo_v_lower),
+    .fifo_position(fifo_position),
+    .y(y), 
+    .u(u), 
+    .v(v), 
+    .osd_out(osd_out),
+    .position_out(position_out),
+    .pixel_wr_en(pixel_wr_en),
+    .pixel_wr_almost_full(pixel_wr_almost_full)
+    );
+
+  // fifo between resample_addr and resample_dta
+  fifo_sc 
+    #(.addr_width(RESAMPLE_DEPTH),
+    .dta_width(RESAMPLE_WIDTH),                     // DVD-FORK FIX (F2): 10 with chroma reuse, else 3
+    .prog_thresh(RESAMPLE_THRESHOLD))
+    resample_fifo (
+    .rst(rst), 
+    .clk(clk), 
+    .din(resample_wr_dta[RESAMPLE_WIDTH-1:0]), 
+    .wr_en(resample_wr_en), 
+    .full(), 
+    .wr_ack(), 
+    .overflow(resample_wr_overflow), 
+    .prog_full(resample_wr_almost_full), 
+    .dout(resample_rd_dta[RESAMPLE_WIDTH-1:0]), 
+    .rd_en(resample_rd_en), 
+    .prog_empty(),
+    .empty(), 
+    .valid(resample_rd_valid), 
+    .underflow()
+    );
+
+  generate if (RESAMPLE_WIDTH < 9'd10) begin : g_rs_narrow
+    assign resample_rd_dta[9:RESAMPLE_WIDTH] = {(10-RESAMPLE_WIDTH){1'b0}};   // no flags without reuse
+  end endgenerate
+
+`ifdef CHECK
+  always @(posedge clk)
+    if (resample_wr_overflow)
+      begin
+        #0 $display("%m\t*** error: resample_fifo overflow. **");
+        $stop;
+      end
+`endif
+
+`ifdef DEBUG
+
+  always @(posedge clk)
+    $strobe("%m\toutput_frame: %d output_frame_valid: %d addr_clk_en: %d", 
+                 output_frame, output_frame_valid, addr_clk_en);
+
+  always @(posedge clk)
+    if (disp_wr_addr_almost_full)
+      $display("%m\taddr_clk_en: disp_wr_addr_almost_full");
+
+`endif
+endmodule
+/* not truncated */

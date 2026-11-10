@@ -3,7 +3,7 @@
 module emu (
 `include "sys/emu_ports.vh"
 );
-localparam CONF_STR={"Pace2500N_TS;;","F0,BIN,Load FLASH_U202.bin;","F1,BIN,Load RAM checkpoint;","F2,BIN,Load CPU state;","F3,TS,Load SI replay (1MiB max);","O3,Display,Guide,Diagnostics;","O4,Diagnostic RF lock,From TS,Off;","O5,Broadcast clock (TOT),MiSTer RTC,TS file;","-;","R0,Reset (reload checkpoint);","V,0.5.6 lean demux"};
+localparam CONF_STR={"Pace2500N_TS;;","F0,BIN,Load FLASH_U202.bin;","F1,BIN,Load RAM checkpoint;","F2,BIN,Load CPU state;","F3,TS,Load transport stream (64MiB max);","O3,Display,Guide,Diagnostics;","O4,Diagnostic RF lock,From TS,Off;","O5,Broadcast clock (TOT),MiSTer RTC,TS file;","-;","R0,Reset (reload checkpoint);","V,0.5.7 A/V trace"};
 wire clk_sys,clk_video,pll_locked;
 pll pll(.refclk(CLK_50M),.rst(1'b0),.outclk_0(clk_sys),.outclk_1(clk_video),.locked(pll_locked));
 // Unused platform interfaces: MiSTer sys_top remains responsible for
@@ -69,7 +69,7 @@ reg loaded_flash=0,loaded_ram=0,loaded_state=0;
 reg previous_download=0;reg [15:0] last_download_index=0;
 reg [26:0] last_download_address=0;
 reg [15:0] state_high=0;
-wire loaded_stream;wire [23:0] stream_length;
+wire loaded_stream;wire [26:0] stream_length;
 wire stream_loading=ioctl_download && ioctl_index==3;
 pace_ts_load_tracker stream_file(.clk(clk_sys),.reset(core_reset),.download(stream_loading),
  .wr(ioctl_wr && stream_loading),.address(ioctl_addr),.loaded(loaded_stream),.length(stream_length));
@@ -137,7 +137,7 @@ pace_guide_blitter gpu(.clk(clk_sys),.reset(core_reset),.hold(holding),.start(gp
  .mem_accept(ga),.mem_rvalid(gv),.mem_rdata(DDRAM_DOUT));
 
 pace_ts_replay transport(.clk(clk_sys),.reset(core_reset || stream_loading),.hold(holding),
- .enabled(loaded_stream),.length(stream_length),.valid(raw_valid),.ready(raw_ready),.data(raw_data),.loops(ts_loops),
+ .enabled(loaded_stream),.length(stream_length),.fast(stream_length>27'd1048576),.valid(raw_valid),.ready(raw_ready),.data(raw_data),.loops(ts_loops),
  .mem_req(tq),.mem_addr(tad),.mem_accept(ta),.mem_rvalid(tv),.mem_rdata(DDRAM_DOUT));
 // The replayed broadcast's TOT carries today's date/time from the MiSTer RTC.
 pace_tot_clock broadcast_clock(.clk(clk_sys),.reset(core_reset || stream_loading),.enable(!status[5]),.rtc(rtc),
@@ -152,7 +152,7 @@ wire [9:0] x,y;wire shown,hs,vs,field,ce;
 wire [23:0] frame_rgb;wire video_ce,video_de,video_hs,video_vs,video_field;
 // Video runs in its own 54 MHz domain: BT.601 13.5 MHz samples, 720 active
 // per line, one sample per firmware OSD pixel.
-pace_pal576i601 raster(.clk(clk_video),.reset(!pll_locked),.ce_pixel(ce),.x(x),.y(y),.visible(shown),.hs(hs),.vs(vs),.field(field));
+pace_pal576i601 raster(.clk(clk_video),.reset(!pll_locked),.sync(1'b0),.sync_field(1'b0),.ce_pixel(ce),.x(x),.y(y),.visible(shown),.hs(hs),.vs(vs),.field(field));
 pace_guide_video601 scanout(.clk(clk_sys),.reset(core_reset),.hold(holding),.osd_root(osd_root),
  .error(video_error),.frames(video_frames),.underruns(video_underruns),
  .mem_req(vq),.mem_addr(vad),.mem_accept(va),.mem_rvalid(vv),.mem_rdata(DDRAM_DOUT),
@@ -169,7 +169,7 @@ wire request=vq || gq || dq || tq || cq;
 wire write_request=owner==2 || owner==3?1'b0:owner==4?1'b1:owner==1?gw:cw;
 wire accepted=request && !holding && !read_pending && !DDRAM_BUSY;
 wire load_memory=ioctl_download && (ioctl_index<2 || ioctl_index==3);
-wire download_store=load_memory && ioctl_wr && !DDRAM_BUSY && !read_pending && (ioctl_index!=3 || ioctl_addr<1048576);
+wire download_store=load_memory && ioctl_wr && !DDRAM_BUSY && !read_pending && (ioctl_index!=3 || ioctl_addr<27'd67108864);
 assign ioctl_wait=load_memory ? (DDRAM_BUSY || read_pending) : 1'b0;
 assign ca=accepted && owner==0;assign ga=accepted && owner==1;assign va=accepted && owner==2;
 assign cv=DDRAM_DOUT_READY && read_pending && read_owner==0;
@@ -185,7 +185,7 @@ always @(posedge clk_sys)begin
  end
 end
 assign DDRAM_ADDR=download_store ?
- (ioctl_index==0 ? 29'h06400000+{8'd0,ioctl_addr[20:3]} : ioctl_index==3?29'h06600000+{9'd0,ioctl_addr[22:3]}:29'h06000000+{5'd0,ioctl_addr[23:3]}) :
+ (ioctl_index==0 ? 29'h06400000+{8'd0,ioctl_addr[20:3]} : ioctl_index==3?29'h06600000+{5'd0,ioctl_addr[26:3]}:29'h06000000+{5'd0,ioctl_addr[23:3]}) :
  owner==2?vad:owner==1?gad:owner==4?dad:owner==3?tad:cad;
 assign DDRAM_DIN=download_store ? ({48'd0,ioctl_dout}<<(ioctl_addr[2:0]*8)) : owner==4?dwd:owner==1?gwd:cwd;
 assign DDRAM_BE=download_store ? (8'h03<<ioctl_addr[2:0]) : owner==4?dbe:owner==2 || owner==3?8'hff:owner==1?gbe:cbe;
@@ -210,10 +210,16 @@ assign VGA_R=diagnostics?(shown?monitor_r:8'd0):(video_de?frame_rgb[23:16]:8'd0)
 assign VGA_G=diagnostics?(shown?monitor_g:8'd0):(video_de?frame_rgb[15:8]:8'd0);
 assign VGA_B=diagnostics?(shown?monitor_b:8'd0):(video_de?frame_rgb[7:0]:8'd0);
 assign LED_USER=halt_code!=0?field:retired[21];
+// Diagnostic MMIO trace: every access to the EMMA A/V decoder pages
+// (B0002xxx, B0008xxx) and demux writes outside the busy section-ring set.
+wire trace_demux=demux_selected && iw && ia[11:0]!=12'h0b8 && ia[11:0]!=12'h124 && ia[11:0]!=12'h128 &&
+                 ia[11:0]!=12'h144 && ia[11:0]!=12'h148 && ia[11:4]!=8'h0d;
+wire trace_event=device_req && device_ready && !holding && (ia[31:12]==20'hb0002 || ia[31:12]==20'hb0008 || trace_demux);
 pace_debug_uart telemetry(.clk(clk_sys),.reset(!pll_locked),.tx(UART_TXD),
  .pc(pc),.instruction(inst),.retired(retired),.ram_writes(ram_writes),
  .mmio_address({gpu_count[15:0],ts_sections[15:0]}),.mmio_value({key_count[15:0],key_frames[15:0]}),
  .mmio_read({8'd0,last_key,video_underruns[15:0]}),.interrupt_count(interrupt_count),
- .guessed_reads(ts_packets),.mmio_policy(2'd1),.halt_code(halt_code),.mips16(mips16),.full_flash_loaded(loaded_flash));
+ .guessed_reads(ts_packets),.mmio_policy(2'd1),.halt_code(halt_code),.mips16(mips16),.full_flash_loaded(loaded_flash),
+ .ev_valid(trace_event),.ev_we(iw),.ev_addr(ia),.ev_data(iw ? id : (demux_selected ? dir : pir)));
 endmodule
 

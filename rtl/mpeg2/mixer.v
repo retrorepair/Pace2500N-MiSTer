@@ -1,0 +1,503 @@
+/* 
+ * mixer.v
+ * 
+ * Copyright (c) 2007 Koen De Vleeschauwer. 
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND 
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE 
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+ * SUCH DAMAGE.
+ */
+
+/*
+ * mixer: synchronize pixels to video h_sync, v_sync
+ */
+
+ /*
+  * HDMI Specification 1.0:
+  *   6.4 Pixel-Repetition
+  *   Video formats with native pixel rates below 25 Mpixels/sec require pixel-repetition in order to be
+  *   carried across a TMDS link. 720x480i and 720x576i video format timings shall always be pixel-repeated.
+  *
+  * Here: if pixel_repetition repetition is asserted, each pixel is duplicated.
+  */
+
+`include "timescale.v"
+
+`undef DEBUG
+//`define DEBUG 1
+
+module mixer(
+  clk, clk_en, rst, hard_rst,
+  pixel_repetition,
+  y_in, u_in, v_in, osd_in, position_in, pixel_rd_en, pixel_rd_valid, pixel_rd_underflow,
+  h_pos, v_pos, h_sync_in, v_sync_in, pixel_en_in,
+  y_out, u_out, v_out, osd_out, h_sync_out, v_sync_out, pixel_en_out,
+  dbg_lines_displayed, dbg_first_vpos, dbg_last_vpos,             // DVD-FORK DEBUG (256-line strobe probe)
+  disp_v_offset,                                                  // DVD-FORK (CRT anamorphic letterbox bar offset)
+  frame_top_par_err,                                              // DVD-FORK (field-parity corrector): frame-top landed on the wrong raster field parity
+  interlaced,                                                     // DVD-FORK FIX (field start): the raster is interlaced (strict first-field placement)
+  raster_restart,                                                 // DVD-FORK FIX (field start): the raster generator is being restarted (a modeline write)
+  strict_waits                                                    // DVD-FORK FIX (field start): telemetry, frame-top slots refused by the strict placement
+  );
+
+  input              clk;                      // clock
+  input              clk_en;                   // clock enable
+  input              rst;                      // synchronous active low reset
+  /* DVD-FORK FIX (2026-09-15): reset for the SYNC/DE DELAY LINE only.
+   * `rst` here is dot_rst, which reset.v asserts for a WATCHDOG expiry and for the
+   * decoder SOFT reset (comm_rst) -- and the sync/DE passthrough below is registered,
+   * so those events drove h_sync_out/v_sync_out/pixel_en_out LOW for the duration.
+   * Those three are the core's VGA_HS/VGA_VS/VGA_DE (emu.sv), so a soft reset was
+   * DROPPING SYNC AT THE PINS for ~2.4 us. hps_io's video_calc counts active pixels
+   * off DE, and re-arms its report on ANY change, so every soft reset made Main
+   * report a "new" resolution and pop its notice -- naming the resolution already on
+   * screen. MEASURED on the rig: 1 spurious report per menu entry/exit and per
+   * title->title jump, 0 on a core without the jump soft reset.
+   * The 2026-09-03 single-raster fix moved syncgen_intf to dot_hard_rst for exactly
+   * this class of reason; it moved the raster GENERATOR but not the pipeline that
+   * carries its sync to the pins. This closes that gap.
+   * ⚠ Scope is deliberate: the DATA path and the pixel_rd_en handshake against
+   * pixel_queue STAY on `rst` -- pixel_queue is reset with them, and leaving the
+   * handshake alone would desync the two. With DE live and `state` back at
+   * STATE_INIT (not a `displaying` state) y_out/u_out/v_out take 16/128/128 = black,
+   * so the picture goes black for a few dots while the sync keeps running. That is
+   * the intended trade: a black line is invisible, a dropped sync is not. */
+  input              hard_rst;                 // async-derived, survives watchdog/soft reset
+
+  input              pixel_repetition;         // if asserted, repeat each pixel once
+
+  /* from pixel_queue fifo */
+  input         [7:0]y_in;
+  input         [7:0]u_in;
+  input         [7:0]v_in;
+  input         [7:0]osd_in;
+  input         [2:0]position_in;
+  output reg         pixel_rd_en;
+  input              pixel_rd_valid;
+  input              pixel_rd_underflow; // if pixel_rd_underflow we're outputting pixels faster than we're computing them
+ 
+  /* from video sync generator */
+  input        [11:0]h_pos;
+  input        [11:0]v_pos;
+  input              h_sync_in;
+  input              v_sync_in;
+  input              pixel_en_in;
+
+  /* to dvi transmitter */
+  output reg    [7:0]y_out;
+  output reg    [7:0]u_out;
+  output reg    [7:0]v_out;
+  output reg    [7:0]osd_out;
+  output reg         h_sync_out;
+  output reg         v_sync_out;
+  output reg         pixel_en_out;
+
+  /* DVD-FORK DEBUG (256-line strobe probe): per-output-frame instrumentation,
+   * latched at end of frame (on v_sync_out rising edge) so emu reads a stable value.
+   * Underflow was confirmed ZERO on HW, so these now report the on-screen BAND of the
+   * displayed picture (which v_pos lines actually got pixels) to reconcile the line
+   * count with what is seen:
+   *  - dbg_lines_displayed : number of lines displayed this frame (STATE_FIRST_PIXEL).
+   *  - dbg_first_vpos      : v_pos of the FIRST displayed (non-blanked) pixel (0xFFF none).
+   *  - dbg_last_vpos       : v_pos of the LAST displayed pixel this frame. */
+  output reg   [11:0]dbg_lines_displayed;
+  output reg   [11:0]dbg_first_vpos;
+  output reg   [11:0]dbg_last_vpos;
+
+  /* DVD-FORK (CRT anamorphic letterbox, 2026-07-05): raster v_pos of the first
+   * displayed picture line (the top black bar height, in woven frame lines). The
+   * picture frame-top (ROW_0_COL_0 top field / ROW_1_COL_0 bottom field) is held in
+   * STATE_WAIT until v_pos reaches this offset, so lines 0..offset-1 stay at the mixer's
+   * black default (top bar); the picture then fills down and runs out before the raster
+   * bottom (bottom bar is automatic). v_pos is the woven frame-line number in BOTH
+   * progressive (v_cntr) and interlaced (2*v_cntr+parity, syncgen.v) modes, so one value
+   * serves both paths (letterbox = vertical_size/8; FIT/ZOOM = 0). At offset 0 the two
+   * comparisons below reduce to the original (v_pos<=1) / (v_pos!=0 && v_pos!=1) — the
+   * FIT path is bit-identical. Quasi-static (menu-rate) level. */
+  input        [11:0]disp_v_offset;
+
+  /* DVD-FORK (field-parity corrector, 2026-09-02): latched at each frame-top start —
+   * 1 if the picture's first line began on the WRONG raster field parity: a TOP field
+   * (ROW_0_COL_0) starting at v_pos == disp_v_offset+1 (a bottom raster field), or a
+   * BOTTOM field (ROW_1_COL_0) at v_pos == disp_v_offset (a top raster field). The
+   * relaxed display_first_pixel matcher below accepts either parity ON PURPOSE (the
+   * 3:2/drop "black fields" fix) — this output merely REPORTS the mismatch so
+   * resample_addrgen can re-align the phase by inserting one field. A LEVEL, not a
+   * pulse: it holds its verdict until the next frame-top, so it is CDC-safe at field
+   * rate (2-FF synced dot->clk in mpeg2video.v). Meaningless while the raster is
+   * progressive (a FRAME image emits ROW_0_COL_0 at v_pos==disp_v_offset, so it reads
+   * 0 there anyway); the consumer additionally gates on its own `interlaced`. */
+  output reg         frame_top_par_err;
+
+  /* DVD-FORK FIX (field start, 2026-10-08): the regfile's `interlaced` bit (dot_interlaced,
+   * already synced in mpeg2video.v). Gates the strict first-field placement below, so a
+   * progressive raster is bit-identical. strict_waits: a wrapping count of frame-top slots
+   * that placement refused (telemetry word 31). It is on hard_rst, so it keeps counting
+   * across the soft resets it exists to measure. See docs/field_parity.md "Strict first
+   * field". */
+  input              interlaced;
+  output reg    [7:0]strict_waits;
+  /* DVD-FORK FIX (field start, phase 2): HIGH while the sync generator is held in reset by a
+   * modeline write (regfile syncgen_rst, synced to dot_clk in mpeg2video.v exactly as
+   * syncgen_intf does). A restart re-phases the raster under content that keeps flowing:
+   * a mode switch, a PAL/NTSC walk, a film/240p walk. It re-arms start_strict, so the next
+   * frame-top after the restart is placed on its own slot like the first after a reset. */
+  input              raster_restart;
+
+  /* store pixel_queue fifo output */
+  reg           [7:0]y_0;
+  reg           [7:0]u_0;
+  reg           [7:0]v_0;
+  reg           [7:0]osd_0;
+  reg           [2:0]position_in_0;
+  reg                h_sync_0;
+  reg                v_sync_0;
+  reg                pixel_en_0;
+  /* delay h_sync, v_sync, pixel_en by two clocks */
+  reg                pixel_en_1;
+  reg                h_sync_1;
+  reg                v_sync_1;
+
+  reg                pixel_en_2;
+  reg                h_sync_2;
+  reg                v_sync_2;
+
+`include "resample_codes.v"
+
+  parameter [2:0]
+    STATE_INIT               = 3'h0, /* read pixel queue until the first pixel of a line is found */
+    STATE_WAIT               = 3'h1, /* wait until first pixel of the line will be displayed */
+    STATE_FIRST_PIXEL        = 3'h2, /* display first pixel of the line */
+    STATE_REPEAT_FIRST_PIXEL = 3'h3, /* pixel repetition */
+    STATE_PIXEL              = 3'h4, /* display pixels */
+    STATE_REPEAT_PIXEL       = 3'h5, /* pixel repetition */
+    STATE_LAST_PIXEL         = 3'h6, /* display last pixel of the line */
+    STATE_REPEAT_LAST_PIXEL  = 3'h7; /* pixel repetition */
+  
+  reg          [2:0]state;
+  reg          [2:0]next;
+
+  wire              first_pixel_read    = (pixel_rd_valid && ((position_in == ROW_0_COL_0) || (position_in == ROW_1_COL_0) || (position_in == ROW_X_COL_0)))      // first pixel at fifo output
+                                                         || ((position_in_0 == ROW_0_COL_0) || (position_in_0 == ROW_1_COL_0) || (position_in_0 == ROW_X_COL_0)); // first pixel already stored
+  // DVD-FORK FIX (interlaced 3:2 field-parity / black fields): a field's first line
+  // carries ROW_0_COL_0 (top field) or ROW_1_COL_0 (bottom field); upstream only START a
+  // frame when that code matches the syncgen's free-running v_pos parity (ROW_0@v_pos0,
+  // ROW_1@v_pos1). But 3:2 pulldown repeats a field, so the content field sequence is NOT
+  // strictly alternating (…T,B,T,T,B…); the repeated/boundary field then arrives on the
+  // OPPOSITE parity slot, never matches, and the mixer emits 0 lines = a BLACK field (black
+  // frame in bob, woven scanlines/"pulse" in weave). Fix: treat EITHER frame-top code as a
+  // frame start whenever v_pos is at the top of the active region (0 or 1), so every field
+  // displays regardless of its parity. Cost: a field landing on the off-parity slot is
+  // offset <=1 line (irrelevant for bob; minor weave comb on 3:2 boundary frames only).
+  // Progressive/strobe path is unchanged: FRAME emits ROW_0_COL_0 and lands at v_pos 0.
+  wire              is_frame_top        = (position_in_0 == ROW_0_COL_0) || (position_in_0 == ROW_1_COL_0);
+  /* DVD-FORK (CRT anamorphic letterbox): the frame-top window and the "not-frame-top"
+   * line gate are shifted by disp_v_offset (0 in FIT/ZOOM => bit-identical to upstream's
+   * v_pos 0/1). The picture starts at v_pos==offset (top field, even) / offset+1 (bottom
+   * field, odd), giving a centred top bar. */
+  /* DVD-FORK (field-parity corrector): the frame-top at the head would start on the WRONG
+   * raster field parity here — a TOP field (ROW_0_COL_0) anywhere but v_pos == offset, a
+   * BOTTOM field anywhere but offset+1. ONE expression for both consumers (the strict
+   * placement just below and the frame_top_par_err verdict), so they cannot disagree. */
+  wire              top_par_mismatch    = (position_in_0 == ROW_0_COL_0) ? (v_pos != disp_v_offset)
+                                                                         : (v_pos != disp_v_offset + 12'd1);
+  /* DVD-FORK FIX (field start, 2026-10-08): STRICT PLACEMENT OF THE FIRST FIELD AFTER A START.
+   * The relaxed matcher below takes a frame-top on EITHER slot, so the parity of a stream is
+   * decided by when its first field happens to reach the queue. Mid-stream that is right (a
+   * 3:2/drop break must display, not go black, and resample_addrgen's alt_break keeps the
+   * content alternating). At a START it is a coin flip: after a soft reset (every mount and
+   * every ~keep_vbuf VM jump, i.e. each menu<->title crossing) the addrgen restarts with
+   * last_image = NO_OUTPUT, so its feed-forward arm cannot act, and half of all starts
+   * displayed misaligned until the feedback arm confirmed the error ~0.5 s later.
+   * A set-top player never places a field on the wrong slot: at a start it waits for the
+   * matching one. So does this — for the first frame-top after an arm event only. While
+   * start_strict is set the mismatching slot is refused and the picture lands on the next
+   * one: at most one extra field of black, on a screen that is already black after a soft
+   * reset. The wait is ordinary backpressure (the addrgen parks in STATE_WAIT on a full
+   * queue), so no pickup is deferred, nothing repeats, and every field after it alternates
+   * aligned. Armed by a reset (below) and, phase 2, by a raster restart (raster_restart),
+   * for the next STRICT_TOPS accepted frame-tops (strict_left). ⛔ Never armed by a starve (pixel_rd_underflow): strict after a starve costs
+   * two slots and churns on compute-bound content, which the feedback arm's PAR_CONFIRM
+   * gate exists to leave alone. */
+  /* ★ A WINDOW OF STRICT FRAME-TOPS, NOT ONE (2026-10-09, HW). Clearing the arm at the
+   * first accepted frame-top was not enough at a Video Output switch: the addrgen still
+   * holds woven FRAME images built for the progressive raster (STATE_REPEAT re-emits a FRAME
+   * last_image until the next pickup), and a FRAME image heads with ROW_0_COL_0 exactly like
+   * a TOP field, so it was the frame-top that spent the arm. It then spills across two
+   * interlaced fields and the first real field image landed a slot late. Measured on the rig
+   * as heals PAR_CONFIRM after the switch (0.54 / 0.62 s), reproduced as field_phase_tb
+   * [12-video-output-d] (16/16 misaligned). So the arm covers the next STRICT_TOPS accepted
+   * frame-tops. Content keeps strict TOP/BOTTOM alternation from the second pickup on
+   * (resample_addrgen's alt_break), so after the first one the extra strictness costs
+   * nothing unless something re-breaks the phase inside the window -- which is the point. */
+  localparam [3:0]  STRICT_TOPS         = 4'd8;
+  reg          [3:0]strict_left;          // accepted frame-tops still to be placed strictly
+  wire              start_strict        = (strict_left != 4'd0);
+  wire              strict_refuse_slot  = interlaced && start_strict && is_frame_top && top_par_mismatch;
+  wire              display_first_pixel = (h_pos == 12'd0) && ((is_frame_top && ~strict_refuse_slot && (v_pos >= disp_v_offset) && (v_pos <= disp_v_offset + 12'd1)) ||
+                                                               ((position_in_0 == ROW_X_COL_0) && (v_pos != disp_v_offset) && (v_pos != disp_v_offset + 12'd1)));
+  wire              last_pixel_read     = pixel_rd_valid && (position_in == ROW_X_COL_LAST);
+
+  /* next state logic */
+  always @*
+    case (state)
+      STATE_INIT:               if (first_pixel_read) next = STATE_WAIT;
+                                else next = STATE_INIT;
+
+      STATE_WAIT:               if (pixel_en_in && display_first_pixel) next = STATE_FIRST_PIXEL;
+                                else next = STATE_WAIT;
+
+      STATE_FIRST_PIXEL:        if (pixel_repetition) next = STATE_REPEAT_FIRST_PIXEL;
+				else next = STATE_PIXEL;
+
+      STATE_REPEAT_FIRST_PIXEL: next = STATE_PIXEL;
+
+      STATE_PIXEL:              if (pixel_rd_underflow) next = STATE_INIT; 
+				else if (pixel_repetition) next = STATE_REPEAT_PIXEL;
+                                else if (last_pixel_read) next = STATE_LAST_PIXEL;
+                                else next = STATE_PIXEL;
+
+      STATE_REPEAT_PIXEL:       if (pixel_rd_underflow) next = STATE_INIT;
+                                else if (last_pixel_read) next = STATE_LAST_PIXEL;
+                                else next = STATE_PIXEL;
+   
+      STATE_LAST_PIXEL:         if (pixel_repetition) next = STATE_REPEAT_LAST_PIXEL;
+                                else next = STATE_INIT;
+
+      STATE_REPEAT_LAST_PIXEL:  next = STATE_INIT;
+
+      default                   next = STATE_INIT;
+
+    endcase
+
+  /* state */
+  always @(posedge clk)
+    if(~rst) state <= STATE_INIT;
+    else if (clk_en) state <= next;
+
+  /* DVD-FORK (field-parity corrector): frame-top parity verdict — see the output
+   * declaration above. Sampled exactly when a frame-top is accepted for display
+   * (STATE_WAIT -> STATE_FIRST_PIXEL with a ROW_0/ROW_1 head), i.e. once per
+   * displayed picture start. */
+  always @(posedge clk)
+    if (~rst) frame_top_par_err <= 1'b0;
+    else if (clk_en && (state == STATE_WAIT) && (next == STATE_FIRST_PIXEL) && is_frame_top)
+      frame_top_par_err <= top_par_mismatch;
+    else frame_top_par_err <= frame_top_par_err;
+
+  /* DVD-FORK FIX (field start): armed by every reset of the data path (dot_rst = a hard
+   * reset, a watchdog expiry or a decoder soft reset); each frame-top this mixer accepts
+   * spends one of STRICT_TOPS (see strict_left above). */
+  wire              top_accept          = (state == STATE_WAIT) && (next == STATE_FIRST_PIXEL) && is_frame_top;
+  /* Phase 2: a raster restart re-arms it. Taken outside clk_en — the level is a few dot
+   * clocks long, and arming on every cycle of it is harmless (the sync generator is in
+   * reset, so no frame-top slot can be accepted meanwhile). ⚠ Mid-stream this can hold one
+   * field: the content then runs one field (16.7 ms) later than its PTS, once, with no
+   * frame_late pulse to the drop ledger. A restart is a user/mount-rate event, so that is
+   * left as a known limit rather than given a new seam into resample_addrgen. */
+  always @(posedge clk)
+    if (~rst) strict_left <= STRICT_TOPS;
+    else if (raster_restart) strict_left <= STRICT_TOPS;
+    else if (clk_en && top_accept && start_strict) strict_left <= strict_left - 4'd1;
+    else strict_left <= strict_left;
+
+  /* Telemetry: one count per frame-top SLOT refused. A slot is the first pixel of the
+   * frame-top line, and h_pos is 0 there for one clk_en (pixel repetition holds a pixel
+   * for two, so take the edge). */
+  reg               refuse_q;
+  wire              refuse_cond         = (state == STATE_WAIT) && pixel_en_in && (h_pos == 12'd0) &&
+                                          (v_pos >= disp_v_offset) && (v_pos <= disp_v_offset + 12'd1) &&
+                                          strict_refuse_slot;
+  always @(posedge clk)
+    if (~hard_rst) begin refuse_q <= 1'b0; strict_waits <= 8'd0; end
+    else if (clk_en) begin
+      refuse_q <= refuse_cond;
+      if (refuse_cond && ~refuse_q) strict_waits <= strict_waits + 8'd1;
+    end
+
+  /* registers */
+  /* store pixel_fifo output */
+  always @(posedge clk)
+    if (~rst) y_0 <= 8'd0;
+    else if (clk_en && pixel_rd_valid) y_0 <= y_in;
+    else y_0 <= y_0;
+
+  always @(posedge clk)
+    if (~rst) u_0 <= 8'd0;
+    else if (clk_en && pixel_rd_valid) u_0 <= u_in;
+    else u_0 <= u_0;
+
+  always @(posedge clk)
+    if (~rst) v_0 <= 8'd0;
+    else if (clk_en && pixel_rd_valid) v_0 <= v_in;
+    else v_0 <= v_0;
+
+  always @(posedge clk)
+    if (~rst) osd_0 <= 8'd0;
+    else if (clk_en && pixel_rd_valid) osd_0 <= osd_in;
+    else osd_0 <= osd_0;
+
+  always @(posedge clk)
+    if (~rst) position_in_0 <= ROW_X_COL_X;
+    else if (clk_en && pixel_rd_valid) position_in_0 <= position_in;
+    else position_in_0 <= position_in_0;
+
+  /* read from pixel_fifo */
+  always @(posedge clk)
+    if (~rst) pixel_rd_en <= 1'b0;
+    else if (clk_en)
+      case (state)
+        STATE_INIT:               pixel_rd_en <= ~pixel_rd_en && ~first_pixel_read;
+	STATE_WAIT:               pixel_rd_en <= 1'b0;
+	STATE_FIRST_PIXEL:        pixel_rd_en <= ~pixel_repetition;
+	STATE_REPEAT_FIRST_PIXEL: pixel_rd_en <= 1'b1;
+	STATE_PIXEL:              pixel_rd_en <= ~pixel_repetition && ~last_pixel_read; // stop if last pixel of this line read
+	STATE_REPEAT_PIXEL:       pixel_rd_en <= ~last_pixel_read;
+	STATE_LAST_PIXEL:         pixel_rd_en <= 1'b0;
+        STATE_REPEAT_LAST_PIXEL:  pixel_rd_en <= 1'b0;
+	default                   pixel_rd_en <= 1'b0;
+      endcase
+
+  /* delay sync gen output */
+  always @(posedge clk)
+    if (~hard_rst) h_sync_0 <= 1'b0;
+    else if (clk_en) h_sync_0 <= h_sync_in;
+
+  always @(posedge clk)
+    if (~hard_rst) v_sync_0 <= 1'b0;
+    else if (clk_en) v_sync_0 <= v_sync_in;
+
+  always @(posedge clk)
+    if (~hard_rst) pixel_en_0 <= 1'b0;
+    else if (clk_en) pixel_en_0 <= pixel_en_in;
+
+  /* default values of y_out, u_out and v_out are 16, 128, 128, which maps onto black */
+
+  wire displaying = (state == STATE_FIRST_PIXEL) || 
+                    (state == STATE_REPEAT_FIRST_PIXEL) || 
+	            (state == STATE_PIXEL) || 
+	            (state == STATE_REPEAT_PIXEL) || 
+	            (state == STATE_LAST_PIXEL) ||
+	            (state == STATE_REPEAT_LAST_PIXEL);
+
+  always @(posedge clk)
+    if (~rst) y_out <= 8'b0;
+    else if (clk_en && pixel_en_2 && displaying) y_out <= y_0;
+    else if (clk_en) y_out <= 8'd16;
+
+  always @(posedge clk)
+    if (~rst) u_out <= 8'b0;
+    else if (clk_en && pixel_en_2 && displaying) u_out <= u_0;
+    else if (clk_en) u_out <= 8'd128;
+
+  always @(posedge clk)
+    if (~rst) v_out <= 8'b0;
+    else if (clk_en && pixel_en_2 && displaying) v_out <= v_0;
+    else if (clk_en) v_out <= 8'd128;
+
+  always @(posedge clk)
+    if (~rst) osd_out <= 8'b0;
+    else if (clk_en && pixel_en_2 && displaying) osd_out <= osd_0;
+    else if (clk_en) osd_out <= 8'd0;
+
+ /*
+  * delay h_sync, v_sync, pixel_en_out by two clocks
+  */
+
+  always @(posedge clk)
+    if (~hard_rst) pixel_en_1 <= 1'b0;
+    else if (clk_en) pixel_en_1 <= pixel_en_0;
+
+  always @(posedge clk)
+    if (~hard_rst) h_sync_1 <= 1'b0;
+    else if (clk_en) h_sync_1 <= h_sync_0;
+
+  always @(posedge clk)
+    if (~hard_rst) v_sync_1 <= 1'b0;
+    else if (clk_en) v_sync_1 <= v_sync_0;
+
+  always @(posedge clk)
+    if (~hard_rst) pixel_en_2 <= 1'b0;
+    else if (clk_en) pixel_en_2 <= pixel_en_1;
+
+  always @(posedge clk)
+    if (~hard_rst) h_sync_2 <= 1'b0;
+    else if (clk_en) h_sync_2 <= h_sync_1;
+
+  always @(posedge clk)
+    if (~hard_rst) v_sync_2 <= 1'b0;
+    else if (clk_en) v_sync_2 <= v_sync_1;
+
+  always @(posedge clk)
+    if (~hard_rst) pixel_en_out <= 1'b0;
+    else if (clk_en) pixel_en_out <= pixel_en_2;
+
+  always @(posedge clk)
+    if (~hard_rst) h_sync_out <= 1'b0;
+    else if (clk_en) h_sync_out <= h_sync_2;
+
+  always @(posedge clk)
+    if (~hard_rst) v_sync_out <= 1'b0;
+    else if (clk_en) v_sync_out <= v_sync_2;
+
+  /* DVD-FORK DEBUG (256-line strobe probe) ------------------------------------
+   * Count displayed lines + capture underflow position, per output frame.
+   * A line is "displayed" when the FSM enters STATE_FIRST_PIXEL (next==FP from
+   * STATE_WAIT). Latch the running tallies on the v_sync_out rising edge.       */
+  reg        v_sync_out_dly;
+  reg [11:0] lines_run;        // displayed lines so far this frame
+  reg [11:0] first_vpos_run;   // v_pos of first displayed pixel this frame (0xFFF = none yet)
+  reg [11:0] last_vpos_run;    // v_pos of last displayed pixel this frame
+  wire       line_started = (state == STATE_WAIT) && (next == STATE_FIRST_PIXEL);
+  wire       displaying_now = (pixel_en_2 && displaying);   // a real pixel is being emitted
+  always @(posedge clk)
+    if (~rst) begin
+      v_sync_out_dly <= 1'b0; lines_run <= 12'd0; first_vpos_run <= 12'hfff; last_vpos_run <= 12'd0;
+      dbg_lines_displayed <= 12'd0; dbg_first_vpos <= 12'hfff; dbg_last_vpos <= 12'd0;
+    end else if (clk_en) begin
+      v_sync_out_dly <= v_sync_out;
+      if (v_sync_out && ~v_sync_out_dly) begin           // start of a new output frame
+        dbg_lines_displayed <= lines_run;                // latch previous frame's tallies
+        dbg_first_vpos      <= first_vpos_run;
+        dbg_last_vpos       <= last_vpos_run;
+        lines_run      <= 12'd0;
+        first_vpos_run <= 12'hfff;
+        last_vpos_run  <= 12'd0;
+      end else begin
+        if (line_started && (lines_run != 12'hfff)) lines_run <= lines_run + 12'd1;
+        if (displaying_now) begin
+          if (first_vpos_run == 12'hfff) first_vpos_run <= v_pos;  // first displayed line
+          last_vpos_run <= v_pos;                                   // keeps the last
+        end
+      end
+    end
+
+`ifdef DEBUG
+  always @(posedge clk)
+    case (state)
+      STATE_INIT:                               #0 $display("%m         STATE_INIT");
+      STATE_WAIT:                               #0 $display("%m         STATE_WAIT");
+      STATE_FIRST_PIXEL:                        #0 $display("%m         STATE_FIRST_PIXEL");
+      STATE_REPEAT_FIRST_PIXEL:                 #0 $display("%m         STATE_REPEAT_FIRST_PIXEL");
+      STATE_PIXEL:                              #0 $display("%m         STATE_PIXEL");
+      STATE_REPEAT_PIXEL:                       #0 $display("%m         STATE_REPEAT_PIXEL");
+      STATE_LAST_PIXEL:                         #0 $display("%m         STATE_LAST_PIXEL");
+      STATE_REPEAT_LAST_PIXEL:                  #0 $display("%m         STATE_REPEAT_LAST_PIXEL");
+      default                                   #0 $display("%m         *** Error: unknown state %d", state);
+    endcase
+
+  always @(posedge clk)
+    $strobe("%m\tstate: %d y_in %d u_in %d v_in %d osd_in %d position_in %d pixel_rd_en %d pixel_rd_valid %d h_pos %d v_pos %d h_sync_in %d v_sync_in %d pixel_en_in %d y_out %d u_out %d v_out %d osd_out %d h_sync_out %d v_sync_out %d pixel_en_out %d", 
+                 state, y_in, u_in, v_in, osd_in, position_in, pixel_rd_en, pixel_rd_valid, h_pos, v_pos, h_sync_in, v_sync_in, pixel_en_in, y_out, u_out, v_out, osd_out, h_sync_out, v_sync_out, pixel_en_out);
+
+`endif
+endmodule
+/* not truncated */

@@ -13,8 +13,23 @@ module pace_debug_uart #(
     input wire [1:0] mmio_policy,
     input wire [7:0] halt_code,
     input wire mips16, full_flash_loaded,
+    // MMIO event trace (diagnostic): each event is queued and sent as the
+    // line "Tw aaaaaaaa dddddddd" between telemetry frames. Read-only tap.
+    input wire ev_valid, ev_we,
+    input wire [31:0] ev_addr, ev_data,
     output reg tx=1'b1
 );
+    (* ramstyle="M10K" *) reg [64:0] ev_mem[0:4095];
+    reg [11:0] ev_wr=0, ev_rd=0;
+    reg [64:0] ev_q=0;
+    reg [1:0] ev_settle=0;
+    reg [7:0] last=0;
+    wire ev_empty=ev_wr==ev_rd;
+    wire ev_full=(ev_wr+12'd1)==ev_rd;
+    always @(posedge clk) begin
+        ev_q<=ev_mem[ev_rd];
+        if(ev_valid && !ev_full) ev_mem[ev_wr]<={ev_we,ev_addr,ev_data};
+    end
     function automatic [63:0] hex32(input [31:0] value);
         integer n;
         reg [3:0] digit;
@@ -40,7 +55,16 @@ module pace_debug_uart #(
         if(reset) begin
             tx<=1; period_count<=0; baud_count<=0;
             index<=0; bit_index<=0; sending<=0; byte_active<=0;
+            ev_wr<=0; ev_rd<=0; ev_settle<=0;
         end else begin
+            if(ev_valid && !ev_full) ev_wr<=ev_wr+12'd1;
+            ev_settle<={ev_settle[0],!ev_empty};
+            // One queued MMIO event per line while no telemetry frame is going out.
+            if(!sending && period_count!=PERIOD-1 && !ev_empty && ev_settle==2'b11) begin
+                message<={"T",(ev_q[64] ? "1" : "0")," ",hex32(ev_q[63:32])," ",hex32(ev_q[31:0]),8'h0d,8'h0a,{(BYTES-22){8'h20}}};
+                sending<=1; index<=0; last<=8'd21;
+                ev_rd<=ev_rd+12'd1; ev_settle<=0;
+            end
             if(period_count==PERIOD-1) begin
                 period_count<=0;
                 if(!sending) begin
@@ -52,7 +76,7 @@ module pace_debug_uart #(
                         " IRQ=",hex32(interrupt_count)," GUESS=",hex32(guessed_reads),
                         " POL=",hex32({30'd0,mmio_policy}),
                         8'h0d,8'h0a};
-                    sending<=1; index<=0;
+                    sending<=1; index<=0; last<=BYTES-1;
                 end
             end else period_count<=period_count+1;
             if(sending) begin
@@ -64,7 +88,7 @@ module pace_debug_uart #(
                     baud_count<=DIVISOR-1;
                     if(bit_index==9) begin
                         byte_active<=0; tx<=1;
-                        if(index==BYTES-1) sending<=0;
+                        if(index==last) sending<=0;
                         else index<=index+1;
                     end else begin
                         frame<={1'b1,frame[9:1]};

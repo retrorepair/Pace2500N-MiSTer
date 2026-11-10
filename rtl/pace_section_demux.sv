@@ -26,7 +26,10 @@ module pace_section_demux(
  output wire irq,config_ready,
  output wire mem_req,output wire [28:0] mem_addr,
  output wire [63:0] mem_wdata,output wire [7:0] mem_be,input wire mem_accept,
- output reg [31:0] packets=0,sections=0,dropped=0,crc_errors=0
+ output reg [31:0] packets=0,sections=0,dropped=0,crc_errors=0,
+ // A/V PES channels as programmed by the firmware (hardware trace 10 Nov 2026):
+ // B000A094 video, B000A098 audio: [12:0] PID, bit 14 enable; B000A010 PCR PID.
+ output reg [15:0] av_video=16'h1fff,av_audio=16'h1fff,av_pcr=16'h1fff
 );
  `include "rtl/pace_checkpoint_demux_match.vh"
  reg [31:0] pid_seed[0:31],ptr_seed[0:31],limit_seed[0:31];
@@ -152,6 +155,9 @@ module pace_section_demux(
    12'h0b0,12'h0b4,12'h0b8,12'h0bc:io_rdata=status[off[3:2]];
    12'h0d0,12'h0d4,12'h0d8,12'h0dc:io_rdata=enables[off[3:2]];
    12'h128:io_rdata=pointer_sel&32'h001fffff;
+   12'h094:io_rdata={16'd0,av_video};
+   12'h098:io_rdata={16'd0,av_audio};
+   12'h010:io_rdata={16'd0,av_pcr};
    12'h140:io_rdata=control;
    default:begin end
   endcase
@@ -198,6 +204,7 @@ module pace_section_demux(
    control<=32'h00100001;indirect_data<=0;match_data<=0;selected<=0;
    packets<=0;sections<=0;dropped<=0;crc_errors<=0;
    init_active<=1;init_seed<=1;init_index<=0;match_address<=0;
+   av_video<=16'h1fff;av_audio<=16'h1fff;av_pcr<=16'h1fff;
    seeded<=1;pid_written<=0;ptr_written<=0;ptr_bank<=0;lim_written<=0;used_fresh<=32'hffffffff;
    for(i=0;i<4;i=i+1)begin status[i]<=0;enables[i]<=i>=2?32'hffc00000:32'd0;end
   end else if(init_active)begin
@@ -342,10 +349,14 @@ module pace_section_demux(
       endcase
      end
      12'h128:indirect_data<=io_wdata;
+     12'h094:av_video<=io_wdata[15:0];
+     12'h098:av_audio<=io_wdata[15:0];
+     12'h010:av_pcr<=io_wdata[15:0];
      12'h140:control<=io_wdata;
      12'h148:match_data<=io_wdata;
      12'h000:if(io_wdata[0])begin
       for(j=0;j<4;j=j+1)begin status[j]<=0;enables[j]<=0;end
+      av_video<=16'h1fff;av_audio<=16'h1fff;av_pcr<=16'h1fff;
       seeded<=0;pid_written<=0;ptr_written<=0;lim_written<=0;used_fresh<=32'hffffffff;
       init_active<=1;init_seed<=0;init_index<=0;
       control<=0;state<=RX;incoming<=0;cc_valid<=0;packet_crc<=32'hffffffff;

@@ -637,3 +637,30 @@ Trailer meaning and PID routing remain ambiguous; documented precisely.
 Next: infer indexed register/filter/DMA configuration so the genuine second
 self-test can validate data produced by an actual configured demux model.
 Hardware remains unchanged v046 EXP. This is new software evidence only.
+
+## HANDOFF 10 Nov late - A/V decoders, work in progress (usage limit reached mid-task)
+
+Hardware state: MiSTer runs v0.5.7 (`_Other/Pace2500N_V057.rbf`, launcher `V057_Server.mgl`) = v0.5.6 plus an
+MMIO trace on the debug UART (`tools/mister_uart_trace.py`). No decoder is in any deployed core yet.
+
+Proven on the real box (traces `re/transport/hw_av_trace.log`):
+- Listings populate after a few opens (`tools/mister_open_listings.sh`), SELECT tunes the Server channel:
+  PAT and PMT read, video PID -> B000A094 (0x4200 = PID 0x200 | enable), audio PID -> B000A098 (0x4102),
+  PCR PID -> B000A010, MPEG decoder set up through B0002xxx (size 576x720 at 2090, frame stores 2098-20A4,
+  backdrop 21C4 = 00808010, irq mask/enable 2480-2494, control 2004). Returning to the Guide writes
+  B000A094 = 1FFF. No background-music service is selected by the firmware in the Guide yet.
+- The ~27 s frontend stop is the OpenTV Guide application timing out while listings are missing.
+
+Built and simulated, NOT yet in a core build:
+- `rtl/mpeg2/` = MiSTer_DVD decoder sources (GPL-3, commit e14e4fc) + MP2 decoder; DDR window moved to 0x38000000.
+- `rtl/pace_mpeg_video.sv` wrapper: decodes the real clip in simulation (`sim/tb_mpeg_video.sv`, picture verified).
+- `rtl/pace_av_pes.sv` (PES extraction), `rtl/pace_video_mix.sv` (video under OSD, raster lock),
+  raster `sync` input, OSD transparency key (CLUT entry 0000), demux A/V PID registers/outputs,
+  64 MiB stream replay at 6.25 Mbit/s. `sim/tb_av.sv` + `sim/run_av.sh` = whole A/V path bench (first run was
+  in progress; raster alignment constants SYNC_X/SYNC_PHASE/DEC_DELAY still to be tuned from its output).
+- Stream: `roms/video/server_cbbc.ts` (not in git) from `tools/sky_mux.py`: clip video/audio untouched on
+  PIDs 0x200/0x102 + Server SI, 84.6 s loop.
+
+Still to do for a picture: PLL outputs (90 MHz mem, ~79.4 MHz decode, 27 MHz dot), `ram2` DDR3 port from
+sys_top to emu, instantiate pes/decoder/mp2/mixer in `Pace2500N_Transport.sv`, SDC clock groups, build,
+deploy, load the 64 MiB stream. Then: menu music selection by the firmware, clock not advancing, reminder hang.

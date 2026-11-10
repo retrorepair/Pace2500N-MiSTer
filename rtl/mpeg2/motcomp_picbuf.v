@@ -1,0 +1,735 @@
+/* 
+ * motcomp_picbuf.v
+ * 
+ * Copyright (c) 2007 Koen De Vleeschauwer. 
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND 
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE 
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+ * SUCH DAMAGE.
+ */
+
+/*
+ * motcomp_picbuf.v - Motion compensation: picture buffer management
+ */
+
+`include "timescale.v"
+
+`undef DEBUG
+//`define DEBUG 1
+
+`undef CHECK
+`ifdef __IVERILOG__
+`define CHECK 1
+`endif
+
+module motcomp_picbuf(
+  clk, clk_en, rst,
+  source_select, 
+  progressive_sequence, progressive_frame, top_field_first, repeat_first_field, last_frame,
+  pic_informative, informative_commit,       // DVD-FORK (film evidence gate): per-picture evidence verdict
+  picture_coding_type,
+  forward_reference_frame, backward_reference_frame, current_frame,
+  output_frame, output_frame_valid, output_frame_rd, output_progressive_sequence, output_progressive_frame, output_top_field_first, output_repeat_first_field, output_informative,
+  update_picture_buffers, picbuf_busy,
+  flags_commit,                            // DVD-FORK (round 11): per-picture display flags valid (coding ext parsed)
+  vld_pic_pts, vld_pic_pts_valid, vld_pic_pts_2nd, pts_commit,   // DVD-FORK (PTS association): this picture's PTS tag, from pts_assoc
+  output_pts, output_pts_valid, output_pts_2nd,                   // DVD-FORK (PTS association): the tag of the picture at the output
+  vbuf_flush                                // DVD-FORK FIX (2026-09-18): a VBUF flush un-tags every slot
+  );
+
+  input              clk;                          // clock
+  input              clk_en;                       // clock enable
+  input              rst;                          // synchronous active low reset
+
+  input         [2:0]source_select;                // select video out source
+  input         [2:0]picture_coding_type;          // identifies whether a picture is an I, P or B picture.
+  input              progressive_sequence;
+  input              progressive_frame;
+  /* DVD-FORK (film evidence gate): a picture's coded size is only known when it
+   * ENDS, so unlike flags_commit this verdict cannot be committed at the coding
+   * extension. informative_commit pulses at the picture's terminating start code,
+   * which is still strictly before the NEXT picture's update_picture_buffers —
+   * same slot, later write. Default is 1 (informative), so a picture that never
+   * commits counts exactly as it does today. */
+  input              pic_informative;
+  input              informative_commit;
+  /* DVD-FORK (PTS association, docs/av_sync.md "THE STC IS A CLOCK"): a fifth
+   * per-slot attribute, the picture's PTS. The tag is a REGISTER in pts_assoc,
+   * decided one cycle after the vld's picture header and held until the next
+   * header; STATE_UPDATE for this picture lands >= 3 cycles after the header
+   * (update_picture_buffers -> mvec fifo -> here) and before the next one
+   * (the vld is frozen at the header until this rotation), so latching it at
+   * STATE_UPDATE is ordered by construction -- the same argument as flags_commit.
+   * A tag that lands on the SECOND field of a pair arrives after the rotation;
+   * pts_commit with vld_pic_pts_2nd re-latches it into the slot that is still
+   * current. DVD-FORK FIX (2026-09-29): that path is now UNREACHABLE --
+   * pts_assoc never tags a second field (a field pair is one access unit; the
+   * old rule mis-tagged Thayer's B pictures with the next I's PTS,
+   * docs/nonseamless_audio.md 2b). Kept, not deleted, so the port contract is
+   * unchanged. It rides current -> prev_i_p -> output exactly as the flags do,
+   * including the STATE_LAST_FRAME path (a menu still is SEQ GOP PIC:I SEQ_END). */
+  input        [32:0]vld_pic_pts;
+  input              vld_pic_pts_valid;
+  input              vld_pic_pts_2nd;
+  input              pts_commit;
+  /* DVD-FORK FIX (2026-09-18, Scooby-Doo 2 "good job" heard as "job";
+   * docs/dvd_nav.md "A picture from before the flush must not set the clock").
+   * A VBUF flush (every seek / title jump) invalidates the PTS tag of every
+   * picture picbuf ALREADY holds. The in-flight picture and the held I/P anchor
+   * still reach the screen once after the flush (docs/seek_realign.md §5.1),
+   * and with their pre-flush tags they ANCHORED THE CLOCK on the old timeline:
+   * the new cell's first picture then read as a backward jump, disp_sched
+   * raised anchor_disc, and the audio re-phase threw away the new cell's
+   * already-buffered opening -- up to ~1.4 s, the whole of "good".
+   * Untagged, the stale picture is shown against the provisional clock and
+   * changes nothing; the first post-flush tag anchors it.
+   * ⚠ Ordering is the same argument as the tag latch itself: pts_assoc clears
+   * its tag on the same flush, and a pre-flush picture's STATE_UPDATE that is
+   * still queued can only latch that cleared output (the vld is frozen at the
+   * next header until the rotation), so nothing stale can be re-latched after
+   * this clear. A level, highest priority after reset, not clk_en-gated. */
+  input              vbuf_flush;
+  output reg   [32:0]output_pts;
+  output reg         output_pts_valid;
+  output reg         output_pts_2nd;
+  reg          [32:0]current_frame_pts;
+  reg                current_frame_pts_valid;
+  reg                current_frame_pts_2nd;
+  reg          [32:0]prev_i_p_frame_pts;
+  reg                prev_i_p_frame_pts_valid;
+  reg                prev_i_p_frame_pts_2nd;
+  input              top_field_first;
+  input              repeat_first_field;
+  input              last_frame;                   // asserted when frame is the last frame of a bitstream
+
+  /* saved values */
+  reg           [2:0]vld_picture_coding_type;
+  reg                vld_progressive_sequence;
+  reg                vld_progressive_frame;
+  reg                vld_top_field_first;
+  reg                vld_repeat_first_field;
+  reg                vld_last_frame;
+
+  /* picture buffers */
+  output reg    [2:0]forward_reference_frame;      /* forward reference frame. Has value 2'd0 or 2'd1 */
+  output reg    [2:0]backward_reference_frame;     /* backward reference frame. Has value 2'd0 or 2'd1 */
+
+  reg           [2:0]aux_frame;                    /* auxiliary frame 1. Has value 2'd2 or 2'd3 */
+  reg           [2:0]prev_aux_frame;
+
+  output reg    [2:0]current_frame;                /* current frame being decoded */
+  reg                current_frame_valid;
+  reg           [2:0]current_frame_coding_type;    /* I, P or B-TYPE */
+  reg                current_frame_progressive_sequence;
+  reg                current_frame_progressive_frame;
+  reg                current_frame_informative;        // DVD-FORK (film evidence gate)
+  reg                current_frame_top_field_first;
+  reg                current_frame_repeat_first_field;
+
+  output reg    [2:0]output_frame;                 /* frame being displayed */
+  output reg         output_frame_valid;           /* asserted during one clock cycle */
+  input              output_frame_rd;              /* asserted when output_frame read */
+
+  output reg         output_progressive_sequence;
+  output reg         output_progressive_frame;
+  output reg         output_informative;               // DVD-FORK (film evidence gate)
+  output reg         output_top_field_first;
+  output reg         output_repeat_first_field;
+  output reg         picbuf_busy;
+
+  input              update_picture_buffers;
+
+  /* DVD-FORK FIX (round 11 — STALE DISPLAY FLAGS, the lip-sync ~+3% engine):
+   * update_picture_buffers fires at the picture HEADER (and the vld then
+   * freezes until this FSM processes it), but progressive_frame /
+   * top_field_first / repeat_first_field parse LATER, in the picture coding
+   * extension — so the STATE_UPDATE branches below capture the PREVIOUS
+   * coded picture's flags into current_frame_*. On clean 3:2 film the
+   * display-order flag sequence is merely phase-shifted (still alternating,
+   * cadence looks perfect); FRAME DROPS break the pairing and each
+   * phase-locked drop leaks ~+1 refresh of video lead (measured: the
+   * VBUF-funded +3% ramp that parks lips ~0.9 s audio-behind — see
+   * docs/lipsync_pickup.md rounds 8–11). flags_commit pulses when the vld
+   * has parsed THIS picture's coding extension (never for a dropped
+   * picture): re-latch the three per-picture flags into the current slot.
+   * Ordering is guaranteed by the header freeze: STATE_UPDATE for picture N
+   * strictly precedes the vld reaching N's extension. Emission reads
+   * current_frame_* at the NEXT picture's update — long after the commit. */
+  input              flags_commit;
+
+  reg                prev_output_frame_valid;
+
+  reg           [2:0]prev_i_p_frame;               /* previous I or P frame */
+  reg                prev_i_p_frame_valid;         /* high if previous I or P frame exists, low when no previous I or P frame exists (at video sequence start) */
+  reg                prev_i_p_frame_progressive_sequence;
+  reg                prev_i_p_frame_progressive_frame;
+  reg                prev_i_p_frame_informative;       // DVD-FORK (film evidence gate)
+  reg                prev_i_p_frame_top_field_first;
+  reg                prev_i_p_frame_repeat_first_field;
+
+`include "vld_codes.v"
+
+  parameter     [3:0]
+    STATE_IDLE         = 4'h0,
+    STATE_UPDATE       = 4'h1,
+    STATE_IP_FRAME_0   = 4'h2,
+    STATE_IP_FRAME_1   = 4'h3,
+    STATE_B_FRAME_0    = 4'h4,
+    STATE_B_FRAME_1    = 4'h5,
+    STATE_LAST_FRAME   = 4'h6,
+    STATE_WAIT_0       = 4'h7,
+    STATE_WAIT_1       = 4'h8,
+    STATE_SRC_SELECT_0 = 4'h9,
+    STATE_SRC_SELECT_1 = 4'ha;
+
+  reg           [3:0]state;
+  reg           [3:0]next;
+
+  /* 
+   * We need to synchronize motion compensation (computing the next image) and
+   * resampling (showing the previous image). These processes run at different
+   * speeds.
+   *
+   * goals:
+   * - start decoding the next picture as soon as possible
+   * - don't overwrite a picture which still needs to be displayed
+   *
+   * if (output_frame_rd == 1'b1): resampling finished the previous image, and wants the next image.
+   * if (picbuf_busy == 1'b1): next image computed.
+   */
+
+  /* next state */
+  always @*
+    case (state)
+                                 /* Wait until next frame decoded (picbuf_busy asserted) */
+      STATE_IDLE:                if ((source_select != 3'd0) && ~source_select[2]) next = STATE_IDLE; // blank screen if source_select == 3'd1..3
+                                 else if ((source_select != 3'd0) && source_select[2])next = STATE_SRC_SELECT_0; // next image forced through "source select" if source_select == 3'd4..7
+                                 else if (picbuf_busy) next = STATE_UPDATE; // next frame
+                                 else next = STATE_IDLE; // blank screen
+
+                                 /* update forward reference frame, backward reference frame, current frame, output frame. */
+      STATE_UPDATE:              if (vld_last_frame) next = STATE_LAST_FRAME;
+                                 else if (vld_picture_coding_type == B_TYPE) next = STATE_B_FRAME_0; /* next frame is B-frame */
+                                 else next = STATE_IP_FRAME_0; /* next frame is I- or P-frame */
+
+                                 /* I-frame. wait until resample has finished showing previous frame, and wants to show this frame */
+      STATE_IP_FRAME_0:          if (~output_frame_valid) next = STATE_IP_FRAME_1; // there's no previous I/P frame to show, start decoding right away
+                                 else if (output_frame_rd) next = STATE_IP_FRAME_1; // resample has picked up previous I/P frame, start decoding
+                                 else next = STATE_IP_FRAME_0;
+
+                                 /* drop picbuf_busy. start decoding I or P-frame */
+      STATE_IP_FRAME_1:          next = STATE_WAIT_1;  // wait until resample has finished showing previous I- or P-frame 
+
+                                 /* B-frame. drop picbuf_busy, start decoding B-frame */
+      STATE_B_FRAME_0:           next = STATE_B_FRAME_1;  
+
+                                 /* wait until B-frame has been decoded (picbuf_busy high). Then raise output_frame_valid. */
+      STATE_B_FRAME_1:           if (picbuf_busy) next = STATE_WAIT_0; 
+                                 else next = STATE_B_FRAME_1;
+
+      STATE_LAST_FRAME:          next = STATE_WAIT_0; // show last frame; start decoding next video
+
+                                 /* wait until resample has finished showing the previous frame, and wants to show this frame */
+      STATE_WAIT_0:              if (~output_frame_valid) next = STATE_IDLE;
+                                 else if (output_frame_rd) next = STATE_WAIT_1;
+                                 else next = STATE_WAIT_0;
+
+                                 /* drop output_frame_valid, wait for output_frame_rd to drop */
+      STATE_WAIT_1:              if (~output_frame_rd) next = STATE_IDLE;
+                                 else next = STATE_WAIT_1;
+
+                                 /* source_select is set. display selected frame and raise output_frame_valid. wait for resample to assert output_frame_rd */
+      STATE_SRC_SELECT_0:        if (output_frame_rd) next = STATE_SRC_SELECT_1;
+                                 else next = STATE_SRC_SELECT_0;
+                                 
+                                 /* drop output_frame_valid. wait for resample to drop output_frame_rd; then go to the next frame */
+      STATE_SRC_SELECT_1:        if (~output_frame_rd) next = STATE_IDLE;
+                                 else next = STATE_SRC_SELECT_1;
+
+      default                    next  = STATE_IDLE;
+    endcase
+
+  /* state */
+  always @(posedge clk)
+    if(~rst) state <= STATE_IDLE;
+    else if (clk_en) state <= next;
+    else state <= state;
+
+  /* 
+   * clock enable for variable-length decoding; 
+   * pause variable-length decoding 
+   *
+   */
+
+  always @(posedge clk)
+    if (~rst) picbuf_busy <= 1'd0;
+    else if (clk_en && update_picture_buffers) picbuf_busy <= 1'b1;
+    else if (clk_en && ((state == STATE_IP_FRAME_1) || (state == STATE_B_FRAME_0) || (state == STATE_LAST_FRAME))) picbuf_busy <= 1'b0;
+    else picbuf_busy <= picbuf_busy;
+
+  /*
+   * Save vld values
+   */
+
+  always @(posedge clk)
+    if (~rst) 
+      begin
+        vld_picture_coding_type <= 3'd0;
+        vld_progressive_sequence <= 1'b0;
+        vld_progressive_frame <= 1'b0;
+        vld_top_field_first <= 1'b0;
+        vld_repeat_first_field <= 1'b0;
+        vld_last_frame <= 1'b0;
+      end
+    else if (clk_en && update_picture_buffers) 
+      begin
+        vld_picture_coding_type <= picture_coding_type;
+        vld_progressive_sequence <= progressive_sequence;
+        vld_progressive_frame <= progressive_frame;
+        vld_top_field_first <= top_field_first;
+        vld_repeat_first_field <= repeat_first_field;
+        vld_last_frame <= last_frame;
+      end
+    else 
+      begin
+        vld_picture_coding_type <= vld_picture_coding_type;
+        vld_progressive_sequence <= vld_progressive_sequence;
+        vld_progressive_frame <= vld_progressive_frame;
+        vld_top_field_first <= vld_top_field_first;
+        vld_repeat_first_field <= vld_repeat_first_field;
+        vld_last_frame <= vld_last_frame;
+      end
+
+  /* DVD-FORK (PTS association): the PTS attribute, in three mirrors of the
+   * flag blocks below -- current (at STATE_UPDATE, plus the second-field
+   * re-latch), prev_i_p (at update_picture_buffers), output (at each emit). */
+  always @(posedge clk)
+    if (~rst)
+      begin
+        current_frame_pts       <= 33'd0;
+        current_frame_pts_valid <= 1'b0;
+        current_frame_pts_2nd   <= 1'b0;
+      end
+    else if (vbuf_flush)
+      current_frame_pts_valid <= 1'b0;
+    else if (clk_en && (state == STATE_UPDATE) && ~vld_last_frame)
+      begin
+        current_frame_pts       <= vld_pic_pts;
+        current_frame_pts_valid <= vld_pic_pts_valid;
+        current_frame_pts_2nd   <= vld_pic_pts_2nd;
+      end
+    else if (clk_en && pts_commit && vld_pic_pts_valid && vld_pic_pts_2nd && current_frame_valid)
+      begin
+        current_frame_pts       <= vld_pic_pts;
+        current_frame_pts_valid <= 1'b1;
+        current_frame_pts_2nd   <= 1'b1;
+      end
+
+  always @(posedge clk)
+    if (~rst)
+      begin
+        prev_i_p_frame_pts       <= 33'd0;
+        prev_i_p_frame_pts_valid <= 1'b0;
+        prev_i_p_frame_pts_2nd   <= 1'b0;
+      end
+    else if (vbuf_flush)
+      prev_i_p_frame_pts_valid <= 1'b0;
+    else if (clk_en && update_picture_buffers && (current_frame_coding_type != B_TYPE) && ~vld_last_frame)
+      begin
+        prev_i_p_frame_pts       <= current_frame_pts;
+        prev_i_p_frame_pts_valid <= current_frame_pts_valid;
+        prev_i_p_frame_pts_2nd   <= current_frame_pts_2nd;
+      end
+
+  always @(posedge clk)
+    if (~rst)
+      begin
+        output_pts       <= 33'd0;
+        output_pts_valid <= 1'b0;
+        output_pts_2nd   <= 1'b0;
+      end
+    else if (vbuf_flush)
+      output_pts_valid <= 1'b0;
+    else if (clk_en && (state == STATE_LAST_FRAME))
+      begin
+        output_pts       <= prev_i_p_frame_pts;
+        output_pts_valid <= prev_i_p_frame_pts_valid;
+        output_pts_2nd   <= prev_i_p_frame_pts_2nd;
+      end
+    else if (clk_en && (state == STATE_B_FRAME_1) && (next == STATE_WAIT_0))
+      begin
+        output_pts       <= current_frame_pts;
+        output_pts_valid <= current_frame_pts_valid;
+        output_pts_2nd   <= current_frame_pts_2nd;
+      end
+    else if (clk_en && (state == STATE_UPDATE) && (next == STATE_IP_FRAME_0))
+      begin
+        output_pts       <= prev_i_p_frame_pts;
+        output_pts_valid <= prev_i_p_frame_pts_valid;
+        output_pts_2nd   <= prev_i_p_frame_pts_2nd;
+      end
+
+  /*
+   * current frame
+   * If we're decoding a B picture, we store it in the auxiliary frame.
+   * This is acceptable as no future pictures will use the B picture as reference frame.
+   */
+
+  always @(posedge clk)
+    if (~rst) 
+      begin
+        current_frame <= 3'b0;
+        current_frame_valid <= 1'b0;
+        current_frame_coding_type <= I_TYPE;
+        current_frame_progressive_sequence <= 1'b0;
+        current_frame_progressive_frame <= 1'b0;
+        current_frame_informative <= 1'b1;
+        current_frame_top_field_first <= 1'b0;
+        current_frame_repeat_first_field <= 1'b0;
+      end 
+    else if (clk_en && (state == STATE_UPDATE) && (vld_picture_coding_type != B_TYPE) && ~vld_last_frame)
+      begin
+        current_frame <= forward_reference_frame;
+        current_frame_valid <= 1'b1;
+        current_frame_coding_type <= vld_picture_coding_type;
+        current_frame_progressive_sequence <= vld_progressive_sequence;
+        current_frame_progressive_frame <= vld_progressive_frame;
+        current_frame_informative <= 1'b1;
+        current_frame_top_field_first <= vld_top_field_first;
+        current_frame_repeat_first_field <= vld_repeat_first_field;
+      end
+    else if (clk_en && (state == STATE_UPDATE) && (vld_picture_coding_type == B_TYPE) && ~vld_last_frame)
+      begin
+        current_frame <= aux_frame;
+        current_frame_valid <= 1'b1;
+        current_frame_coding_type <= vld_picture_coding_type;
+        current_frame_progressive_sequence <= vld_progressive_sequence;
+        current_frame_progressive_frame <= vld_progressive_frame;
+        current_frame_informative <= 1'b1;
+        current_frame_top_field_first <= vld_top_field_first;
+        current_frame_repeat_first_field <= vld_repeat_first_field;
+      end
+    else if (clk_en && flags_commit && current_frame_valid)
+      begin
+        /* DVD-FORK FIX (round 11): the vld has parsed the CURRENT picture's
+         * coding extension — replace the stale (previous picture's) flags
+         * captured at STATE_UPDATE with the picture's own. */
+        current_frame <= current_frame;
+        current_frame_valid <= current_frame_valid;
+        current_frame_coding_type <= current_frame_coding_type;
+        current_frame_progressive_sequence <= current_frame_progressive_sequence;
+        current_frame_progressive_frame <= progressive_frame;
+        current_frame_informative <= current_frame_informative;
+        current_frame_top_field_first <= top_field_first;
+        current_frame_repeat_first_field <= repeat_first_field;
+      end
+    else if (clk_en && informative_commit && current_frame_valid)
+      begin
+        /* DVD-FORK (film evidence gate): the vld has finished MEASURING this
+         * picture and knows whether it carried real evidence. Same ordering
+         * argument flags_commit makes, one step later: the pulse lands at the
+         * picture's terminating start code, and the next picture's STATE_UPDATE
+         * cannot precede its own header. */
+        current_frame <= current_frame;
+        current_frame_valid <= current_frame_valid;
+        current_frame_coding_type <= current_frame_coding_type;
+        current_frame_progressive_sequence <= current_frame_progressive_sequence;
+        current_frame_progressive_frame <= current_frame_progressive_frame;
+        current_frame_top_field_first <= current_frame_top_field_first;
+        current_frame_repeat_first_field <= current_frame_repeat_first_field;
+        current_frame_informative <= pic_informative;
+      end
+    else
+      begin
+        current_frame <= current_frame;
+        current_frame_valid <= current_frame_valid;
+        current_frame_coding_type <= current_frame_coding_type;
+        current_frame_progressive_sequence <= current_frame_progressive_sequence;
+        current_frame_progressive_frame <= current_frame_progressive_frame;
+        current_frame_informative <= current_frame_informative;
+        current_frame_top_field_first <= current_frame_top_field_first;
+        current_frame_repeat_first_field <= current_frame_repeat_first_field;
+      end
+
+  /*
+   If we are decoding an I or P picture,
+   the old backward reference frame becomes the new forward reference frame,
+   while the old forward reference frame is overwritten with the current frame and becomes the new backward reference frame.
+   This is ok as decoding the I or P pictures doesn't need the old backward reference frame, 
+   and subsequent B pictures will use the I or P picture being decoded as backward reference frame.
+   */
+
+  /* DVD-FORK FIX (pixelated menu stills): the sequence-end STATE_UPDATE must
+   * NOT rotate the reference slots. The current_frame (above) and prev_i_p_frame
+   * (below) updates are already guarded with ~vld_last_frame because no picture
+   * is being decoded at a sequence end -- this swap was not, so the pointers
+   * rotated one extra step. STATE_LAST_FRAME then emits prev_i_p_frame (== the
+   * old backward_reference_frame) for display AND clears prev_i_p_frame_valid,
+   * so the next sequence's first I picture took current_frame <=
+   * forward_reference_frame -- which the extra swap had just made equal to the
+   * slot now on screen -- while output_frame_valid == 0 let STATE_IP_FRAME_0's
+   * shortcut release the VLD without waiting for the display handshake. The
+   * picture then painted into the slot resample was persistence-re-scanning:
+   * the "menu still comes up blocky, like it hasn't finished loading" bug.
+   * Measured on Harry Potter Interactive DVD: every still cell is
+   * SEQ GOP PIC:I SEQ_END, so a still arms this for whatever decodes next and
+   * still->still menu navigation collided every time.
+   * Safe: the picture after a sequence end is necessarily an I, which predicts
+   * from nothing, so only slot ALLOCATION matters here, never slot contents.
+   * See bench/dvd/motcomp_picbuf_tb.sv scenario [A]. */
+  always @(posedge clk)
+    if (~rst) forward_reference_frame <= 3'd0;
+    else if (clk_en && (state == STATE_UPDATE) && (vld_picture_coding_type != B_TYPE) && ~vld_last_frame) forward_reference_frame <= backward_reference_frame;
+    else forward_reference_frame <= forward_reference_frame;
+
+  always @(posedge clk)
+    if (~rst) backward_reference_frame <= 3'd1;
+    else if (clk_en && (state == STATE_UPDATE) && (vld_picture_coding_type != B_TYPE) && ~vld_last_frame) backward_reference_frame <= forward_reference_frame;
+    else backward_reference_frame <= backward_reference_frame;
+
+  always @(posedge clk)
+    if (~rst) aux_frame <= 3'd2;
+    else if (clk_en && (state == STATE_UPDATE) && (vld_picture_coding_type == B_TYPE)) aux_frame <= prev_aux_frame;
+    else aux_frame <= aux_frame;
+
+  always @(posedge clk)
+    if (~rst) prev_aux_frame <= 3'd3;
+    else if (clk_en && (state == STATE_UPDATE) && (vld_picture_coding_type == B_TYPE)) prev_aux_frame <= aux_frame;
+    else prev_aux_frame <= prev_aux_frame;
+
+  /* 
+   * prev_i_p_frame stores the previous I or P frame. 
+   * prev_i_p_frame_valid is zero if no previous I or P frame exists, e,g, at video start.
+   */
+
+  always @(posedge clk)
+    if (~rst) 
+      begin
+        prev_i_p_frame <= 3'b0;
+        prev_i_p_frame_valid <= 1'b0;
+        prev_i_p_frame_progressive_sequence <= 1'b0;
+        prev_i_p_frame_progressive_frame <= 1'b0;
+        prev_i_p_frame_informative <= 1'b1;
+        prev_i_p_frame_top_field_first <= 1'b0;
+        prev_i_p_frame_repeat_first_field <= 1'b0;
+      end
+    else if (clk_en && update_picture_buffers && (current_frame_coding_type != B_TYPE) && ~vld_last_frame) 
+      begin
+        prev_i_p_frame <= current_frame;
+        prev_i_p_frame_valid <= current_frame_valid;
+        prev_i_p_frame_progressive_sequence <= current_frame_progressive_sequence;
+        prev_i_p_frame_progressive_frame <= current_frame_progressive_frame;
+        prev_i_p_frame_informative <= current_frame_informative;
+        prev_i_p_frame_top_field_first <= current_frame_top_field_first;
+        prev_i_p_frame_repeat_first_field <= current_frame_repeat_first_field;
+      end
+    /*
+     * Clear prev_i_p_frame_valid, in case a (new) mpeg2 stream comes after the last frame 
+     */ 
+    else if (clk_en && (state == STATE_LAST_FRAME))
+      begin
+        prev_i_p_frame <= prev_i_p_frame;
+        prev_i_p_frame_valid <= 1'b0;
+        prev_i_p_frame_progressive_sequence <= prev_i_p_frame_progressive_sequence;
+        prev_i_p_frame_progressive_frame <= prev_i_p_frame_progressive_frame;
+        prev_i_p_frame_informative <= prev_i_p_frame_informative;
+        prev_i_p_frame_top_field_first <= prev_i_p_frame_top_field_first;
+        prev_i_p_frame_repeat_first_field <= prev_i_p_frame_repeat_first_field;
+      end
+    else
+      begin
+        prev_i_p_frame <= prev_i_p_frame;
+        prev_i_p_frame_valid <= prev_i_p_frame_valid;
+        prev_i_p_frame_progressive_sequence <= prev_i_p_frame_progressive_sequence;
+        prev_i_p_frame_progressive_frame <= prev_i_p_frame_progressive_frame;
+        prev_i_p_frame_informative <= prev_i_p_frame_informative;
+        prev_i_p_frame_top_field_first <= prev_i_p_frame_top_field_first;
+        prev_i_p_frame_repeat_first_field <= prev_i_p_frame_repeat_first_field;
+      end
+
+  /*
+   * output frame selection
+   *
+   * par. 6.1.1.11 Frame reordering
+   *
+   * ... sequence re-ordering is performed according to the following rules:
+   * If the current frame in coded order is a B-frame the output frame is the frame reconstructed from that B-frame.
+   * If the current frame in coded order is a I-frame or P-frame the output frame is the frame reconstructed
+   * from the previous I-frame or P-frame if one exists. If none exists, at the start of the sequence, no frame is output.
+   * The frame reconstructed from the final I-frame or P-frame in the sequence is output immediately after the
+   * frame reconstructed when the last coded frame in the sequence was removed from the VBV buffer.
+   *
+   */
+
+  always @(posedge clk)
+    if (~rst)
+      begin
+        output_frame                  <= 3'd0;
+        output_frame_valid            <= 1'b0;
+        output_progressive_sequence   <= 1'b0;
+        output_progressive_frame      <= 1'b0;
+        output_informative            <= 1'b1;
+        output_top_field_first        <= 1'b0;
+        output_repeat_first_field     <= 1'b0;
+        prev_output_frame_valid       <= 1'b0;
+      end
+    else if (clk_en && (state == STATE_IDLE))
+      begin
+        output_frame                  <= output_frame;
+        output_frame_valid            <= 1'b0;
+        output_progressive_sequence   <= output_progressive_sequence;
+        output_progressive_frame      <= output_progressive_frame;
+        output_informative            <= output_informative;
+        output_top_field_first        <= output_top_field_first;
+        output_repeat_first_field     <= output_repeat_first_field;
+        prev_output_frame_valid       <= prev_output_frame_valid;
+      end
+    /*
+     * Emit last frame of sequence 
+     */
+    else if (clk_en && (state == STATE_LAST_FRAME)) /* emit last frame: Emit last decoded I or P frame */
+      begin
+        output_frame                  <= prev_i_p_frame;
+        output_frame_valid            <= prev_i_p_frame_valid;
+        output_progressive_sequence   <= prev_i_p_frame_progressive_sequence;
+        output_progressive_frame      <= prev_i_p_frame_progressive_frame;
+        output_informative            <= prev_i_p_frame_informative;
+        output_top_field_first        <= prev_i_p_frame_top_field_first;
+        output_repeat_first_field     <= prev_i_p_frame_repeat_first_field;
+        prev_output_frame_valid       <= prev_i_p_frame_valid;
+      end
+    /*
+     * Emit B-frame 
+     */
+    else if (clk_en && (state == STATE_B_FRAME_1) && (next == STATE_WAIT_0))
+      begin
+        output_frame                  <= current_frame;
+        output_frame_valid            <= current_frame_valid;
+        output_progressive_sequence   <= current_frame_progressive_sequence;
+        output_progressive_frame      <= current_frame_progressive_frame;
+        output_informative            <= current_frame_informative;
+        output_top_field_first        <= current_frame_top_field_first;
+        output_repeat_first_field     <= current_frame_repeat_first_field;
+        prev_output_frame_valid       <= current_frame_valid;
+      end
+    /*
+     * Emit I-/P-frame 
+     */
+    else if (clk_en && (state == STATE_UPDATE) && (next == STATE_IP_FRAME_0))
+      begin
+        output_frame                  <= prev_i_p_frame;
+        output_frame_valid            <= prev_i_p_frame_valid;
+        output_progressive_sequence   <= prev_i_p_frame_progressive_sequence;
+        output_progressive_frame      <= prev_i_p_frame_progressive_frame;
+        output_informative            <= prev_i_p_frame_informative;
+        output_top_field_first        <= prev_i_p_frame_top_field_first;
+        output_repeat_first_field     <= prev_i_p_frame_repeat_first_field;
+        prev_output_frame_valid       <= prev_i_p_frame_valid;
+      end
+    /*
+     * Housekeeping 
+     */
+    else if (clk_en && ((state == STATE_WAIT_1) || (state == STATE_SRC_SELECT_1) || (state == STATE_IP_FRAME_1)))
+      begin
+        output_frame                  <= output_frame;
+        output_frame_valid            <= output_frame_rd; // drop output_frame_valid when output_frame_rd is lowered
+        output_progressive_sequence   <= output_progressive_sequence;
+        output_progressive_frame      <= output_progressive_frame;
+        output_informative            <= output_informative;
+        output_top_field_first        <= output_top_field_first;
+        output_repeat_first_field     <= output_repeat_first_field;
+        prev_output_frame_valid       <= prev_output_frame_valid;
+      end
+    /*
+     * source select
+     */
+    else if (clk_en && (state == STATE_SRC_SELECT_0)) /* force frame */
+      begin
+        output_frame                  <= source_select[1:0];
+        output_frame_valid            <= source_select[2];
+        output_progressive_sequence   <= progressive_sequence;
+        output_progressive_frame      <= progressive_frame;
+        output_informative            <= 1'b1;
+        output_top_field_first        <= top_field_first;
+        output_repeat_first_field     <= 1'b0;
+        prev_output_frame_valid       <= source_select[2];
+      end
+    else /* no change */
+      begin
+        output_frame                  <= output_frame;
+        output_frame_valid            <= output_frame_valid;
+        output_progressive_sequence   <= output_progressive_sequence;
+        output_progressive_frame      <= output_progressive_frame;
+        output_informative            <= output_informative;
+        output_top_field_first        <= output_top_field_first;
+        output_repeat_first_field     <= output_repeat_first_field;
+        prev_output_frame_valid       <= prev_output_frame_valid;
+      end
+
+`ifdef CHECK
+  /* DVD-FORK: the decode target must never be the slot the display is scanning
+   * out (see the sequence-end fix above). Checked on the two states that release
+   * the VLD to write macroblocks -- STATE_LAST_FRAME also drops picbuf_busy, but
+   * no macroblocks can follow it before the next update_picture_buffers.
+   * chk_shown suppresses it before the very first emission (video start), where
+   * output_frame is still its reset value and nothing is on screen. Note the
+   * existing prev_output_frame_valid reg canNOT be used here: the same I/P emit
+   * branch that zeroes output_frame_valid also zeroes it, so it reads 0 at
+   * exactly the moment of interest. Everything here is inside `ifdef CHECK, so
+   * synthesis sees none of it.
+   * NOTE this is deliberately an assertion and NOT an FSM change -- gating
+   * STATE_IP_FRAME_0's shortcut on slot inequality DEADLOCKS the core, because
+   * dvd/resample_addrgen.v:543 gates pickup on output_frame_valid, which is 0
+   * in exactly the scenario such a gate would be trying to catch. */
+  reg chk_shown;
+  always @(posedge clk)
+    if (~rst) chk_shown <= 1'b0;
+    else if (clk_en && output_frame_valid) chk_shown <= 1'b1;
+
+  always @(posedge clk)
+    if (rst && clk_en && ((state == STATE_IP_FRAME_1) || (state == STATE_B_FRAME_0))
+        && chk_shown && (current_frame == output_frame))
+      $display("%m\t*** Error: releasing decode into displayed slot %0d", current_frame);
+`endif
+
+`ifdef DEBUG
+
+  always @(posedge clk)
+    case (state)
+      STATE_IDLE:                               #0 $display("%m\tSTATE_IDLE");
+      STATE_UPDATE:                             #0 $display("%m\tSTATE_UPDATE");
+      STATE_IP_FRAME_0:                         #0 $display("%m\tSTATE_IP_FRAME_0");
+      STATE_IP_FRAME_1:                         #0 $display("%m\tSTATE_IP_FRAME_1");
+      STATE_B_FRAME_0:                          #0 $display("%m\tSTATE_B_FRAME_0");
+      STATE_B_FRAME_1:                          #0 $display("%m\tSTATE_B_FRAME_1");
+      STATE_WAIT_0:                             #0 $display("%m\tSTATE_WAIT_0");
+      STATE_WAIT_1:                             #0 $display("%m\tSTATE_WAIT_1");
+      STATE_SRC_SELECT_0:                       #0 $display("%m\tSTATE_SRC_SELECT_0");
+      STATE_SRC_SELECT_1:                       #0 $display("%m\tSTATE_SRC_SELECT_1");
+      default                                   #0 $display("%m\t*** Error: unknown state %d", state);
+    endcase
+
+  always @(posedge clk)
+    begin 
+      $strobe("%m\tupdate_picture_buffers: %d output_frame_rd: %d picbuf_busy: %d", 
+                   update_picture_buffers, output_frame_rd, picbuf_busy);
+
+      $strobe("%m\tforward_reference_frame: %d backward_reference_frame: %d aux_frame: %d prev_aux_frame: %d current_frame: %d",
+                   forward_reference_frame, backward_reference_frame, aux_frame, prev_aux_frame, current_frame);
+
+      $strobe("%m\tcurrent_frame_coding_type: %d output_frame: %d output_frame_valid: %d prev_i_p_frame: %d prev_i_p_frame_valid: %d",
+                   current_frame_coding_type, output_frame, output_frame_valid, prev_i_p_frame, prev_i_p_frame_valid);
+    end 
+
+`endif
+endmodule
+
+/* not truncated */
