@@ -70,7 +70,7 @@ module tb_guide_transport;
  reg[31:0] inject3_at=0,key3_arg=0,inject4_at=0,key4_arg=0;
  integer ring_reads=0,demux_acks=0,trace,decoded=0,title_callbacks=0,row_callbacks=0,title_decodes=0;
  integer nvram_reads=0,favourites_fetches=0,application_loop_fetches=0;
- integer event8_messages=0,k;reg [63:0] cycles=0;integer race_writes=0,hazard_writes=0,cache_ops=0;reg [31:0] hazard_row=0;reg iow_trace=0,ca_trace=0,io_trace=0,gpu_trace=0,fe_trace=0;reg [31:0] sp_lo=0,sp_hi=0,watch_addr=0;reg [19:0] io_page=20'hb2006;reg [31:0] stack_value;
+ integer event8_messages=0,k;reg [63:0] cycles=0;integer race_writes=0,hazard_writes=0,cache_ops=0;reg [31:0] hazard_row=0;reg av_trace=0,iow_trace=0,ca_trace=0,io_trace=0,gpu_trace=0,fe_trace=0;reg [31:0] sp_lo=0,sp_hi=0,watch_addr=0;reg [19:0] io_page=20'hb2006;reg [31:0] stack_value;
  reg [31:0] next_progress=225000000;
  reg [31:0] previous_pc=0;string ts_hex="re/transport/diagnostic64.hex",out_prefix="re/transport/native";
  function automatic [31:0] guest_word(input [31:0] address);
@@ -101,6 +101,14 @@ module tb_guide_transport;
      end
      $fdisplay(trace,"");
     end
+   end
+   // +AVTRACE: A/V manager commands and the driver entry points around them.
+   if(av_trace)begin
+    if(pc==32'h80055d84)$fdisplay(trace,"AV_DISPATCH RET %0d cmd %h w4 %h w8 %h wc %h RA %h",retired,guest_word(cpu.gpr[4]+32'h20)&32'h00ff0000,guest_word(cpu.gpr[4]+4),guest_word(cpu.gpr[4]+8),guest_word(cpu.gpr[4]+12),cpu.gpr[31]);
+    if(pc==32'h8007fb08 && cpu.gpr[4]==guest_word(32'h80106e7c))$fdisplay(trace,"AV_POST RET %0d cmd %h w4 %h w8 %h wc %h RA %h",retired,guest_word(cpu.gpr[6]+32'h20)&32'h00ff0000,guest_word(cpu.gpr[6]+4),guest_word(cpu.gpr[6]+8),guest_word(cpu.gpr[6]+12),cpu.gpr[31]);
+    if(pc==32'h80054268)$fdisplay(trace,"AV_SUBMIT_F4 RET %0d RA %h",retired,cpu.gpr[31]);
+    if(pc==32'h80054570)$fdisplay(trace,"AV_INIT RET %0d RA %h",retired,cpu.gpr[31]);
+    if(pc==32'h8002f44c)$fdisplay(trace,"FE_START_API RET %0d RA %h",retired,cpu.gpr[31]);
    end
    if(fe_trace)begin
     if(pc==32'h80032d0c)$fdisplay(trace,"FE_PUBLISH RET %d status %h RA %h",retired,cpu.gpr[4],cpu.gpr[31]);
@@ -208,7 +216,7 @@ module tb_guide_transport;
   if($value$plusargs("KEY3_AT=%d",inject3_at))begin end
   if($value$plusargs("KEY4=%h",key4_arg))begin end
   if($value$plusargs("KEY4_AT=%d",inject4_at))begin end
-  disable_ts=$test$plusargs("NO_TS");ca_trace=$test$plusargs("CATRACE");io_trace=$test$plusargs("IOTRACE");iow_trace=$test$plusargs("IOWRITES");gpu_trace=$test$plusargs("GPUTRACE");fe_trace=$test$plusargs("FETRACE");if($value$plusargs("SPLO=%h",sp_lo))begin end if($value$plusargs("SPHI=%h",sp_hi))begin end if($value$plusargs("WATCH=%h",watch_addr))begin end if($value$plusargs("IOPAGE=%h",io_page))begin end
+  disable_ts=$test$plusargs("NO_TS");ca_trace=$test$plusargs("CATRACE");io_trace=$test$plusargs("IOTRACE");iow_trace=$test$plusargs("IOWRITES");av_trace=$test$plusargs("AVTRACE");gpu_trace=$test$plusargs("GPUTRACE");fe_trace=$test$plusargs("FETRACE");if($value$plusargs("SPLO=%h",sp_lo))begin end if($value$plusargs("SPHI=%h",sp_hi))begin end if($value$plusargs("WATCH=%h",watch_addr))begin end if($value$plusargs("IOPAGE=%h",io_page))begin end
   $readmemh("re/fpga_guide_checkpoint/ram64.hex",ram);
   $readmemh("re/fpga_guide_checkpoint/flash64.hex",flash);
   $readmemh("rom/checkpoint_cpu.hex",state_words);

@@ -21,6 +21,48 @@ Same behaviour, smaller core: 18,812 ALMs (45%), was 25,090 (60%) in v055.
 - Hardware: `_Other/Pace2500N_V056*.mgl` boots to the TV Guide menu. V055 removed.
 - Next (user): MPEG-2 decoder and playing video from the Guide.
 
+## A/V bring-up investigation (10 Nov, evening) - no RTL change yet
+
+Goal (user): MPEG-2 video from the Guide, and the period EPG background music
+through the firmware's own MPEG audio path.
+
+Fit: after v0.5.6 there are ~23,100 ALMs, 61 DSP and 144 M10K free. The
+MiSTer_DVD mpeg2fpga decoder trial-synthesised at ~12,900 ALMs / 31 DSP /
+~480 Kbit (with DVD display extras that can be left out). `sys_top` has an
+unused second 64-bit DDR3 port (`ram2`, ALSA is already disabled), so the
+decoder can have its own port and ~90 MHz memory clock like MiSTer_DVD and the
+CPU's 50 MHz DDR path stays untouched.
+
+Music assets (not in git, `roms/` is ignored): `roms/music/masters/` holds the
+12 archived Sky EPG music eras (YouTube, SuperLegendary; 2002 = y1wFhNvgeEE)
+and `roms/music/mp2/` the 48 kHz stereo 192 kbit/s MP2 conversions, also on the
+SD card at `/media/fat/games/Pace2500N_MUSIC/`. The real service (VDR list,
+2013-15, unverified for 2002): "EPG Background Audio", audio-only, SID 4152,
+audio PID 648 (0x288), ONID 2, TSID 2004, 11778 V. Broadcast bitrate unknown.
+
+Firmware findings (sim, `re/transport/av_*`, new plusargs +IOWRITES +AVTRACE):
+- EMMA A/V decoder registers are page B0002xxx (112 literal references, driver
+  code 0x80001400-0x80010300) and B0008xxx. The firmware does not touch either
+  page from the checkpoint, with or without key presses.
+- `tools/sky_streamer.py --es-pids 200,102` puts real ES PIDs in the first
+  service's PMT (`re/transport/guide_es.ts`).
+- Sky + 1,0,1: the channel banner appears. ~93M instructions later device-20
+  op 0x0F calls the frontend start API (8002F44C -> command 4). The frontend
+  task is in state 0 (never tuned), where command 4 just publishes status 5
+  ("not acquired"); no I2C to the demodulator at all. No demux PID is
+  reprogrammed, no A/V "select" command is posted.
+- A/V manager (80055D84) only sees 0x07/0x26 (leaving the Guide) and
+  0x0A/0x06/F4 (entering it); its queue handle is 80106E7C, posted through
+  8007FB08. Six session slots must be opened by the application layer.
+- frontend_publish_status maps status 1-3,6 -> op 0x0D, 4 -> 0x0E, 5 -> 0x0F.
+
+Blocker for both video and music: nothing issues frontend command 1 (tune with
+transponder parameters), so the box is never "locked" to the home transponder
+as a real box is after boot, and service selection stops before PAT/PMT.
+Next: find the tune-request path (device-20 ops / command 1 poster) and why it
+is not issued from this checkpoint; then model the B0002/B0008 registers the
+firmware drives and connect the decoders.
+
 ## Session 4 (10 Nov) - instruction timebase, I-cache, BT.601 video
 
 Root cause of the listings abort (from Session 3 evidence): the model gave the
