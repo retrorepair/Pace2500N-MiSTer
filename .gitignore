@@ -89,3 +89,6 @@ re/transport/*64.hex
 /re/application_i2c_demod_probe_01.json
 /re/application_i2c_ack_02.jsonbig_files.tmp
 checkpoints/*/firmware/
+
+# --- Private ROM assets (archived broadcast audio etc.); never pushed ---
+roms/
