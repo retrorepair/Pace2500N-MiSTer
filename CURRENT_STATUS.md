@@ -1,5 +1,26 @@
 # Pace 2500N current status — 9 November 2026
 
+## v0.5.8 (10 Nov, 23:20) - MPEG-2 video and MP2 audio from the Guide, on hardware
+
+`_Other/Pace2500N_V058.rbf`, launcher `Pace2500N_V058_Server.mgl` (stream
+`games/Pace2500N_TS/server_music.ts`, 84.6 s loop, built by
+`tools/make_server_stream.sh`). Open ALL CHANNELS (a few times until the grid
+shows), SELECT the Server row: the firmware tunes, routes video PID 0x200 and
+audio PID 0x102 to its A/V decoder (B000A094/B000A098 = 0x4200/0x4102) and the
+core's decoder plays Children's BBC under the firmware's own OSD/banner
+(`re/v058_first_video.png`). Telemetry RD word = {pictures, VBUF fill,
+video_on, audio_on, live, mp2_synced, mp2_err, busy, 00, dropped}.
+
+- Fit 30,167 ALMs (72%), 537/553 M10K, 83 DSP; all clocks positive setup/hold.
+- Decoder: MiSTer_DVD mpeg2fpga (GPL-3, commit e14e4fc) in `rtl/mpeg2`, own DDR3
+  port (sysmem ram2, `MISTER_RAM2`), window 0x38000000. PLL adds 90 / 79.4 / 27 MHz.
+- Clock: TOT rewrite now runs its own clock from the RTC load (`tb_tot_running`);
+  the Guide clock advances on hardware.
+- Not modelled yet: A/V sync (display free-runs from decode, no PTS/PCR), the
+  B4080100 volume block, B0002xxx decoder status/IRQs (firmware does not wait).
+- Menu music: firmware never requests background audio in the Guide with either
+  linkage variant (`--music 4152,288 [--music-linkage]`); the Guide is o-code.
+
 ## v0.5.6 (10 Nov) - lean demux and peripheral CSRs, deployed
 
 Same behaviour, smaller core: 18,812 ALMs (45%), was 25,090 (60%) in v055.
