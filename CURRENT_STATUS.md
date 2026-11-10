@@ -1,4 +1,27 @@
-# Pace 2500N current status — 9 November 2026## Session 4 (10 Nov) - instruction timebase, I-cache, BT.601 video
+# Pace 2500N current status — 9 November 2026
+
+## v0.5.6 (10 Nov) - lean demux and peripheral CSRs, deployed
+
+Same behaviour, smaller core: 18,812 ALMs (45%), was 25,090 (60%) in v055.
+- `pace_section_demux`: 7,080 -> 1,828 ALMs. Per-channel tables (PIDs,
+  pointers, limits, used/total/CRC, CC/signature, header bytes) and the
+  188-byte packet buffer are MLAB memories with asynchronous reads
+  (`ramstyle="MLAB, no_rw_check"`), so read-after-write timing equals the
+  flip-flops. Whole-table clears are flag vectors; the two pointer writers
+  use two banks plus a latest-bank bit.
+- `pace_guide_peripherals`: 2,216 -> 1,218 ALMs. Only the 20 CSRs the model
+  itself reads/writes stay in flip-flops (constant-index writes); the rest
+  are guest-only storage in MLAB, unwritten entries read their seed.
+- Verification: the originals are kept in `sim/baseline_demux` and
+  `sim/baseline_peripherals`; `+define+PACE_DEMUX_LOCKSTEP` and
+  `+define+PACE_PERIPH_LOCKSTEP` run them alongside and `$fatal` on any
+  output difference. tb_transport passes, and the full firmware run
+  (guide_today, 360M instructions, 291 sections, Guide key) matched on
+  every cycle. Timing: core clock +2.680 ns setup, all clocks positive.
+- Hardware: `_Other/Pace2500N_V056*.mgl` boots to the TV Guide menu. V055 removed.
+- Next (user): MPEG-2 decoder and playing video from the Guide.
+
+## Session 4 (10 Nov) - instruction timebase, I-cache, BT.601 video
 
 Root cause of the listings abort (from Session 3 evidence): the model gave the
 firmware ~25K instructions per 10 ms tick instead of ~810K. Firmware facts:
