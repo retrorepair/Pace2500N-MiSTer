@@ -28,6 +28,32 @@ Changes (source root `rtl/`, isolated builds `builds/v049_timebase`,
   622,080 pixels exact 1:1 over 3 fields, async 50/54 MHz, no underruns.
   PLL gains a 54 MHz output; `Pace2500N.sdc` marks the two outputs async.
 
+v049 (timebase + I-cache only) on hardware, `_Other/Pace2500N_V049.rbf`, SHA256
+fa7cedab...83bd8fc: 5.78M instr/s (was 2.47M), 31 IRQ/s, Guide menu and
+Select -> ALL CHANNELS / Searching for listings render promptly. Timing: core
+setup +0.887 ns, hold +0.218 ns; MiSTer's HDMI PLL path -0.007 ns (framework,
+not CRT). 76% ALMs, 402 RAM blocks.
+
+But after 6 minutes the message pool was again exhausted (free 0, 270 to
+TASK30) with the CPU idle, so starvation was not the whole story. Tracing:
+the CA task posts 8001/8000 every 2 ticks because the smartcard ISR
+(800F2F88) reads event status B000B814 = 0x04 and requests card activation
+(command 2 at 80141DAC); activation (800F3398) gets no ATR and clears the
+event by writing 4 to B814. Plain-storage CSRs read that 4 back as a new
+event. B814 is now write-one-to-clear (`pace_guide_peripherals.sv`); with no
+card nothing sets it. Sim: one activation from the stale checkpoint value,
+then silence (vs ~7 pairs per 12M instructions before).
+
+v050 = timebase + I-cache + smartcard W1C + BT.601 video. Seed 2 failed
+routing (hold-fix congestion, 69% ALMs); seeds 3 then 1 are being tried
+(`builds/v050_seed3`, `builds/v050_seed1`).
+
+Background music (requested 10 Nov): firmware has Sound Settings
+"Background Music", HISRAUDIO_MP, AUDIO_MPEG and AUDRAM; driver uses the
+B0002xxx A/V block and the 13-channel DMA engine (FUN_80005900). No B0002
+accesses occur in 30M instructions after Select with the current synthetic SI.
+Selection of the music service by the OpenTV Guide is not yet traced.
+
 ## Session 3 (9 Nov, evening) - investigation only, stopped early at user request
 
 No RTL, ROM, MiSTer file or core was changed. Nothing was pushed to GitHub (no
