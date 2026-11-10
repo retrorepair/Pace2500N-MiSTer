@@ -83,12 +83,15 @@ def loop_events(title, duration, anchor):
     return [(start, length, title) for start, length in events]
 
 
-def diagnostic_tables(when, codec=None, full_day=False, with_index=False, channels=None, looped=None):
+def diagnostic_tables(when, codec=None, full_day=False, with_index=False, channels=None, looped=None, es=None):
     """Synthetic test services; no claim that these were broadcast.
 
     channels: optional list of channel names (default TEST ONE / TEST TWO).
     looped: optional (title, duration_seconds, anchor_seconds) schedule used for
-    every channel instead of the hourly test programmes."""
+    every channel instead of the hourly test programmes.
+    es: optional (video_pid, audio_pid). The first service's PMT then lists an
+    MPEG-2 video stream (stream_type 2, also the PCR PID) and an MPEG-1 Layer II
+    audio stream (stream_type 3); the caller muxes the matching PES."""
     names = channels or ['TEST ONE', 'TEST TWO']
     services = [(1001 + i, 3000 + i, 101 + i, name.encode()) for i, name in enumerate(names)]
     namespace = bytes.fromhex('5f0400000002')
@@ -118,7 +121,14 @@ def diagnostic_tables(when, codec=None, full_day=False, with_index=False, channe
                                        for i, (sid, *_) in enumerate(services)))
     # There are no elementary streams in this SI-only fixture. Do not advertise
     # imaginary MPEG decoders or fixed audio/video PIDs.
-    pmts = [(0x1000 + i, long_section(0x02, sid, b'\xff\xff\xf0\x00'))
+    def pmt_body(i):
+        if es and i == 0:
+            video, audio = es
+            return (u16(0xe000 | video) + b'\xf0\x00'
+                    + b'\x02' + u16(0xe000 | video) + b'\xf0\x00'
+                    + b'\x03' + u16(0xe000 | audio) + b'\xf0\x00')
+        return b'\xff\xff\xf0\x00'
+    pmts = [(0x1000 + i, long_section(0x02, sid, pmt_body(i)))
             for i, (sid, *_) in enumerate(services)]
     tables = [(0x14, tot(when)), (0x10, nit), (0x11, sdt), (0x11, bat), (0, pat)] + pmts
     if codec:

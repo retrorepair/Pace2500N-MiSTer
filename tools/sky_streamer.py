@@ -45,6 +45,7 @@ def main():
     fixture.add_argument('--loop-title', help='Title of one programme repeated back to back all day')
     fixture.add_argument('--loop-seconds', type=int, help='Length of the looped programme (even seconds)')
     fixture.add_argument('--loop-anchor', default='18:00', help='HH:MM (UTC) at which one showing starts')
+    fixture.add_argument('--es-pids', help='VIDEO,AUDIO hex PIDs listed in the first service PMT, e.g. 200,102')
     fixture.add_argument('--clock-once', action='store_true',
                          help='Send the fixed diagnostic TOT only once per replay file')
     check = sub.add_parser('inspect', help='Validate a packet-aligned PSI/SI transport')
@@ -74,7 +75,8 @@ def main():
         loop = (args.loop_title, args.loop_seconds, hh * 3600 + mm * 60)
         if not codec:
             parser.error('--loop-title requires --huffman-ram')
-    tables = diagnostic_tables(when, codec, args.full_day, args.index, channels=args.channel, looped=loop)
+    tables = diagnostic_tables(when, codec, args.full_day, args.index, channels=args.channel, looped=loop,
+                               es=tuple(int(x, 16) for x in args.es_pids.split(',')) if args.es_pids else None)
     indices = [(pid, section) for pid, section in tables if section[0] == 0xc1]
     tables = [(pid, section) for pid, section in tables if section[0] != 0xc1]
     packetizer = Packetizer()
