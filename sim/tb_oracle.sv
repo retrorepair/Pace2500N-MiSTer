@@ -28,11 +28,18 @@ module tb_oracle;
    end
   end
  end
+ // Registers live in block RAM plus T/SP/RA copies; preset every view.
+ task set_gpr(input integer index,input [31:0] value);
+ begin
+  DUT.gpr[index]=value;DUT.gpr_ram_a[index]=value;DUT.gpr_ram_b[index]=value;
+  if(index==24)DUT.reg_t=value;if(index==29)DUT.reg_sp=value;if(index==31)DUT.reg_ra=value;
+ end endtask
  task init_case(input integer id,input [31:0] pc,input mode16);
  begin
   @(negedge clk);reset=1;repeat(2)@(negedge clk);
   for(n=0;n<8192;n=n+1)memory[n]=0;
   for(n=31744;n<32000;n=n+1)DUT.boot_memory.words[n]=0;
+  for(n=0;n<32;n=n+1)set_gpr(n,0);
   reset=0;case_id=id;DUT.pc=pc;DUT.mips16=mode16;
  end endtask
  task put_byte(input [31:0] address,input [7:0] value);

@@ -1,0 +1,30 @@
+{
+  "bytes": 1000160,
+  "packets": 5320,
+  "tables": {
+    "0014:73": 2,
+    "0010:40": 2,
+    "0011:42": 2,
+    "0011:4A": 2,
+    "0000:00": 2,
+    "1000:02": 2,
+    "0032:A0": 2,
+    "0032:A1": 2,
+    "0032:A2": 2,
+    "0032:A3": 2,
+    "0052:C1": 80
+  },
+  "sha256": "7e69a3d1af2be86c586d6e156c1afd8dc82f18e4ec5ebcad37c241f44637a1c6",
+  "kind": "synthetic SI/OpenTV diagnostic",
+  "utc": "2026-11-10T19:00:00+00:00",
+  "bitrate": 1000000,
+  "clock": "fixed, GMT descriptor",
+  "firmware_execution": "FPGA",
+  "opentv_titles": true,
+  "media": false,
+  "full_day": false,
+  "index": true,
+  "index_updates": false,
+  "table_period_ms": 4000,
+  "clock_once_per_file": false
+}

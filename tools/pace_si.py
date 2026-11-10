@@ -69,9 +69,28 @@ def title_section(table, listing, mjd, events, codec):
     return long_section(table, listing, u16(mjd) + records)
 
 
-def diagnostic_tables(when, codec=None, full_day=False, with_index=False):
-    """Two synthetic test services; no claim that these were broadcast."""
-    services = [(1001, 3000, 101, b'TEST ONE'), (1002, 3001, 102, b'TEST TWO')]
+def loop_events(title, duration, anchor):
+    """One programme repeated back to back across the day, a showing starting at
+    `anchor` seconds; the first entry is the tail of the showing before midnight."""
+    if duration % 2 or anchor % 2 or duration <= 0:
+        raise ValueError('loop duration/anchor must be positive even seconds')
+    first = anchor % duration
+    events = [(0, first)] if first else []
+    start = first
+    while start < 86400:
+        events.append((start, duration))
+        start += duration
+    return [(start, length, title) for start, length in events]
+
+
+def diagnostic_tables(when, codec=None, full_day=False, with_index=False, channels=None, looped=None):
+    """Synthetic test services; no claim that these were broadcast.
+
+    channels: optional list of channel names (default TEST ONE / TEST TWO).
+    looped: optional (title, duration_seconds, anchor_seconds) schedule used for
+    every channel instead of the hourly test programmes."""
+    names = channels or ['TEST ONE', 'TEST TWO']
+    services = [(1001 + i, 3000 + i, 101 + i, name.encode()) for i, name in enumerate(names)]
     namespace = bytes.fromhex('5f0400000002')
     service_list = descriptor(0x41, b''.join(u16(sid) + b'\x01' for sid, *_ in services))
     # 11778 MHz, 28.2E, vertical DVB-S, 27.5 Msym/s, FEC 2/3.
@@ -82,7 +101,7 @@ def diagnostic_tables(when, codec=None, full_day=False, with_index=False):
     sdt_body = u16(0x20) + b'\xff'
     for sid, _, _, name in services:
         desc = namespace + descriptor(0x48, b'\x01\x04TEST' + bytes((len(name),)) + name)
-        title = f'LOCAL TEST {"ONE" if sid == 1001 else "TWO"}'
+        title = looped[0] if looped else f'LOCAL TEST {"ONE" if sid == 1001 else "TWO"}'
         row_text = codec.encode(title) if codec else b''
         # At8=0 honestly announces no current listing in the SI-only fixture;
         # the title fixture supplies matching row text plus native B5 events.
@@ -112,7 +131,10 @@ def diagnostic_tables(when, codec=None, full_day=False, with_index=False):
             events = [(i * 100 + 1, current_start - 1800, 1800, f'PREVIOUS TEST {name}'),
                       (i * 100 + 2, current_start, 1800, f'LOCAL TEST {name}'),
                       (i * 100 + 3, current_start + 1800, 1800, f'NEXT TEST {name}')]
-            if full_day:
+            if looped:
+                events = [(i * 100 + n + 1, start, length, text)
+                          for n, (start, length, text) in enumerate(loop_events(*looped))]
+            elif full_day:
                 events = [(i * 100 + hour + 1, hour * 3600, 3600,
                            f'LOCAL TEST {name}' if hour == utc.hour else f'TEST {name} {hour:02d}:00')
                           for hour in range(24)]

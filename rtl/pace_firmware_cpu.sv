@@ -65,7 +65,7 @@ module pace_firmware_cpu #(
     // hex viewer. That arrangement risked pathological ROM mux synthesis.
     // Every firmware read is explicitly scheduled through S_ROMREAD.
     reg [14:0] rom_request_addr = 15'd0;
-    reg [3:0]  rom_next_state = 4'd0;
+    reg [4:0]  rom_next_state = 5'd0;
     wire [31:0] rom_q;
     pace_bootrom boot_memory (
         .clk(clk), .address(rom_request_addr), .q(rom_q)
@@ -73,14 +73,27 @@ module pace_firmware_cpu #(
 
     localparam [28:0] DDR_RAM = 29'h06000000; // 0x30000000 byte physical DDR
     localparam [28:0] DDR_ROM = 29'h06400000; // 0x32000000 byte physical DDR
-    localparam [3:0] S_FETCH=0, S_ROMFETCH=1, S_EXEC=2,
+    localparam [4:0] S_FETCH=0, S_ROMFETCH=1, S_EXEC=2,
                      S_ROMLOAD=3, S_BUSREQ=4, S_BUSWAIT=5,
                      S_BUSCOMPLETE=6, S_HALT=7, S_M16_JUMP=8,
                      S_ROMREAD=9, S_M16_EXTEND=10, S_MULDIV=11, S_MMIO=12, S_BOUNDARY=13,
-                     S_ILOOKUP=14, S_ICHECK=15;
+                     S_ILOOKUP=14, S_ICHECK=15, S_DECODE=16;
     localparam [1:0] K_FETCH=0, K_LOAD=1, K_STORE=2, K_HALF=3;
-    reg [3:0] state = S_FETCH;
-    reg [31:0] gpr[0:31];
+    reg [4:0] state = S_FETCH;
+    // General registers live in two block-RAM copies (one per read port) with
+    // a single registered write port. Operands are read as the instruction arrives. The
+    // registers MIPS16 uses implicitly (T=r24, SP=r29, RA=r31) also have
+    // dedicated copies so instructions can use them without a third port.
+    (* ramstyle="M10K" *) reg [31:0] gpr_ram_a[0:31];
+    (* ramstyle="M10K" *) reg [31:0] gpr_ram_b[0:31];
+    integer gi;
+    initial for(gi=0;gi<32;gi=gi+1)begin gpr_ram_a[gi]=0;gpr_ram_b[gi]=0;end
+    reg [31:0] gpr_a_q=0,gpr_b_q=0,reg_t=0,reg_sp=0,reg_ra=0;
+    reg gw_en=0;reg [4:0] gw_idx=0;reg [31:0] gw_val=0;
+    // synthesis translate_off
+    reg [31:0] gpr[0:31]; // simulation-only mirror for testbench traces
+    initial for(gi=0;gi<32;gi=gi+1)gpr[gi]=0;
+    // synthesis translate_on
     reg [31:0] cp0[0:31];
     reg [31:0] hi=0,lo=0;
     reg [31:0] branch_target=0;
@@ -112,7 +125,7 @@ module pace_firmware_cpu #(
     reg [63:0] read_latch=0;
     reg [15:0] jump_first=0, extend_prefix=0, extend_suffix=0;
     reg m16_extended=0, second_from_bus=0;
-    reg [3:0] second_next_state=0;
+    reg [4:0] second_next_state=0;
     reg [31:0] second_word=0;
     wire [31:0] second_data=second_from_bus ? second_word : rom_q;
     wire [15:0] second_half=pc[1] ? second_data[31:16] : second_data[15:0];
@@ -242,6 +255,19 @@ module pace_firmware_cpu #(
             default:mmio_guess=0;
         endcase
     endfunction
+    task automatic gpr_wr(input [4:0] idx, input [31:0] val);
+        begin
+            if(idx!=0)begin
+                gw_en<=1;gw_idx<=idx;gw_val<=val;
+                if(idx==5'd24)reg_t<=val;
+                if(idx==5'd29)reg_sp<=val;
+                if(idx==5'd31)reg_ra<=val;
+                // synthesis translate_off
+                gpr[idx]<=val;
+                // synthesis translate_on
+            end
+        end
+    endtask
     // Complete one guest instruction, honouring MIPS32 branch delay slots.
     task automatic retire(input [31:0] sequential_pc, input branch_now,
                            input [31:0] target, input target_mode16);
@@ -277,14 +303,14 @@ module pace_firmware_cpu #(
     // Schedule a single ROM read; S_ROMREAD provides the full clock needed
     // for the M10K's registered output before the consumer state runs.
     task automatic request_rom(input [14:0] address,
-                               input [3:0] resume_state);
+                               input [4:0] resume_state);
         begin
             rom_request_addr <= address;
             rom_next_state <= resume_state;
             state <= S_ROMREAD;
         end
     endtask
-    task automatic request_second(input [3:0] resume_state);
+    task automatic request_second(input [4:0] resume_state);
         reg [31:0] address;
         begin
             address=pc+32'd2;
@@ -360,9 +386,9 @@ module pace_firmware_cpu #(
                         else begin
                             // Ready-bit injection is isolated to the explicitly
                             // experimental build and zero-response policy.
-                            if(dest!=0) gpr[dest] <= extract_rom(
+                            if(dest!=0) gpr_wr(dest,extract_rom(
                                 (EXPERIMENTAL_READY && mmio_policy==1 && va==32'hb0009120) ?
-                                32'h00000020 : mmio_guess(mmio_policy),va[1:0],sz,sign_extend);
+                                32'h00000020 : mmio_guess(mmio_policy),va[1:0],sz,sign_extend));
                             guessed_reads<=guessed_reads+1'd1;
                             retire(mips16?seq16:seq32,0,0,0);
                         end
@@ -379,7 +405,7 @@ module pace_firmware_cpu #(
     wire [15:0] m16 = m16_extended ? extend_suffix : (pc[1] ? ir[15:0] : ir[31:16]);
     wire [5:0] op=ir[31:26], fn=ir[5:0];
     wire [4:0] rs=ir[25:21],rt=ir[20:16],rd=ir[15:11];
-    wire [31:0] a=gpr[rs],b=gpr[rt];
+    wire [31:0] a=gpr_a_q,b=gpr_b_q;
     wire [31:0] count_before_retire=(!mips16 && op==16 && rs==4 && rd==9) ? b : cp0[9];
     wire [31:0] imm_se=sext16(ir[15:0]);
     wire [31:0] ea=a+imm_se;
@@ -391,7 +417,43 @@ module pace_firmware_cpu #(
     wire [31:0] jump_target={seq32[31:28],ir[25:0],2'b00};
     wire [2:0] rx=m16[10:8],ry=m16[7:5],rz=m16[4:2];
     wire [4:0] rxg=reg16(rx),ryg=reg16(ry),rzg=reg16(rz);
-    wire [31:0] rxv=gpr[rxg],ryv=gpr[ryg];
+    wire [31:0] rxv=gpr_a_q,ryv=gpr_b_q;
+    // Register-file read addresses. The four states that hand an instruction
+    // to S_EXEC compute them from the INCOMING instruction, so the block-RAM
+    // read happens on the same edge that latches it and S_EXEC needs no extra
+    // cycle. In every other state they follow the current instruction, which
+    // keeps the operands valid through multi-cycle instructions.
+    function automatic [9:0] gpr_read_addrs(input [31:0] word, input m16_mode,
+                                            input [15:0] half);
+        reg [4:0] ax,bx;
+        begin
+            if(!m16_mode)begin ax=word[25:21];bx=word[20:16];end
+            else begin
+                ax=reg16(half[10:8]);
+                if(half[15:11]==5'd12 && half[10:8]==3'd5)bx=reg16(half[2:0]);
+                else if(half[15:11]==5'd12 && half[10:8]==3'd7)bx=half[4:0];
+                else bx=reg16(half[7:5]);
+            end
+            gpr_read_addrs={ax,bx};
+        end
+    endfunction
+    wire [31:0] incoming_word=state==S_ROMFETCH ? rom_q :
+                              state==S_ICHECK ? extract_ddr(icache_data_q,bus_virtual[2:0],2,0) :
+                              state==S_M16_EXTEND ? {extend_prefix,second_half} :
+                              extract_ddr(read_latch,bus_virtual[2:0],2,0);
+    wire incoming=state==S_ROMFETCH || state==S_M16_EXTEND ||
+                  (state==S_ICHECK && bus_kind==K_FETCH) ||
+                  (state==S_BUSCOMPLETE && bus_kind==K_FETCH);
+    wire [15:0] incoming_half=state==S_M16_EXTEND ? second_half :
+                              (pc[1] ? incoming_word[15:0] : incoming_word[31:16]);
+    wire [9:0] gpr_addrs=incoming ? gpr_read_addrs(incoming_word,mips16,incoming_half) :
+                                    gpr_read_addrs(instruction,mips16,m16);
+    wire [4:0] gpr_addr_a=gpr_addrs[9:5],gpr_addr_b=gpr_addrs[4:0];
+    always @(posedge clk)begin
+        gpr_a_q<=gpr_ram_a[gpr_addr_a];
+        gpr_b_q<=gpr_ram_b[gpr_addr_b];
+        if(gw_en)begin gpr_ram_a[gw_idx]<=gw_val;gpr_ram_b[gw_idx]<=gw_val;end
+    end
     wire [31:0] imm8se=sext8(m16[7:0]);
 
     wire [15:0] ext_imm={extend_prefix[4:0],extend_prefix[10:5],m16[4:0]};
@@ -406,9 +468,10 @@ module pace_firmware_cpu #(
     wire [14:0] rr_imm={extend_prefix[3:0],extend_prefix[10:4],m16[3:0]};
     wire [31:0] rr_signed=m16_extended ? {{17{rr_imm[14]}},rr_imm} : {{28{m16[3]}},m16[3:0]};
     wire [4:0] full_dest={m16[4:3],ry};
-    wire [31:0] jr16_target=m16[5] ? gpr[31] : rxv;
+    wire [31:0] jr16_target=m16[5] ? reg_ra : rxv;
     integer j;
     always @(posedge clk) begin
+        gw_en<=0;
         if(reset) begin
             state<=S_FETCH;pc<=32'hbfc00000;
             rom_request_addr<=15'd0;rom_next_state<=S_ROMFETCH;
@@ -420,11 +483,12 @@ module pace_firmware_cpu #(
             delay_slot<=0;branch_mode16<=0;timer_armed<=0;interrupt_count<=0;
             hi<=0;lo<=0;m16_extended<=0;mul_start<=0;second_from_bus<=0;
             merge_load<=0;merge_store<=0;io_write<=0;icache_fill<=0;icache_hits<=0;count_prescale<=0;
-            for(j=0;j<32;j=j+1) begin gpr[j]<=0;cp0[j]<=0;end
+            for(j=0;j<32;j=j+1) cp0[j]<=0;
+            reg_t<=0;reg_sp<=0;reg_ra<=0;gw_en<=0;
         end else if(CHECKPOINT_PORT && checkpoint_hold)begin
             mul_start<=0;state<=S_FETCH;branch_pending<=0;delay_slot<=0;m16_extended<=0;icache_fill<=0;
             if(checkpoint_wr)begin
-                if(checkpoint_index<32)gpr[checkpoint_index[4:0]]<=checkpoint_data;
+                if(checkpoint_index<32)gpr_wr(checkpoint_index[4:0],checkpoint_data);
                 else if(checkpoint_index<64)cp0[checkpoint_index[4:0]]<=checkpoint_data;
                 else case(checkpoint_index)
                     64:pc<=checkpoint_data;
@@ -435,7 +499,7 @@ module pace_firmware_cpu #(
                 endcase
             end
         end else begin
-            gpr[0]<=0;mul_start<=0;icache_tag_we<=0;icache_data_we<=0;
+            mul_start<=0;icache_tag_we<=0;icache_data_we<=0;
             // Count runs on the core clock, independently of instruction
             // retirement and DDR stalls. Exact NEC master-clock ratio remains
             // unmeasured; 50 MHz is an explicit experimental approximation.
@@ -476,50 +540,50 @@ module pace_firmware_cpu #(
                     if(!mips16) begin
                       case(op)
                       0:case(fn)
-                          0:begin if(rd!=0)gpr[rd]<=b<<ir[10:6];retire(seq32,0,0,0);end
-                          2:begin if(rd!=0)gpr[rd]<=b>>ir[10:6];retire(seq32,0,0,0);end
-                          3:begin if(rd!=0)gpr[rd]<=$signed(b)>>>ir[10:6];retire(seq32,0,0,0);end
-                          4:begin if(rd!=0)gpr[rd]<=b<<a[4:0];retire(seq32,0,0,0);end
-                          6:begin if(rd!=0)gpr[rd]<=b>>a[4:0];retire(seq32,0,0,0);end
-                          7:begin if(rd!=0)gpr[rd]<=$signed(b)>>>a[4:0];retire(seq32,0,0,0);end
+                          0:begin if(rd!=0)gpr_wr(rd,b<<ir[10:6]);retire(seq32,0,0,0);end
+                          2:begin if(rd!=0)gpr_wr(rd,b>>ir[10:6]);retire(seq32,0,0,0);end
+                          3:begin if(rd!=0)gpr_wr(rd,$signed(b)>>>ir[10:6]);retire(seq32,0,0,0);end
+                          4:begin if(rd!=0)gpr_wr(rd,b<<a[4:0]);retire(seq32,0,0,0);end
+                          6:begin if(rd!=0)gpr_wr(rd,b>>a[4:0]);retire(seq32,0,0,0);end
+                          7:begin if(rd!=0)gpr_wr(rd,$signed(b)>>>a[4:0]);retire(seq32,0,0,0);end
                           8:retire(seq32,1,{a[31:1],1'b0},a[0]); // JR: ISA mode from LSB
-                          9:begin if((rd!=0))gpr[rd]<=pc+8;retire(seq32,1,{a[31:1],1'b0},a[0]);end
-                          16:begin if(rd!=0)gpr[rd]<=hi;retire(seq32,0,0,0);end
-                          18:begin if(rd!=0)gpr[rd]<=lo;retire(seq32,0,0,0);end
+                          9:begin if((rd!=0))gpr_wr(rd,pc+8);retire(seq32,1,{a[31:1],1'b0},a[0]);end
+                          16:begin if(rd!=0)gpr_wr(rd,hi);retire(seq32,0,0,0);end
+                          18:begin if(rd!=0)gpr_wr(rd,lo);retire(seq32,0,0,0);end
                           17:begin hi<=a;retire(seq32,0,0,0);end
                           19:begin lo<=a;retire(seq32,0,0,0);end
                           24,25,26,27:start_arithmetic(fn[1:0],a,b);
-                          32,33:begin if(rd!=0)gpr[rd]<=a+b;retire(seq32,0,0,0);end
-                          34,35:begin if(rd!=0)gpr[rd]<=a-b;retire(seq32,0,0,0);end
-                          36:begin if(rd!=0)gpr[rd]<=a&b;retire(seq32,0,0,0);end
-                          37:begin if(rd!=0)gpr[rd]<=a|b;retire(seq32,0,0,0);end
-                          38:begin if(rd!=0)gpr[rd]<=a^b;retire(seq32,0,0,0);end
-                          39:begin if(rd!=0)gpr[rd]<=~(a|b);retire(seq32,0,0,0);end
-                          42:begin if(rd!=0)gpr[rd]<=($signed(a)<$signed(b));retire(seq32,0,0,0);end
-                          43:begin if(rd!=0)gpr[rd]<=(a<b);retire(seq32,0,0,0);end
+                          32,33:begin if(rd!=0)gpr_wr(rd,a+b);retire(seq32,0,0,0);end
+                          34,35:begin if(rd!=0)gpr_wr(rd,a-b);retire(seq32,0,0,0);end
+                          36:begin if(rd!=0)gpr_wr(rd,a&b);retire(seq32,0,0,0);end
+                          37:begin if(rd!=0)gpr_wr(rd,a|b);retire(seq32,0,0,0);end
+                          38:begin if(rd!=0)gpr_wr(rd,a^b);retire(seq32,0,0,0);end
+                          39:begin if(rd!=0)gpr_wr(rd,~(a|b));retire(seq32,0,0,0);end
+                          42:begin if(rd!=0)gpr_wr(rd,($signed(a)<$signed(b)));retire(seq32,0,0,0);end
+                          43:begin if(rd!=0)gpr_wr(rd,(a<b));retire(seq32,0,0,0);end
                           default:halt(8'h10);
                         endcase
                       1: begin
                           if(rt==0 || rt==1 || rt==2 || rt==3 || rt==16 || rt==17 || rt==18 || rt==19) begin
-                              if(rt[4])gpr[31]<=pc+8;
+                              if(rt[4])gpr_wr(5'd31,pc+8);
                               if(rt[1] && !(rt[0]?($signed(a)>=0):($signed(a)<0)))retire(seq32+4,0,0,0);
                               else
                               retire(seq32,(rt[0]?($signed(a)>=0):($signed(a)<0)),
                                      seq32+(imm_se<<2),mips16);
                           end else halt(8'h11);
                       end
-                      2,3:begin if(op==3)gpr[31]<=pc+8;retire(seq32,1,jump_target,0);end
+                      2,3:begin if(op==3)gpr_wr(5'd31,pc+8);retire(seq32,1,jump_target,0);end
                       4,5:retire(seq32,(op==4)?(a==b):(a!=b),seq32+(imm_se<<2),0);
                       6,7:retire(seq32,(op==6)?($signed(a)<=0):($signed(a)>0),seq32+(imm_se<<2),0);
-                      8,9:begin if(rt!=0)gpr[rt]<=a+imm_se;retire(seq32,0,0,0);end
-                      10:begin if(rt!=0)gpr[rt]<=($signed(a)<$signed(imm_se));retire(seq32,0,0,0);end
-                      11:begin if(rt!=0)gpr[rt]<=(a<imm_se);retire(seq32,0,0,0);end
-                      12:begin if(rt!=0)gpr[rt]<=a & {16'd0,ir[15:0]};retire(seq32,0,0,0);end
-                      13:begin if(rt!=0)gpr[rt]<=a | {16'd0,ir[15:0]};retire(seq32,0,0,0);end
-                      14:begin if(rt!=0)gpr[rt]<=a ^ {16'd0,ir[15:0]};retire(seq32,0,0,0);end
-                      15:begin if(rt!=0)gpr[rt]<={ir[15:0],16'd0};retire(seq32,0,0,0);end
+                      8,9:begin if(rt!=0)gpr_wr(rt,a+imm_se);retire(seq32,0,0,0);end
+                      10:begin if(rt!=0)gpr_wr(rt,($signed(a)<$signed(imm_se)));retire(seq32,0,0,0);end
+                      11:begin if(rt!=0)gpr_wr(rt,(a<imm_se));retire(seq32,0,0,0);end
+                      12:begin if(rt!=0)gpr_wr(rt,a & {16'd0,ir[15:0]});retire(seq32,0,0,0);end
+                      13:begin if(rt!=0)gpr_wr(rt,a | {16'd0,ir[15:0]});retire(seq32,0,0,0);end
+                      14:begin if(rt!=0)gpr_wr(rt,a ^ {16'd0,ir[15:0]});retire(seq32,0,0,0);end
+                      15:begin if(rt!=0)gpr_wr(rt,{ir[15:0],16'd0});retire(seq32,0,0,0);end
                       16:begin // MFC0/MTC0 and architectural ERET state
-                          if(rs==0)begin if(rt!=0)gpr[rt]<=cp0[rd];retire(seq32,0,0,0);end
+                          if(rs==0)begin if(rt!=0)gpr_wr(rt,cp0[rd]);retire(seq32,0,0,0);end
                           else if(rs==4)begin
                               if(rd==11)begin
                                   cp0[11]<=b;cp0[13][15]<=0;timer_armed<=1;
@@ -540,7 +604,7 @@ module pace_firmware_cpu #(
                           end else halt(8'h12);
                       end
                       29:begin // JALX, critical real 32-bit -> MIPS16 path
-                          gpr[31]<=pc+8;
+                          gpr_wr(5'd31,pc+8);
                           retire(seq32,1,jump_target,1);
                       end
                       32,36:access(ea,0,op==32,rt,0,0);
@@ -578,10 +642,10 @@ module pace_firmware_cpu #(
                       // MIPS16 compressed instruction decoder, NOT microMIPS.
                       // op coding from NEC VR4111 chapter 4 / Ghidra MIPS16.
                       case(m16[15:11])
-                        0:begin gpr[rxg]<=gpr[29]+sp_offset;retire(seq16,0,0,1);end
+                        0:begin gpr_wr(rxg,reg_sp+sp_offset);retire(seq16,0,0,1);end
                         1:begin
-                          gpr[rxg]<=m16_extended ? (pc&32'hfffffffc)+ext_signed :
-                                                   (m16_base_pc&32'hfffffffc)+sp_offset;
+                          gpr_wr(rxg,m16_extended ? (pc&32'hfffffffc)+ext_signed :
+                                                   (m16_base_pc&32'hfffffffc)+sp_offset);
                           retire(seq16,0,0,1);
                         end
                         2:retire(seq16+((m16_extended ? ext_signed : {{21{m16[10]}},m16[10:0]})<<1),0,0,1);
@@ -595,42 +659,42 @@ module pace_firmware_cpu #(
                           if(m16[1:0]==1 || (m16_extended && (extend_prefix[5:0]!=0 || m16[4:2]!=0)))halt(8'h33);
                           else begin
                             case(m16[1:0])
-                              0:gpr[rxg]<=ryv<<shift_amount;
-                              2:gpr[rxg]<=ryv>>shift_amount;
-                              3:gpr[rxg]<=$signed(ryv)>>>shift_amount;
+                              0:gpr_wr(rxg,ryv<<shift_amount);
+                              2:gpr_wr(rxg,ryv>>shift_amount);
+                              3:gpr_wr(rxg,$signed(ryv)>>>shift_amount);
                             endcase
                             retire(seq16,0,0,1);
                           end
                         end
                         8:begin
                           if(m16[4])halt(8'h30);
-                          else begin gpr[ryg]<=rxv+rr_signed;retire(seq16,0,0,1);end
+                          else begin gpr_wr(ryg,rxv+rr_signed);retire(seq16,0,0,1);end
                         end
-                        9:begin gpr[rxg]<=rxv+m16_simm;retire(seq16,0,0,1);end
-                        10:begin gpr[24]<=($signed(rxv)<$signed(m16_uimm));retire(seq16,0,0,1);end
-                        11:begin gpr[24]<=(rxv<m16_uimm);retire(seq16,0,0,1);end
+                        9:begin gpr_wr(rxg,rxv+m16_simm);retire(seq16,0,0,1);end
+                        10:begin gpr_wr(5'd24,($signed(rxv)<$signed(m16_uimm)));retire(seq16,0,0,1);end
+                        11:begin gpr_wr(5'd24,(rxv<m16_uimm));retire(seq16,0,0,1);end
                         12:begin
                           case(rx)
-                            0:retire(gpr[24]==0 ? seq16+(m16_simm<<1):seq16,0,0,1);
-                            1:retire(gpr[24]!=0 ? seq16+(m16_simm<<1):seq16,0,0,1);
-                            2:access(gpr[29]+sp_offset,2,0,0,1,gpr[31]);
-                            3:begin gpr[29]<=gpr[29]+(m16_extended?ext_signed:(imm8se<<3));retire(seq16,0,0,1);end
+                            0:retire(reg_t==0 ? seq16+(m16_simm<<1):seq16,0,0,1);
+                            1:retire(reg_t!=0 ? seq16+(m16_simm<<1):seq16,0,0,1);
+                            2:access(reg_sp+sp_offset,2,0,0,1,reg_ra);
+                            3:begin gpr_wr(5'd29,reg_sp+(m16_extended?ext_signed:(imm8se<<3)));retire(seq16,0,0,1);end
                             5:begin
                               if(m16_extended)halt(8'h31);
-                              else begin if(full_dest!=0)gpr[full_dest]<=gpr[reg16(m16[2:0])];retire(seq16,0,0,1);end
+                              else begin if(full_dest!=0)gpr_wr(full_dest,gpr_b_q);retire(seq16,0,0,1);end
                             end
                             7:begin
                               if(m16_extended)halt(8'h31);
-                              else begin gpr[ryg]<=gpr[m16[4:0]];retire(seq16,0,0,1);end
+                              else begin gpr_wr(ryg,gpr_b_q);retire(seq16,0,0,1);end
                             end
                             default:halt(8'h31);
                           endcase
                         end
-                        13:begin gpr[rxg]<=m16_uimm;retire(seq16,0,0,1);end
-                        14:begin gpr[24]<=rxv^m16_uimm;retire(seq16,0,0,1);end
+                        13:begin gpr_wr(rxg,m16_uimm);retire(seq16,0,0,1);end
+                        14:begin gpr_wr(5'd24,rxv^m16_uimm);retire(seq16,0,0,1);end
                         16:access(rxv+off_byte,0,1,ryg,0,0);
                         17:access(rxv+off_half,1,1,ryg,0,0);
-                        18:access(gpr[29]+sp_offset,2,0,rxg,0,0);
+                        18:access(reg_sp+sp_offset,2,0,rxg,0,0);
                         19:access(rxv+off_word,2,0,ryg,0,0);
                         20:access(rxv+off_byte,0,0,ryg,0,0);
                         21:access(rxv+off_half,1,0,ryg,0,0);
@@ -638,43 +702,43 @@ module pace_firmware_cpu #(
                                    ((m16_base_pc+sp_offset)&32'hfffffffc),2,0,rxg,0,0);
                         24:access(rxv+off_byte,0,0,0,1,ryv);
                         25:access(rxv+off_half,1,0,0,1,ryv);
-                        26:access(gpr[29]+sp_offset,2,0,0,1,rxv);
+                        26:access(reg_sp+sp_offset,2,0,0,1,rxv);
                         27:access(rxv+off_word,2,0,0,1,ryv);
                         28:begin
                           if(m16_extended || (m16[1:0]!=1 && m16[1:0]!=3))halt(8'h32);
-                          else begin gpr[rzg]<=m16[1] ? rxv-ryv : rxv+ryv;retire(seq16,0,0,1);end
+                          else begin gpr_wr(rzg,m16[1] ? rxv-ryv : rxv+ryv);retire(seq16,0,0,1);end
                         end
                         29:begin
                           if(m16_extended)halt(8'h32);
                           else case(m16[4:0])
                             0:begin
-                              if(m16[6])gpr[31]<=(pc+(m16[7]?32'd2:32'd4))|32'd1;
+                              if(m16[6])gpr_wr(5'd31,(pc+(m16[7]?32'd2:32'd4))|32'd1);
                               if(m16[7])begin
                                 pc<=jr16_target&32'hfffffffe;mips16<=jr16_target[0];
                                 retired<=retired+1'd1;state<=S_FETCH;
                               end else retire(seq16,1,jr16_target&32'hfffffffe,jr16_target[0]);
                             end
-                            2:begin gpr[24]<=($signed(rxv)<$signed(ryv));retire(seq16,0,0,1);end
-                            3:begin gpr[24]<=(rxv<ryv);retire(seq16,0,0,1);end
-                            4:begin gpr[ryg]<=ryv<<rxv[4:0];retire(seq16,0,0,1);end
-                            6:begin gpr[ryg]<=ryv>>rxv[4:0];retire(seq16,0,0,1);end
-                            7:begin gpr[ryg]<=$signed(ryv)>>>rxv[4:0];retire(seq16,0,0,1);end
-                            10:begin gpr[24]<=rxv^ryv;retire(seq16,0,0,1);end
-                            11:begin gpr[rxg]<=-ryv;retire(seq16,0,0,1);end
-                            12:begin gpr[rxg]<=rxv&ryv;retire(seq16,0,0,1);end
-                            13:begin gpr[rxg]<=rxv|ryv;retire(seq16,0,0,1);end
-                            14:begin gpr[rxg]<=rxv^ryv;retire(seq16,0,0,1);end
-                            15:begin gpr[rxg]<=~ryv;retire(seq16,0,0,1);end
+                            2:begin gpr_wr(5'd24,($signed(rxv)<$signed(ryv)));retire(seq16,0,0,1);end
+                            3:begin gpr_wr(5'd24,(rxv<ryv));retire(seq16,0,0,1);end
+                            4:begin gpr_wr(ryg,ryv<<rxv[4:0]);retire(seq16,0,0,1);end
+                            6:begin gpr_wr(ryg,ryv>>rxv[4:0]);retire(seq16,0,0,1);end
+                            7:begin gpr_wr(ryg,$signed(ryv)>>>rxv[4:0]);retire(seq16,0,0,1);end
+                            10:begin gpr_wr(5'd24,rxv^ryv);retire(seq16,0,0,1);end
+                            11:begin gpr_wr(rxg,-ryv);retire(seq16,0,0,1);end
+                            12:begin gpr_wr(rxg,rxv&ryv);retire(seq16,0,0,1);end
+                            13:begin gpr_wr(rxg,rxv|ryv);retire(seq16,0,0,1);end
+                            14:begin gpr_wr(rxg,rxv^ryv);retire(seq16,0,0,1);end
+                            15:begin gpr_wr(rxg,~ryv);retire(seq16,0,0,1);end
                             16,18:begin
                               if(ry!=0)halt(8'h32);
-                              else begin gpr[rxg]<=m16[1] ? lo : hi;retire(seq16,0,0,1);end
+                              else begin gpr_wr(rxg,m16[1] ? lo : hi);retire(seq16,0,0,1);end
                             end
                             17:begin
                               case(ry)
-                                0:gpr[rxg]<={24'd0,rxv[7:0]};
-                                1:gpr[rxg]<={16'd0,rxv[15:0]};
-                                4:gpr[rxg]<={{24{rxv[7]}},rxv[7:0]};
-                                5:gpr[rxg]<={{16{rxv[15]}},rxv[15:0]};
+                                0:gpr_wr(rxg,{24'd0,rxv[7:0]});
+                                1:gpr_wr(rxg,{16'd0,rxv[15:0]});
+                                4:gpr_wr(rxg,{{24{rxv[7]}},rxv[7:0]});
+                                5:gpr_wr(rxg,{{16{rxv[15]}},rxv[15:0]});
                                 default:halt(8'h32);
                               endcase
                               if(ry==0 || ry==1 || ry==4 || ry==5)retire(seq16,0,0,1);
@@ -692,7 +756,7 @@ module pace_firmware_cpu #(
                     end
                 end
                 S_ROMLOAD:begin
-                    if(load_dest!=0)gpr[load_dest]<=extract_rom(rom_q,bus_virtual[1:0],load_size,load_signed);
+                    if(load_dest!=0)gpr_wr(load_dest,extract_rom(rom_q,bus_virtual[1:0],load_size,load_signed));
                     retire(mips16?seq16:seq32,0,0,0);
                 end
                 S_BUSREQ:if(mem_accept)begin
@@ -721,14 +785,14 @@ module pace_firmware_cpu #(
                         second_word<=extract_ddr(read_latch,bus_virtual[2:0],2,0);
                         state<=second_next_state;
                     end else begin
-                        if(load_dest!=0)gpr[load_dest]<=merge_load!=0 ? merged_word : extract_ddr(read_latch,bus_virtual[2:0],load_size,load_signed);
+                        if(load_dest!=0)gpr_wr(load_dest,merge_load!=0 ? merged_word : extract_ddr(read_latch,bus_virtual[2:0],load_size,load_signed));
                         retire(mips16?seq16:seq32,0,0,0);
                     end
                 end
                 S_M16_JUMP:begin
                     // first halfword gives target[25:16] in unusual split order.
                     // second halfword is at PC+2, read through the ROM port.
-                    gpr[31]<=(pc+32'd6)|32'd1;
+                    gpr_wr(5'd31,(pc+32'd6)|32'd1);
                     retire(pc+32'd4,1,
                           {pc[31:28],jump_first[4:0],jump_first[9:5],
                            second_half,2'b00},
@@ -762,8 +826,8 @@ module pace_firmware_cpu #(
                         last_mmio_address<=bus_virtual;last_mmio_value<=store_data;mmio_writes<=mmio_writes+1'd1;
                     end else begin
                         last_mmio_read<=bus_virtual;
-                        if(load_dest!=0)gpr[load_dest]<=load_signed ?
-                            (load_size==0 ? sext8(io_rdata[7:0]) : load_size==1 ? sext16(io_rdata[15:0]) : io_rdata) : io_rdata;
+                        if(load_dest!=0)gpr_wr(load_dest,load_signed ?
+                            (load_size==0 ? sext8(io_rdata[7:0]) : load_size==1 ? sext16(io_rdata[15:0]) : io_rdata) : io_rdata);
                     end
                     retire(mips16?seq16:seq32,0,0,0);
                 end

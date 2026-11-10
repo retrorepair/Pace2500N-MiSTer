@@ -41,6 +41,10 @@ def main():
     fixture.add_argument('--index-updates', action='store_true', help='Cycle index versions to exercise late subscriber notifications')
     fixture.add_argument('--table-period-ms', type=int, default=200,
                          help='SI/title wave period, a multiple of 200ms (default 200)')
+    fixture.add_argument('--channel', action='append', help='Channel name (repeatable); default TEST ONE/TWO')
+    fixture.add_argument('--loop-title', help='Title of one programme repeated back to back all day')
+    fixture.add_argument('--loop-seconds', type=int, help='Length of the looped programme (even seconds)')
+    fixture.add_argument('--loop-anchor', default='18:00', help='HH:MM (UTC) at which one showing starts')
     fixture.add_argument('--clock-once', action='store_true',
                          help='Send the fixed diagnostic TOT only once per replay file')
     check = sub.add_parser('inspect', help='Validate a packet-aligned PSI/SI transport')
@@ -62,7 +66,15 @@ def main():
         parser.error('--full-day/--index require --huffman-ram')
     if args.index_updates and not args.index:
         parser.error('--index-updates requires --index')
-    tables = diagnostic_tables(when, codec, args.full_day, args.index)
+    loop = None
+    if args.loop_title:
+        if not args.loop_seconds or args.loop_seconds % 2:
+            parser.error('--loop-title needs an even --loop-seconds')
+        hh, mm = map(int, args.loop_anchor.split(':'))
+        loop = (args.loop_title, args.loop_seconds, hh * 3600 + mm * 60)
+        if not codec:
+            parser.error('--loop-title requires --huffman-ram')
+    tables = diagnostic_tables(when, codec, args.full_day, args.index, channels=args.channel, looped=loop)
     indices = [(pid, section) for pid, section in tables if section[0] == 0xc1]
     tables = [(pid, section) for pid, section in tables if section[0] != 0xc1]
     packetizer = Packetizer()
