@@ -155,7 +155,7 @@ wire video_on=av_video[14] && !holding;
 wire audio_on=av_audio[14] && !holding;
 wire [7:0] ves_data,aes_data;wire ves_valid,ves_ready,aes_valid,aes_full;
 wire [31:0] ves_bytes,aes_bytes;wire [15:0] ves_dropped,aes_dropped;
-pace_av_pes av_pes(.clk(clk_sys),.reset(core_reset || stream_loading),.ts_strobe(ts_valid && ts_ready),.ts_data(ts_data),
+pace_av_pes #(.FIFO_BITS(10)) av_pes(.clk(clk_sys),.reset(core_reset || stream_loading),.ts_strobe(ts_valid && ts_ready),.ts_data(ts_data),
  .video_pid(av_video[12:0]),.audio_pid(av_audio[12:0]),.video_on(video_on),.audio_on(audio_on),
  .video_data(ves_data),.video_valid(ves_valid),.video_ready(ves_ready),
  .audio_data(aes_data),.audio_valid(aes_valid),.audio_ready(!aes_full),
@@ -180,7 +180,9 @@ always @(posedge clk_sys)begin
  else aud_acc<=aud_acc+26'd48000;
 end
 wire signed [15:0] pcm_l,pcm_r;wire mp2_synced,mp2_err;
-mp2_decode mp2(.clk(clk_sys),.rst(core_reset || !audio_on),.wr_en(aes_valid && !aes_full),.wr_data(aes_data),.full(aes_full),
+// PCM FIFO 2^10 pairs (21 ms): the broadcast is paced in real time, so the
+// FIFO only absorbs frame-decode bursts (block RAM budget).
+mp2_decode #(.PCM_AW(10)) mp2(.clk(clk_sys),.rst(core_reset || !audio_on),.wr_en(aes_valid && !aes_full),.wr_data(aes_data),.full(aes_full),
  .aud_ce(aud_ce),.audio_l(pcm_l),.audio_r(pcm_r),.aud_valid(),.synced(mp2_synced),.err_unsupported(mp2_err),
  .fs_o(),.dbg_s_nz(),.dbg_pcm_nz(),.cp_step(1'b0),.cp_q());
 assign AUDIO_L=audio_on && mp2_synced ? pcm_l : 16'd0;

@@ -13,7 +13,9 @@
 // control, pointer_field 0, and that end inside the same packet are
 // rewritten (the replay fixture's TOT is ~29 bytes). Anything else passes
 // through unchanged, so the demux still validates the original CRC.
-module pace_tot_clock (
+module pace_tot_clock #(
+ parameter integer CLK_HZ=50000000   // clk frequency: one broadcast second per CLK_HZ clocks
+)(
  input wire clk,reset,enable,
  input wire [64:0] rtc,           // hps_io RTC: [47:40] yy,[39:32] mm,[31:24] dd,[23:16] hh,[15:8] mi,[7:0] ss (BCD)
  input wire in_valid,output wire in_ready,input wire [7:0] in_data,
@@ -23,9 +25,16 @@ module pace_tot_clock (
  assign out_valid=in_valid;
  assign in_ready=out_ready;
  wire step=in_valid && out_ready;
- // ---- RTC -> DVB UTC_time (MJD + BCD hh mm ss), registered once per change.
+ // ---- RTC -> DVB UTC_time (MJD + BCD hh mm ss).
+ // MiSTer Main delivers the RTC when the core starts (and whenever it sends it
+ // again), not as a running clock. A broadcast TOT carries the time at which it
+ // is sent, so the time is loaded from each RTC delivery and then advanced here
+ // one second per CLK_HZ clocks, rolling the date at midnight. (Copying the RTC
+ // value alone made every TOT repeat the load time, so the firmware kept
+ // setting its clock back and the displayed time never advanced.)
  function automatic [6:0] bcd2bin(input [7:0] b);bcd2bin=b[7:4]*7'd10+b[3:0];endfunction
  reg [15:0] mjd=0;reg [23:0] hms=0;
+ reg [15:0] rtc_mjd=0;reg [23:0] rtc_hms=0;
  reg [6:0] yy=0,mo=1,dd=1;
  reg [8:0] month_days=0;
  always @* begin
@@ -38,11 +47,38 @@ module pace_tot_clock (
  end
  always @(posedge clk)begin
   yy<=bcd2bin(rtc[47:40]);mo<=bcd2bin(rtc[39:32]);dd<=bcd2bin(rtc[31:24]);
-  hms<=rtc[23:0];
+  rtc_hms<=rtc[23:0];
   // MJD(2000-01-01)=51544; leap years 2000..2099 are those divisible by 4.
-  mjd<=16'd51544+16'd365*yy+((yy+16'd3)>>2)+month_days+((yy[1:0]==0 && mo>2) ? 16'd1:16'd0)+dd-16'd1;
+  rtc_mjd<=16'd51544+16'd365*yy+((yy+16'd3)>>2)+month_days+((yy[1:0]==0 && mo>2) ? 16'd1:16'd0)+dd-16'd1;
  end
  wire rtc_ok=mo>=1 && mo<=12 && dd>=1 && dd<=31;
+ // Running broadcast clock. A new RTC value (any change of the 65-bit word,
+ // which includes Main's update toggle in bit 64) is loaded two clocks later,
+ // once the conversion registers above hold it.
+ reg [64:0] rtc_seen=0;reg [1:0] load=0;reg running=0;
+ reg [31:0] tick=0;
+ function automatic [7:0] bcd_inc(input [7:0] b);bcd_inc=b[3:0]==4'd9 ? {b[7:4]+4'd1,4'd0} : b+8'd1;endfunction
+ always @(posedge clk)begin
+  rtc_seen<=rtc;
+  load<={load[0],rtc!=rtc_seen};
+  if(load[1])begin
+   mjd<=rtc_mjd;hms<=rtc_hms;tick<=0;running<=1;
+  end else if(running)begin
+   if(tick==CLK_HZ-1)begin
+    tick<=0;
+    if(hms[7:0]!=8'h59)hms[7:0]<=bcd_inc(hms[7:0]);
+    else begin
+     hms[7:0]<=8'h00;
+     if(hms[15:8]!=8'h59)hms[15:8]<=bcd_inc(hms[15:8]);
+     else begin
+      hms[15:8]<=8'h00;
+      if(hms[23:16]!=8'h23)hms[23:16]<=bcd_inc(hms[23:16]);
+      else begin hms[23:16]<=8'h00;mjd<=mjd+16'd1;end
+     end
+    end
+   end else tick<=tick+32'd1;
+  end
+ end
  // ---- Packet / section tracking.
  reg [7:0] pkt_pos=0;
  reg [12:0] pid=0;reg pusi=0,payload_only=0;
@@ -73,7 +109,7 @@ module pace_tot_clock (
     3:payload_only<=in_data[5:4]==2'b01;
     4:begin
      // pointer_field 0 and TOT PID with a section start in this packet
-     active<=enable && rtc_ok && pusi && payload_only && pid==13'h0014 && in_data==8'd0;
+     active<=enable && rtc_ok && running && pusi && payload_only && pid==13'h0014 && in_data==8'd0;
      sec_pos<=0;sec_total<=0;crc<=32'hffffffff;utc_shadow<={8'd0,mjd,hms};
     end
     default:begin end

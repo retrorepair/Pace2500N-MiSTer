@@ -19,13 +19,13 @@ module pace_debug_uart #(
     input wire [31:0] ev_addr, ev_data,
     output reg tx=1'b1
 );
-    (* ramstyle="M10K" *) reg [64:0] ev_mem[0:4095];
-    reg [11:0] ev_wr=0, ev_rd=0;
+    (* ramstyle="M10K" *) reg [64:0] ev_mem[0:511];
+    reg [8:0] ev_wr=0, ev_rd=0;
     reg [64:0] ev_q=0;
     reg [1:0] ev_settle=0;
     reg [7:0] last=0;
     wire ev_empty=ev_wr==ev_rd;
-    wire ev_full=(ev_wr+12'd1)==ev_rd;
+    wire ev_full=(ev_wr+9'd1)==ev_rd;
     always @(posedge clk) begin
         ev_q<=ev_mem[ev_rd];
         if(ev_valid && !ev_full) ev_mem[ev_wr]<={ev_we,ev_addr,ev_data};
@@ -57,13 +57,13 @@ module pace_debug_uart #(
             index<=0; bit_index<=0; sending<=0; byte_active<=0;
             ev_wr<=0; ev_rd<=0; ev_settle<=0;
         end else begin
-            if(ev_valid && !ev_full) ev_wr<=ev_wr+12'd1;
+            if(ev_valid && !ev_full) ev_wr<=ev_wr+9'd1;
             ev_settle<={ev_settle[0],!ev_empty};
             // One queued MMIO event per line while no telemetry frame is going out.
             if(!sending && period_count!=PERIOD-1 && !ev_empty && ev_settle==2'b11) begin
                 message<={"T",(ev_q[64] ? "1" : "0")," ",hex32(ev_q[63:32])," ",hex32(ev_q[31:0]),8'h0d,8'h0a,{(BYTES-22){8'h20}}};
                 sending<=1; index<=0; last<=8'd21;
-                ev_rd<=ev_rd+12'd1; ev_settle<=0;
+                ev_rd<=ev_rd+9'd1; ev_settle<=0;
             end
             if(period_count==PERIOD-1) begin
                 period_count<=0;
