@@ -1,0 +1,9 @@
+8007ab80  addiu sp,-0x8
+8007ab82  sw ra,0x4(sp)
+8007ab84  lw a1,0x2b8(pc)
+8007ab86  lw v0,0x2bc(pc)
+8007ab88  jalr v0
+8007ab8a  _li a2,0x20
+8007ab8c  lw a0,0x4(sp)
+8007ab8e  jr a0
+8007ab90  _addiu sp,0x8

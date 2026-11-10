@@ -1,0 +1,44 @@
+2026-11-08 08:55:11 INFO  (LoggingInitialization) Using log config file: jar:file:/opt/ghidra_12.1.4_PUBLIC/Ghidra/Framework/Generic/lib/Generic.jar!/generic.log4j.xml  
+2026-11-08 08:55:11 INFO  (LoggingInitialization) Using log file: re/application_entry.log  
+2026-11-08 08:55:12 DEBUG (GhidraObjectInputFilter) Including serial input filter: FileSystem/data/client.rmi.serial.filter  
+2026-11-08 08:55:12 INFO  (Preferences) Loading user preferences: /root/.config/ghidra/ghidra_12.1.4_PUBLIC/preferences  
+2026-11-08 08:55:12 INFO  (Preferences) Loading previous preferences: /root/.config/ghidra/ghidra_11.4.2_PUBLIC/preferences  
+2026-11-08 08:55:12 INFO  (ClassSearcher) Searching for classes...  
+2026-11-08 08:55:12 INFO  (ClassSearcher) Class search complete (843 ms)  
+2026-11-08 08:55:13 INFO  (DefaultSSLContextInitializer) Initializing SSL Context  
+2026-11-08 08:55:13 INFO  (SecureRandomFactory) Initializing Random Number Generator...  
+2026-11-08 08:55:13 INFO  (SecureRandomFactory) Random Number Generator initialization complete: NativePRNGNonBlocking  
+2026-11-08 08:55:13 INFO  (DefaultTrustManagerFactory) Trust manager disabled, cacerts have not been set  
+2026-11-08 08:55:13 INFO  (AnalyzeHeadless) Headless startup complete (2359 ms)  
+2026-11-08 08:55:13 INFO  (ClassSearcher) Class searcher loaded 59 extension points (20 false positives)  
+2026-11-08 08:55:13 INFO  (HeadlessAnalyzer) HEADLESS Script Paths:
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Base/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FileFormats/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/8051/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/DecompilerDependent/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SwiftDemangler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/PIC/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FunctionID/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Decompiler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/MicrosoftCodeAnalyzer/ghidra_scripts
+    /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/GnuDemangler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SystemEmulation/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BytePatterns/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/Atmel/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/DATA/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/WildcardAssembler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PDB/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/JVM/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/VersionTracking/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger-rmi-trace/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PyGhidra/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BSim/ghidra_scripts  
+2026-11-08 08:55:13 INFO  (HeadlessAnalyzer) HEADLESS: execution starts  
+2026-11-08 08:55:13 INFO  (HeadlessAnalyzer) Opening existing project: /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/ghidra/PaceU202  
+2026-11-08 08:55:13 INFO  (HeadlessProject) Opening project: /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/ghidra/PaceU202  
+2026-11-08 08:55:15 INFO  (HeadlessAnalyzer) REPORT: Processing project file: /FLASH_U202.bin  
+2026-11-08 08:55:15 INFO  (HeadlessAnalyzer) REPORT: Execute script: InspectRange.java 'BFC2048C' 'BFC205B0' 're/application_entry_ghidra.txt' '0' 'redecode'   
+2026-11-08 08:55:15 INFO  (HeadlessAnalyzer) SCRIPT: /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/scripts/InspectRange.java  
+2026-11-08 08:55:15 INFO  (HeadlessAnalyzer) REPORT: Save succeeded for processed file: /FLASH_U202.bin  

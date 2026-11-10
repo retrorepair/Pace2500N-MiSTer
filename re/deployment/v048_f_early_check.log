@@ -1,0 +1,94 @@
+sent ENTER
+{
+  "live_non_atomic_readback": true,
+  "memory_writes": false,
+  "transport_file": "/media/fat/games/Pace2500N_TS/guide_full_day.ts",
+  "bytes": 500080,
+  "transport_ddr_sha256": "fb78a17240da590f2254d189ede5893905a1a942c87e923baeecc5dc254c355f",
+  "rings": [
+    {
+      "channel": 20,
+      "first_table": "00",
+      "first_section_crc_valid": true,
+      "guest_isr_write_pointer": "00000000",
+      "descriptor": [
+        "A07DC000",
+        "A07DEFFF",
+        "A07DC000",
+        "A07DC000",
+        "00000000"
+      ],
+      "descriptor_changed_from_checkpoint": false
+    },
+    {
+      "channel": 21,
+      "first_table": "00",
+      "first_section_crc_valid": true,
+      "guest_isr_write_pointer": "00000000",
+      "descriptor": [
+        "A07DF000",
+        "A07E1FFF",
+        "A07DF000",
+        "A07DF000",
+        "00000000"
+      ],
+      "descriptor_changed_from_checkpoint": false
+    },
+    {
+      "channel": 22,
+      "first_table": "73",
+      "first_section_crc_valid": true,
+      "guest_isr_write_pointer": "00042F00",
+      "descriptor": [
+        "A07E2000",
+        "A07E4FFF",
+        "A07E2000",
+        "A07E2F00",
+        "801A541D"
+      ],
+      "descriptor_changed_from_checkpoint": true
+    },
+    {
+      "channel": 23,
+      "first_table": "54",
+      "first_section_crc_valid": true,
+      "guest_isr_write_pointer": "00045700",
+      "descriptor": [
+        "A07E5000",
+        "A07E7FFF",
+        "A07E5000",
+        "A07E5700",
+        "8019A351"
+      ],
+      "descriptor_changed_from_checkpoint": true
+    },
+    {
+      "channel": 24,
+      "first_table": "40",
+      "first_section_crc_valid": true,
+      "guest_isr_write_pointer": "00049E80",
+      "descriptor": [
+        "A07E8000",
+        "A07EAFFF",
+        "A07E8000",
+        "A07E9E80",
+        "80199B10"
+      ],
+      "descriptor_changed_from_checkpoint": true
+    }
+  ],
+  "firmware_state": {
+    "frontend_state_800fcdc4": 7,
+    "frontend_flag_80105c00": 1,
+    "av_active_byte_80161d3c": 0,
+    "av_selection_80161d40": "FFFFFFFF",
+    "checkpoint_default_80054f84": "00000000",
+    "checkpoint_readiness_80430a28": 1
+  },
+  "decoded_text_locations": {
+    "LOCAL TEST ONE": [],
+    "LOCAL TEST TWO": [],
+    "NEXT TEST ONE": [],
+    "NEXT TEST TWO": []
+  }
+}

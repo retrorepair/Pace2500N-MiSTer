@@ -1,0 +1,578 @@
+2026-11-07 23:15:38 INFO  (LoggingInitialization) Using log config file: jar:file:/opt/ghidra_12.1.4_PUBLIC/Ghidra/Framework/Generic/lib/Generic.jar!/generic.log4j.xml  
+2026-11-07 23:15:38 INFO  (LoggingInitialization) Using log file: re/ghidra_oracle.log  
+2026-11-07 23:15:39 DEBUG (GhidraObjectInputFilter) Including serial input filter: FileSystem/data/client.rmi.serial.filter  
+2026-11-07 23:15:39 INFO  (Preferences) Loading user preferences: /root/.config/ghidra/ghidra_12.1.4_PUBLIC/preferences  
+2026-11-07 23:15:39 INFO  (Preferences) Loading previous preferences: /root/.config/ghidra/ghidra_11.4.2_PUBLIC/preferences  
+2026-11-07 23:15:39 INFO  (ClassSearcher) Searching for classes...  
+2026-11-07 23:15:39 INFO  (ClassSearcher) Class search complete (796 ms)  
+2026-11-07 23:15:39 INFO  (DefaultSSLContextInitializer) Initializing SSL Context  
+2026-11-07 23:15:40 INFO  (SecureRandomFactory) Initializing Random Number Generator...  
+2026-11-07 23:15:40 INFO  (SecureRandomFactory) Random Number Generator initialization complete: NativePRNGNonBlocking  
+2026-11-07 23:15:40 INFO  (DefaultTrustManagerFactory) Trust manager disabled, cacerts have not been set  
+2026-11-07 23:15:40 INFO  (AnalyzeHeadless) Headless startup complete (2280 ms)  
+2026-11-07 23:15:40 INFO  (ClassSearcher) Class searcher loaded 59 extension points (20 false positives)  
+2026-11-07 23:15:40 INFO  (HeadlessAnalyzer) HEADLESS Script Paths:
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Base/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FileFormats/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/8051/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/DecompilerDependent/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SwiftDemangler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/PIC/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FunctionID/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Decompiler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/MicrosoftCodeAnalyzer/ghidra_scripts
+    /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/GnuDemangler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SystemEmulation/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BytePatterns/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/Atmel/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/DATA/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/WildcardAssembler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PDB/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/JVM/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/VersionTracking/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger-rmi-trace/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PyGhidra/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BSim/ghidra_scripts  
+2026-11-07 23:15:40 INFO  (HeadlessAnalyzer) HEADLESS: execution starts  
+2026-11-07 23:15:40 INFO  (HeadlessAnalyzer) Opening existing project: /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/ghidra/PaceU202  
+2026-11-07 23:15:40 INFO  (HeadlessProject) Opening project: /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/ghidra/PaceU202  
+2026-11-07 23:15:42 INFO  (HeadlessAnalyzer) REPORT: Processing project file: /FLASH_U202.bin  
+2026-11-07 23:15:42 INFO  (HeadlessAnalyzer) REPORT: Execute script: Mips16Oracle.java '/mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/oracle_cases.json' '/mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/oracle_results.json'   
+2026-11-07 23:15:43 INFO  (HeadlessAnalyzer) SCRIPT: /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/scripts/Mips16Oracle.java  
+2026-11-07 23:15:43 ERROR (EmulatorHelper) Emulation failure at bfc1f000: FLASH_U202.bin ghidra.pcode.emulate.UnimplementedCallOtherException: Unimplemented CALLOTHER pcodeop (setISAMode), PC=bfc1f000
+	at ghidra.pcode.emulate.Emulate.executeCallother(Emulate.java:364)
+	at ghidra.pcode.emulate.Emulate.executeCurrentOp(Emulate.java:553)
+	at ghidra.pcode.emulate.Emulate.executeInstruction(Emulate.java:440)
+	at ghidra.app.emulator.DefaultEmulator.executeInstruction(DefaultEmulator.java:367)
+	at ghidra.app.emulator.EmulatorHelper.executeInstruction(EmulatorHelper.java:543)
+	at ghidra.app.emulator.EmulatorHelper.step(EmulatorHelper.java:598)
+	at Mips16Oracle.run(Mips16Oracle.java:39)
+	at ghidra.app.script.GhidraScript.executeNormal(GhidraScript.java:460)
+	at ghidra.app.script.GhidraScript.doExecute(GhidraScript.java:314)
+	at ghidra.app.script.GhidraScript.execute(GhidraScript.java:290)
+	at ghidra.app.util.headless.HeadlessAnalyzer.runScript(HeadlessAnalyzer.java:585)
+	at ghidra.app.util.headless.HeadlessAnalyzer.runScriptsList(HeadlessAnalyzer.java:937)
+	at ghidra.app.util.headless.HeadlessAnalyzer.analyzeProgram(HeadlessAnalyzer.java:1093)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processFileNoImport(HeadlessAnalyzer.java:1191)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processFolderNoImport(HeadlessAnalyzer.java:1363)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processNoImport(HeadlessAnalyzer.java:1392)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processLocal(HeadlessAnalyzer.java:449)
+	at ghidra.app.util.headless.AnalyzeHeadless.launch(AnalyzeHeadless.java:199)
+	at ghidra.GhidraLauncher.launch(GhidraLauncher.java:81)
+	at ghidra.Ghidra.main(Ghidra.java:54)
+ 
+2026-11-07 23:15:43 ERROR (EmulatorHelper) Emulation failure at bfc1f000: FLASH_U202.bin ghidra.pcode.emulate.UnimplementedCallOtherException: Unimplemented CALLOTHER pcodeop (setISAMode), PC=bfc1f000
+	at ghidra.pcode.emulate.Emulate.executeCallother(Emulate.java:364)
+	at ghidra.pcode.emulate.Emulate.executeCurrentOp(Emulate.java:553)
+	at ghidra.pcode.emulate.Emulate.executeInstruction(Emulate.java:440)
+	at ghidra.app.emulator.DefaultEmulator.executeInstruction(DefaultEmulator.java:367)
+	at ghidra.app.emulator.EmulatorHelper.executeInstruction(EmulatorHelper.java:543)
+	at ghidra.app.emulator.EmulatorHelper.step(EmulatorHelper.java:598)
+	at Mips16Oracle.run(Mips16Oracle.java:39)
+	at ghidra.app.script.GhidraScript.executeNormal(GhidraScript.java:460)
+	at ghidra.app.script.GhidraScript.doExecute(GhidraScript.java:314)
+	at ghidra.app.script.GhidraScript.execute(GhidraScript.java:290)
+	at ghidra.app.util.headless.HeadlessAnalyzer.runScript(HeadlessAnalyzer.java:585)
+	at ghidra.app.util.headless.HeadlessAnalyzer.runScriptsList(HeadlessAnalyzer.java:937)
+	at ghidra.app.util.headless.HeadlessAnalyzer.analyzeProgram(HeadlessAnalyzer.java:1093)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processFileNoImport(HeadlessAnalyzer.java:1191)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processFolderNoImport(HeadlessAnalyzer.java:1363)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processNoImport(HeadlessAnalyzer.java:1392)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processLocal(HeadlessAnalyzer.java:449)
+	at ghidra.app.util.headless.AnalyzeHeadless.launch(AnalyzeHeadless.java:199)
+	at ghidra.GhidraLauncher.launch(GhidraLauncher.java:81)
+	at ghidra.Ghidra.main(Ghidra.java:54)
+ 
+2026-11-07 23:15:43 ERROR (EmulatorHelper) Emulation failure at bfc1f000: FLASH_U202.bin ghidra.pcode.emulate.InstructionDecodeException: Instruction decode failed (Unable to resolve constructor at bfc1f000), PC=bfc1f000
+	at ghidra.pcode.emulate.Emulate.emitPcode(Emulate.java:234)
+	at ghidra.pcode.emulate.Emulate.executeInstruction(Emulate.java:430)
+	at ghidra.app.emulator.DefaultEmulator.executeInstruction(DefaultEmulator.java:367)
+	at ghidra.app.emulator.EmulatorHelper.executeInstruction(EmulatorHelper.java:543)
+	at ghidra.app.emulator.EmulatorHelper.step(EmulatorHelper.java:598)
+	at Mips16Oracle.run(Mips16Oracle.java:39)
+	at ghidra.app.script.GhidraScript.executeNormal(GhidraScript.java:460)
+	at ghidra.app.script.GhidraScript.doExecute(GhidraScript.java:314)
+	at ghidra.app.script.GhidraScript.execute(GhidraScript.java:290)
+	at ghidra.app.util.headless.HeadlessAnalyzer.runScript(HeadlessAnalyzer.java:585)
+	at ghidra.app.util.headless.HeadlessAnalyzer.runScriptsList(HeadlessAnalyzer.java:937)
+	at ghidra.app.util.headless.HeadlessAnalyzer.analyzeProgram(HeadlessAnalyzer.java:1093)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processFileNoImport(HeadlessAnalyzer.java:1191)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processFolderNoImport(HeadlessAnalyzer.java:1363)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processNoImport(HeadlessAnalyzer.java:1392)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processLocal(HeadlessAnalyzer.java:449)
+	at ghidra.app.util.headless.AnalyzeHeadless.launch(AnalyzeHeadless.java:199)
+	at ghidra.GhidraLauncher.launch(GhidraLauncher.java:81)
+	at ghidra.Ghidra.main(Ghidra.java:54)
+ 
+2026-11-07 23:15:43 ERROR (EmulatorHelper) Emulation failure at bfc1f000: FLASH_U202.bin ghidra.pcode.emulate.InstructionDecodeException: Instruction decode failed (Unable to resolve constructor at bfc1f000), PC=bfc1f000
+	at ghidra.pcode.emulate.Emulate.emitPcode(Emulate.java:234)
+	at ghidra.pcode.emulate.Emulate.executeInstruction(Emulate.java:430)
+	at ghidra.app.emulator.DefaultEmulator.executeInstruction(DefaultEmulator.java:367)
+	at ghidra.app.emulator.EmulatorHelper.executeInstruction(EmulatorHelper.java:543)
+	at ghidra.app.emulator.EmulatorHelper.step(EmulatorHelper.java:598)
+	at Mips16Oracle.run(Mips16Oracle.java:39)
+	at ghidra.app.script.GhidraScript.executeNormal(GhidraScript.java:460)
+	at ghidra.app.script.GhidraScript.doExecute(GhidraScript.java:314)
+	at ghidra.app.script.GhidraScript.execute(GhidraScript.java:290)
+	at ghidra.app.util.headless.HeadlessAnalyzer.runScript(HeadlessAnalyzer.java:585)
+	at ghidra.app.util.headless.HeadlessAnalyzer.runScriptsList(HeadlessAnalyzer.java:937)
+	at ghidra.app.util.headless.HeadlessAnalyzer.analyzeProgram(HeadlessAnalyzer.java:1093)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processFileNoImport(HeadlessAnalyzer.java:1191)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processFolderNoImport(HeadlessAnalyzer.java:1363)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processNoImport(HeadlessAnalyzer.java:1392)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processLocal(HeadlessAnalyzer.java:449)
+	at ghidra.app.util.headless.AnalyzeHeadless.launch(AnalyzeHeadless.java:199)
+	at ghidra.GhidraLauncher.launch(GhidraLauncher.java:81)
+	at ghidra.Ghidra.main(Ghidra.java:54)
+ 
+2026-11-07 23:15:43 INFO  (GhidraScript) Mips16Oracle.java> Oracle cases: 61  
+2026-11-07 23:15:43 INFO  (HeadlessAnalyzer) REPORT: Save succeeded for processed file: /FLASH_U202.bin  
+2026-11-07 23:18:19 INFO  (LoggingInitialization) Using log config file: jar:file:/opt/ghidra_12.1.4_PUBLIC/Ghidra/Framework/Generic/lib/Generic.jar!/generic.log4j.xml  
+2026-11-07 23:18:19 INFO  (LoggingInitialization) Using log file: re/ghidra_oracle.log  
+2026-11-07 23:18:20 DEBUG (GhidraObjectInputFilter) Including serial input filter: FileSystem/data/client.rmi.serial.filter  
+2026-11-07 23:18:20 INFO  (Preferences) Loading user preferences: /root/.config/ghidra/ghidra_12.1.4_PUBLIC/preferences  
+2026-11-07 23:18:20 INFO  (Preferences) Loading previous preferences: /root/.config/ghidra/ghidra_11.4.2_PUBLIC/preferences  
+2026-11-07 23:18:20 INFO  (ClassSearcher) Searching for classes...  
+2026-11-07 23:18:20 INFO  (ClassSearcher) Class search complete (808 ms)  
+2026-11-07 23:18:21 INFO  (DefaultSSLContextInitializer) Initializing SSL Context  
+2026-11-07 23:18:21 INFO  (SecureRandomFactory) Initializing Random Number Generator...  
+2026-11-07 23:18:21 INFO  (SecureRandomFactory) Random Number Generator initialization complete: NativePRNGNonBlocking  
+2026-11-07 23:18:21 INFO  (DefaultTrustManagerFactory) Trust manager disabled, cacerts have not been set  
+2026-11-07 23:18:21 INFO  (AnalyzeHeadless) Headless startup complete (2289 ms)  
+2026-11-07 23:18:21 INFO  (ClassSearcher) Class searcher loaded 59 extension points (20 false positives)  
+2026-11-07 23:18:21 INFO  (HeadlessAnalyzer) HEADLESS Script Paths:
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Base/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FileFormats/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/8051/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/DecompilerDependent/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SwiftDemangler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/PIC/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FunctionID/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Decompiler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/MicrosoftCodeAnalyzer/ghidra_scripts
+    /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/GnuDemangler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SystemEmulation/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BytePatterns/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/Atmel/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/DATA/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/WildcardAssembler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PDB/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/JVM/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/VersionTracking/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger-rmi-trace/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PyGhidra/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BSim/ghidra_scripts  
+2026-11-07 23:18:21 INFO  (HeadlessAnalyzer) HEADLESS: execution starts  
+2026-11-07 23:18:21 INFO  (HeadlessAnalyzer) Opening existing project: /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/ghidra/PaceU202  
+2026-11-07 23:18:21 INFO  (HeadlessProject) Opening project: /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/ghidra/PaceU202  
+2026-11-07 23:18:23 INFO  (HeadlessAnalyzer) REPORT: Processing project file: /FLASH_U202.bin  
+2026-11-07 23:18:23 INFO  (HeadlessAnalyzer) REPORT: Execute script: Mips16Oracle.java '/mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/oracle_cases.json' '/mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/oracle_results.json'   
+2026-11-07 23:18:24 INFO  (HeadlessAnalyzer) SCRIPT: /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/scripts/Mips16Oracle.java  
+2026-11-07 23:18:24 ERROR (EmulatorHelper) Emulation failure at bfc1f000: FLASH_U202.bin java.lang.IllegalStateException: emulator is not STOPPED
+	at ghidra.pcode.emulate.Emulate.setContextRegisterValue(Emulate.java:276)
+	at ghidra.app.emulator.DefaultEmulator.setContextRegisterValue(DefaultEmulator.java:469)
+	at ghidra.app.emulator.EmulatorHelper.setContextRegister(EmulatorHelper.java:370)
+	at Mips16Oracle$1.pcodeCallback(Mips16Oracle.java:34)
+	at ghidra.pcode.emulate.BreakTableCallBack.doPcodeOpBreak(BreakTableCallBack.java:163)
+	at ghidra.pcode.emulate.Emulate.executeCallother(Emulate.java:361)
+	at ghidra.pcode.emulate.Emulate.executeCurrentOp(Emulate.java:553)
+	at ghidra.pcode.emulate.Emulate.executeInstruction(Emulate.java:440)
+	at ghidra.app.emulator.DefaultEmulator.executeInstruction(DefaultEmulator.java:367)
+	at ghidra.app.emulator.EmulatorHelper.executeInstruction(EmulatorHelper.java:543)
+	at ghidra.app.emulator.EmulatorHelper.step(EmulatorHelper.java:598)
+	at Mips16Oracle.run(Mips16Oracle.java:50)
+	at ghidra.app.script.GhidraScript.executeNormal(GhidraScript.java:460)
+	at ghidra.app.script.GhidraScript.doExecute(GhidraScript.java:314)
+	at ghidra.app.script.GhidraScript.execute(GhidraScript.java:290)
+	at ghidra.app.util.headless.HeadlessAnalyzer.runScript(HeadlessAnalyzer.java:585)
+	at ghidra.app.util.headless.HeadlessAnalyzer.runScriptsList(HeadlessAnalyzer.java:937)
+	at ghidra.app.util.headless.HeadlessAnalyzer.analyzeProgram(HeadlessAnalyzer.java:1093)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processFileNoImport(HeadlessAnalyzer.java:1191)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processFolderNoImport(HeadlessAnalyzer.java:1363)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processNoImport(HeadlessAnalyzer.java:1392)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processLocal(HeadlessAnalyzer.java:449)
+	at ghidra.app.util.headless.AnalyzeHeadless.launch(AnalyzeHeadless.java:199)
+	at ghidra.GhidraLauncher.launch(GhidraLauncher.java:81)
+	at ghidra.Ghidra.main(Ghidra.java:54)
+ 
+2026-11-07 23:18:24 ERROR (EmulatorHelper) Emulation failure at bfc1f000: FLASH_U202.bin java.lang.IllegalStateException: emulator is not STOPPED
+	at ghidra.pcode.emulate.Emulate.setContextRegisterValue(Emulate.java:276)
+	at ghidra.app.emulator.DefaultEmulator.setContextRegisterValue(DefaultEmulator.java:469)
+	at ghidra.app.emulator.EmulatorHelper.setContextRegister(EmulatorHelper.java:370)
+	at Mips16Oracle$1.pcodeCallback(Mips16Oracle.java:34)
+	at ghidra.pcode.emulate.BreakTableCallBack.doPcodeOpBreak(BreakTableCallBack.java:163)
+	at ghidra.pcode.emulate.Emulate.executeCallother(Emulate.java:361)
+	at ghidra.pcode.emulate.Emulate.executeCurrentOp(Emulate.java:553)
+	at ghidra.pcode.emulate.Emulate.executeInstruction(Emulate.java:440)
+	at ghidra.app.emulator.DefaultEmulator.executeInstruction(DefaultEmulator.java:367)
+	at ghidra.app.emulator.EmulatorHelper.executeInstruction(EmulatorHelper.java:543)
+	at ghidra.app.emulator.EmulatorHelper.step(EmulatorHelper.java:598)
+	at Mips16Oracle.run(Mips16Oracle.java:50)
+	at ghidra.app.script.GhidraScript.executeNormal(GhidraScript.java:460)
+	at ghidra.app.script.GhidraScript.doExecute(GhidraScript.java:314)
+	at ghidra.app.script.GhidraScript.execute(GhidraScript.java:290)
+	at ghidra.app.util.headless.HeadlessAnalyzer.runScript(HeadlessAnalyzer.java:585)
+	at ghidra.app.util.headless.HeadlessAnalyzer.runScriptsList(HeadlessAnalyzer.java:937)
+	at ghidra.app.util.headless.HeadlessAnalyzer.analyzeProgram(HeadlessAnalyzer.java:1093)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processFileNoImport(HeadlessAnalyzer.java:1191)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processFolderNoImport(HeadlessAnalyzer.java:1363)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processNoImport(HeadlessAnalyzer.java:1392)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processLocal(HeadlessAnalyzer.java:449)
+	at ghidra.app.util.headless.AnalyzeHeadless.launch(AnalyzeHeadless.java:199)
+	at ghidra.GhidraLauncher.launch(GhidraLauncher.java:81)
+	at ghidra.Ghidra.main(Ghidra.java:54)
+ 
+2026-11-07 23:18:24 INFO  (GhidraScript) Mips16Oracle.java> Oracle cases: 222  
+2026-11-07 23:18:24 INFO  (HeadlessAnalyzer) REPORT: Save succeeded for processed file: /FLASH_U202.bin  
+2026-11-07 23:19:38 INFO  (LoggingInitialization) Using log config file: jar:file:/opt/ghidra_12.1.4_PUBLIC/Ghidra/Framework/Generic/lib/Generic.jar!/generic.log4j.xml  
+2026-11-07 23:19:38 INFO  (LoggingInitialization) Using log file: re/ghidra_oracle.log  
+2026-11-07 23:19:38 DEBUG (GhidraObjectInputFilter) Including serial input filter: FileSystem/data/client.rmi.serial.filter  
+2026-11-07 23:19:38 INFO  (Preferences) Loading user preferences: /root/.config/ghidra/ghidra_12.1.4_PUBLIC/preferences  
+2026-11-07 23:19:38 INFO  (Preferences) Loading previous preferences: /root/.config/ghidra/ghidra_11.4.2_PUBLIC/preferences  
+2026-11-07 23:19:38 INFO  (ClassSearcher) Searching for classes...  
+2026-11-07 23:19:39 INFO  (ClassSearcher) Class search complete (795 ms)  
+2026-11-07 23:19:39 INFO  (DefaultSSLContextInitializer) Initializing SSL Context  
+2026-11-07 23:19:39 INFO  (SecureRandomFactory) Initializing Random Number Generator...  
+2026-11-07 23:19:39 INFO  (SecureRandomFactory) Random Number Generator initialization complete: NativePRNGNonBlocking  
+2026-11-07 23:19:39 INFO  (DefaultTrustManagerFactory) Trust manager disabled, cacerts have not been set  
+2026-11-07 23:19:40 INFO  (AnalyzeHeadless) Headless startup complete (2221 ms)  
+2026-11-07 23:19:40 INFO  (ClassSearcher) Class searcher loaded 59 extension points (20 false positives)  
+2026-11-07 23:19:40 INFO  (HeadlessAnalyzer) HEADLESS Script Paths:
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Base/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FileFormats/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/8051/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/DecompilerDependent/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SwiftDemangler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/PIC/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FunctionID/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Decompiler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/MicrosoftCodeAnalyzer/ghidra_scripts
+    /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/GnuDemangler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SystemEmulation/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BytePatterns/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/Atmel/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/DATA/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/WildcardAssembler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PDB/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/JVM/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/VersionTracking/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger-rmi-trace/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PyGhidra/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BSim/ghidra_scripts  
+2026-11-07 23:19:40 INFO  (HeadlessAnalyzer) HEADLESS: execution starts  
+2026-11-07 23:19:40 INFO  (HeadlessAnalyzer) Opening existing project: /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/ghidra/PaceU202  
+2026-11-07 23:19:40 INFO  (HeadlessProject) Opening project: /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/ghidra/PaceU202  
+2026-11-07 23:19:41 INFO  (HeadlessAnalyzer) REPORT: Processing project file: /FLASH_U202.bin  
+2026-11-07 23:19:42 INFO  (HeadlessAnalyzer) REPORT: Execute script: Mips16Oracle.java '/mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/oracle_cases.json' '/mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/oracle_results.json'   
+2026-11-07 23:19:43 INFO  (HeadlessAnalyzer) SCRIPT: /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/scripts/Mips16Oracle.java  
+2026-11-07 23:19:43 INFO  (GhidraScript) Mips16Oracle.java> Oracle cases: 222  
+2026-11-07 23:19:43 INFO  (HeadlessAnalyzer) REPORT: Save succeeded for processed file: /FLASH_U202.bin  
+2026-11-07 23:21:47 INFO  (LoggingInitialization) Using log config file: jar:file:/opt/ghidra_12.1.4_PUBLIC/Ghidra/Framework/Generic/lib/Generic.jar!/generic.log4j.xml  
+2026-11-07 23:21:47 INFO  (LoggingInitialization) Using log file: re/ghidra_oracle.log  
+2026-11-07 23:21:47 DEBUG (GhidraObjectInputFilter) Including serial input filter: FileSystem/data/client.rmi.serial.filter  
+2026-11-07 23:21:47 INFO  (Preferences) Loading user preferences: /root/.config/ghidra/ghidra_12.1.4_PUBLIC/preferences  
+2026-11-07 23:21:47 INFO  (Preferences) Loading previous preferences: /root/.config/ghidra/ghidra_11.4.2_PUBLIC/preferences  
+2026-11-07 23:21:47 INFO  (ClassSearcher) Searching for classes...  
+2026-11-07 23:21:48 INFO  (ClassSearcher) Class search complete (801 ms)  
+2026-11-07 23:21:48 INFO  (DefaultSSLContextInitializer) Initializing SSL Context  
+2026-11-07 23:21:48 INFO  (SecureRandomFactory) Initializing Random Number Generator...  
+2026-11-07 23:21:48 INFO  (SecureRandomFactory) Random Number Generator initialization complete: NativePRNGNonBlocking  
+2026-11-07 23:21:48 INFO  (DefaultTrustManagerFactory) Trust manager disabled, cacerts have not been set  
+2026-11-07 23:21:48 INFO  (AnalyzeHeadless) Headless startup complete (2319 ms)  
+2026-11-07 23:21:48 INFO  (ClassSearcher) Class searcher loaded 59 extension points (20 false positives)  
+2026-11-07 23:21:48 INFO  (HeadlessAnalyzer) HEADLESS Script Paths:
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Base/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FileFormats/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/8051/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/DecompilerDependent/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SwiftDemangler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/PIC/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FunctionID/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Decompiler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/MicrosoftCodeAnalyzer/ghidra_scripts
+    /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/GnuDemangler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SystemEmulation/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BytePatterns/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/Atmel/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/DATA/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/WildcardAssembler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PDB/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/JVM/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/VersionTracking/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger-rmi-trace/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PyGhidra/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BSim/ghidra_scripts  
+2026-11-07 23:21:49 INFO  (HeadlessAnalyzer) HEADLESS: execution starts  
+2026-11-07 23:21:49 INFO  (HeadlessAnalyzer) Opening existing project: /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/ghidra/PaceU202  
+2026-11-07 23:21:49 INFO  (HeadlessProject) Opening project: /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/ghidra/PaceU202  
+2026-11-07 23:21:50 INFO  (HeadlessAnalyzer) REPORT: Processing project file: /FLASH_U202.bin  
+2026-11-07 23:21:50 INFO  (HeadlessAnalyzer) REPORT: Execute script: Mips16Oracle.java '/mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/oracle_cases.json' '/mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/oracle_results.json'   
+2026-11-07 23:21:51 INFO  (HeadlessAnalyzer) SCRIPT: /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/scripts/Mips16Oracle.java  
+2026-11-07 23:21:51 ERROR (EmulatorHelper) Emulation failure at bfc1f000: FLASH_U202.bin ghidra.pcode.emulate.InstructionDecodeException: Instruction decode failed (Unable to resolve constructor at bfc1f000), PC=bfc1f000
+	at ghidra.pcode.emulate.Emulate.emitPcode(Emulate.java:234)
+	at ghidra.pcode.emulate.Emulate.executeInstruction(Emulate.java:430)
+	at ghidra.app.emulator.DefaultEmulator.executeInstruction(DefaultEmulator.java:367)
+	at ghidra.app.emulator.EmulatorHelper.executeInstruction(EmulatorHelper.java:543)
+	at ghidra.app.emulator.EmulatorHelper.step(EmulatorHelper.java:598)
+	at Mips16Oracle.run(Mips16Oracle.java:50)
+	at ghidra.app.script.GhidraScript.executeNormal(GhidraScript.java:460)
+	at ghidra.app.script.GhidraScript.doExecute(GhidraScript.java:314)
+	at ghidra.app.script.GhidraScript.execute(GhidraScript.java:290)
+	at ghidra.app.util.headless.HeadlessAnalyzer.runScript(HeadlessAnalyzer.java:585)
+	at ghidra.app.util.headless.HeadlessAnalyzer.runScriptsList(HeadlessAnalyzer.java:937)
+	at ghidra.app.util.headless.HeadlessAnalyzer.analyzeProgram(HeadlessAnalyzer.java:1093)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processFileNoImport(HeadlessAnalyzer.java:1191)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processFolderNoImport(HeadlessAnalyzer.java:1363)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processNoImport(HeadlessAnalyzer.java:1392)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processLocal(HeadlessAnalyzer.java:449)
+	at ghidra.app.util.headless.AnalyzeHeadless.launch(AnalyzeHeadless.java:199)
+	at ghidra.GhidraLauncher.launch(GhidraLauncher.java:81)
+	at ghidra.Ghidra.main(Ghidra.java:54)
+ 
+2026-11-07 23:21:51 ERROR (EmulatorHelper) Emulation failure at bfc1f000: FLASH_U202.bin ghidra.pcode.emulate.InstructionDecodeException: Instruction decode failed (Unable to resolve constructor at bfc1f000), PC=bfc1f000
+	at ghidra.pcode.emulate.Emulate.emitPcode(Emulate.java:234)
+	at ghidra.pcode.emulate.Emulate.executeInstruction(Emulate.java:430)
+	at ghidra.app.emulator.DefaultEmulator.executeInstruction(DefaultEmulator.java:367)
+	at ghidra.app.emulator.EmulatorHelper.executeInstruction(EmulatorHelper.java:543)
+	at ghidra.app.emulator.EmulatorHelper.step(EmulatorHelper.java:598)
+	at Mips16Oracle.run(Mips16Oracle.java:50)
+	at ghidra.app.script.GhidraScript.executeNormal(GhidraScript.java:460)
+	at ghidra.app.script.GhidraScript.doExecute(GhidraScript.java:314)
+	at ghidra.app.script.GhidraScript.execute(GhidraScript.java:290)
+	at ghidra.app.util.headless.HeadlessAnalyzer.runScript(HeadlessAnalyzer.java:585)
+	at ghidra.app.util.headless.HeadlessAnalyzer.runScriptsList(HeadlessAnalyzer.java:937)
+	at ghidra.app.util.headless.HeadlessAnalyzer.analyzeProgram(HeadlessAnalyzer.java:1093)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processFileNoImport(HeadlessAnalyzer.java:1191)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processFolderNoImport(HeadlessAnalyzer.java:1363)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processNoImport(HeadlessAnalyzer.java:1392)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processLocal(HeadlessAnalyzer.java:449)
+	at ghidra.app.util.headless.AnalyzeHeadless.launch(AnalyzeHeadless.java:199)
+	at ghidra.GhidraLauncher.launch(GhidraLauncher.java:81)
+	at ghidra.Ghidra.main(Ghidra.java:54)
+ 
+2026-11-07 23:21:51 ERROR (EmulatorHelper) Emulation failure at bfc1f000: FLASH_U202.bin ghidra.pcode.emulate.InstructionDecodeException: Instruction decode failed (Unable to resolve constructor at bfc1f000), PC=bfc1f000
+	at ghidra.pcode.emulate.Emulate.emitPcode(Emulate.java:234)
+	at ghidra.pcode.emulate.Emulate.executeInstruction(Emulate.java:430)
+	at ghidra.app.emulator.DefaultEmulator.executeInstruction(DefaultEmulator.java:367)
+	at ghidra.app.emulator.EmulatorHelper.executeInstruction(EmulatorHelper.java:543)
+	at ghidra.app.emulator.EmulatorHelper.step(EmulatorHelper.java:598)
+	at Mips16Oracle.run(Mips16Oracle.java:50)
+	at ghidra.app.script.GhidraScript.executeNormal(GhidraScript.java:460)
+	at ghidra.app.script.GhidraScript.doExecute(GhidraScript.java:314)
+	at ghidra.app.script.GhidraScript.execute(GhidraScript.java:290)
+	at ghidra.app.util.headless.HeadlessAnalyzer.runScript(HeadlessAnalyzer.java:585)
+	at ghidra.app.util.headless.HeadlessAnalyzer.runScriptsList(HeadlessAnalyzer.java:937)
+	at ghidra.app.util.headless.HeadlessAnalyzer.analyzeProgram(HeadlessAnalyzer.java:1093)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processFileNoImport(HeadlessAnalyzer.java:1191)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processFolderNoImport(HeadlessAnalyzer.java:1363)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processNoImport(HeadlessAnalyzer.java:1392)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processLocal(HeadlessAnalyzer.java:449)
+	at ghidra.app.util.headless.AnalyzeHeadless.launch(AnalyzeHeadless.java:199)
+	at ghidra.GhidraLauncher.launch(GhidraLauncher.java:81)
+	at ghidra.Ghidra.main(Ghidra.java:54)
+ 
+2026-11-07 23:21:51 ERROR (EmulatorHelper) Emulation failure at bfc1f000: FLASH_U202.bin ghidra.pcode.emulate.InstructionDecodeException: Instruction decode failed (Unable to resolve constructor at bfc1f000), PC=bfc1f000
+	at ghidra.pcode.emulate.Emulate.emitPcode(Emulate.java:234)
+	at ghidra.pcode.emulate.Emulate.executeInstruction(Emulate.java:430)
+	at ghidra.app.emulator.DefaultEmulator.executeInstruction(DefaultEmulator.java:367)
+	at ghidra.app.emulator.EmulatorHelper.executeInstruction(EmulatorHelper.java:543)
+	at ghidra.app.emulator.EmulatorHelper.step(EmulatorHelper.java:598)
+	at Mips16Oracle.run(Mips16Oracle.java:50)
+	at ghidra.app.script.GhidraScript.executeNormal(GhidraScript.java:460)
+	at ghidra.app.script.GhidraScript.doExecute(GhidraScript.java:314)
+	at ghidra.app.script.GhidraScript.execute(GhidraScript.java:290)
+	at ghidra.app.util.headless.HeadlessAnalyzer.runScript(HeadlessAnalyzer.java:585)
+	at ghidra.app.util.headless.HeadlessAnalyzer.runScriptsList(HeadlessAnalyzer.java:937)
+	at ghidra.app.util.headless.HeadlessAnalyzer.analyzeProgram(HeadlessAnalyzer.java:1093)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processFileNoImport(HeadlessAnalyzer.java:1191)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processFolderNoImport(HeadlessAnalyzer.java:1363)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processNoImport(HeadlessAnalyzer.java:1392)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processLocal(HeadlessAnalyzer.java:449)
+	at ghidra.app.util.headless.AnalyzeHeadless.launch(AnalyzeHeadless.java:199)
+	at ghidra.GhidraLauncher.launch(GhidraLauncher.java:81)
+	at ghidra.Ghidra.main(Ghidra.java:54)
+ 
+2026-11-07 23:21:51 ERROR (EmulatorHelper) Emulation failure at bfc1f000: FLASH_U202.bin ghidra.pcode.emulate.InstructionDecodeException: Instruction decode failed (Unable to resolve constructor at bfc1f000), PC=bfc1f000
+	at ghidra.pcode.emulate.Emulate.emitPcode(Emulate.java:234)
+	at ghidra.pcode.emulate.Emulate.executeInstruction(Emulate.java:430)
+	at ghidra.app.emulator.DefaultEmulator.executeInstruction(DefaultEmulator.java:367)
+	at ghidra.app.emulator.EmulatorHelper.executeInstruction(EmulatorHelper.java:543)
+	at ghidra.app.emulator.EmulatorHelper.step(EmulatorHelper.java:598)
+	at Mips16Oracle.run(Mips16Oracle.java:50)
+	at ghidra.app.script.GhidraScript.executeNormal(GhidraScript.java:460)
+	at ghidra.app.script.GhidraScript.doExecute(GhidraScript.java:314)
+	at ghidra.app.script.GhidraScript.execute(GhidraScript.java:290)
+	at ghidra.app.util.headless.HeadlessAnalyzer.runScript(HeadlessAnalyzer.java:585)
+	at ghidra.app.util.headless.HeadlessAnalyzer.runScriptsList(HeadlessAnalyzer.java:937)
+	at ghidra.app.util.headless.HeadlessAnalyzer.analyzeProgram(HeadlessAnalyzer.java:1093)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processFileNoImport(HeadlessAnalyzer.java:1191)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processFolderNoImport(HeadlessAnalyzer.java:1363)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processNoImport(HeadlessAnalyzer.java:1392)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processLocal(HeadlessAnalyzer.java:449)
+	at ghidra.app.util.headless.AnalyzeHeadless.launch(AnalyzeHeadless.java:199)
+	at ghidra.GhidraLauncher.launch(GhidraLauncher.java:81)
+	at ghidra.Ghidra.main(Ghidra.java:54)
+ 
+2026-11-07 23:21:51 ERROR (EmulatorHelper) Emulation failure at bfc1f000: FLASH_U202.bin ghidra.pcode.emulate.InstructionDecodeException: Instruction decode failed (Unable to resolve constructor at bfc1f000), PC=bfc1f000
+	at ghidra.pcode.emulate.Emulate.emitPcode(Emulate.java:234)
+	at ghidra.pcode.emulate.Emulate.executeInstruction(Emulate.java:430)
+	at ghidra.app.emulator.DefaultEmulator.executeInstruction(DefaultEmulator.java:367)
+	at ghidra.app.emulator.EmulatorHelper.executeInstruction(EmulatorHelper.java:543)
+	at ghidra.app.emulator.EmulatorHelper.step(EmulatorHelper.java:598)
+	at Mips16Oracle.run(Mips16Oracle.java:50)
+	at ghidra.app.script.GhidraScript.executeNormal(GhidraScript.java:460)
+	at ghidra.app.script.GhidraScript.doExecute(GhidraScript.java:314)
+	at ghidra.app.script.GhidraScript.execute(GhidraScript.java:290)
+	at ghidra.app.util.headless.HeadlessAnalyzer.runScript(HeadlessAnalyzer.java:585)
+	at ghidra.app.util.headless.HeadlessAnalyzer.runScriptsList(HeadlessAnalyzer.java:937)
+	at ghidra.app.util.headless.HeadlessAnalyzer.analyzeProgram(HeadlessAnalyzer.java:1093)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processFileNoImport(HeadlessAnalyzer.java:1191)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processFolderNoImport(HeadlessAnalyzer.java:1363)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processNoImport(HeadlessAnalyzer.java:1392)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processLocal(HeadlessAnalyzer.java:449)
+	at ghidra.app.util.headless.AnalyzeHeadless.launch(AnalyzeHeadless.java:199)
+	at ghidra.GhidraLauncher.launch(GhidraLauncher.java:81)
+	at ghidra.Ghidra.main(Ghidra.java:54)
+ 
+2026-11-07 23:21:51 ERROR (EmulatorHelper) Emulation failure at bfc1f000: FLASH_U202.bin ghidra.pcode.emulate.InstructionDecodeException: Instruction decode failed (Unable to resolve constructor at bfc1f000), PC=bfc1f000
+	at ghidra.pcode.emulate.Emulate.emitPcode(Emulate.java:234)
+	at ghidra.pcode.emulate.Emulate.executeInstruction(Emulate.java:430)
+	at ghidra.app.emulator.DefaultEmulator.executeInstruction(DefaultEmulator.java:367)
+	at ghidra.app.emulator.EmulatorHelper.executeInstruction(EmulatorHelper.java:543)
+	at ghidra.app.emulator.EmulatorHelper.step(EmulatorHelper.java:598)
+	at Mips16Oracle.run(Mips16Oracle.java:50)
+	at ghidra.app.script.GhidraScript.executeNormal(GhidraScript.java:460)
+	at ghidra.app.script.GhidraScript.doExecute(GhidraScript.java:314)
+	at ghidra.app.script.GhidraScript.execute(GhidraScript.java:290)
+	at ghidra.app.util.headless.HeadlessAnalyzer.runScript(HeadlessAnalyzer.java:585)
+	at ghidra.app.util.headless.HeadlessAnalyzer.runScriptsList(HeadlessAnalyzer.java:937)
+	at ghidra.app.util.headless.HeadlessAnalyzer.analyzeProgram(HeadlessAnalyzer.java:1093)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processFileNoImport(HeadlessAnalyzer.java:1191)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processFolderNoImport(HeadlessAnalyzer.java:1363)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processNoImport(HeadlessAnalyzer.java:1392)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processLocal(HeadlessAnalyzer.java:449)
+	at ghidra.app.util.headless.AnalyzeHeadless.launch(AnalyzeHeadless.java:199)
+	at ghidra.GhidraLauncher.launch(GhidraLauncher.java:81)
+	at ghidra.Ghidra.main(Ghidra.java:54)
+ 
+2026-11-07 23:21:51 ERROR (EmulatorHelper) Emulation failure at bfc1f000: FLASH_U202.bin ghidra.pcode.emulate.InstructionDecodeException: Instruction decode failed (Unable to resolve constructor at bfc1f000), PC=bfc1f000
+	at ghidra.pcode.emulate.Emulate.emitPcode(Emulate.java:234)
+	at ghidra.pcode.emulate.Emulate.executeInstruction(Emulate.java:430)
+	at ghidra.app.emulator.DefaultEmulator.executeInstruction(DefaultEmulator.java:367)
+	at ghidra.app.emulator.EmulatorHelper.executeInstruction(EmulatorHelper.java:543)
+	at ghidra.app.emulator.EmulatorHelper.step(EmulatorHelper.java:598)
+	at Mips16Oracle.run(Mips16Oracle.java:50)
+	at ghidra.app.script.GhidraScript.executeNormal(GhidraScript.java:460)
+	at ghidra.app.script.GhidraScript.doExecute(GhidraScript.java:314)
+	at ghidra.app.script.GhidraScript.execute(GhidraScript.java:290)
+	at ghidra.app.util.headless.HeadlessAnalyzer.runScript(HeadlessAnalyzer.java:585)
+	at ghidra.app.util.headless.HeadlessAnalyzer.runScriptsList(HeadlessAnalyzer.java:937)
+	at ghidra.app.util.headless.HeadlessAnalyzer.analyzeProgram(HeadlessAnalyzer.java:1093)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processFileNoImport(HeadlessAnalyzer.java:1191)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processFolderNoImport(HeadlessAnalyzer.java:1363)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processNoImport(HeadlessAnalyzer.java:1392)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processLocal(HeadlessAnalyzer.java:449)
+	at ghidra.app.util.headless.AnalyzeHeadless.launch(AnalyzeHeadless.java:199)
+	at ghidra.GhidraLauncher.launch(GhidraLauncher.java:81)
+	at ghidra.Ghidra.main(Ghidra.java:54)
+ 
+2026-11-07 23:21:51 INFO  (GhidraScript) Mips16Oracle.java> Oracle cases: 236  
+2026-11-07 23:21:51 INFO  (HeadlessAnalyzer) REPORT: Save succeeded for processed file: /FLASH_U202.bin  
+2026-11-07 23:22:52 INFO  (LoggingInitialization) Using log config file: jar:file:/opt/ghidra_12.1.4_PUBLIC/Ghidra/Framework/Generic/lib/Generic.jar!/generic.log4j.xml  
+2026-11-07 23:22:52 INFO  (LoggingInitialization) Using log file: re/ghidra_oracle.log  
+2026-11-07 23:22:52 DEBUG (GhidraObjectInputFilter) Including serial input filter: FileSystem/data/client.rmi.serial.filter  
+2026-11-07 23:22:52 INFO  (Preferences) Loading user preferences: /root/.config/ghidra/ghidra_12.1.4_PUBLIC/preferences  
+2026-11-07 23:22:52 INFO  (Preferences) Loading previous preferences: /root/.config/ghidra/ghidra_11.4.2_PUBLIC/preferences  
+2026-11-07 23:22:52 INFO  (ClassSearcher) Searching for classes...  
+2026-11-07 23:22:53 INFO  (ClassSearcher) Class search complete (826 ms)  
+2026-11-07 23:22:53 INFO  (DefaultSSLContextInitializer) Initializing SSL Context  
+2026-11-07 23:22:53 INFO  (SecureRandomFactory) Initializing Random Number Generator...  
+2026-11-07 23:22:53 INFO  (SecureRandomFactory) Random Number Generator initialization complete: NativePRNGNonBlocking  
+2026-11-07 23:22:53 INFO  (DefaultTrustManagerFactory) Trust manager disabled, cacerts have not been set  
+2026-11-07 23:22:53 INFO  (AnalyzeHeadless) Headless startup complete (2472 ms)  
+2026-11-07 23:22:53 INFO  (ClassSearcher) Class searcher loaded 59 extension points (20 false positives)  
+2026-11-07 23:22:54 INFO  (HeadlessAnalyzer) HEADLESS Script Paths:
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Base/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FileFormats/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/8051/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/DecompilerDependent/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SwiftDemangler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/PIC/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FunctionID/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Decompiler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/MicrosoftCodeAnalyzer/ghidra_scripts
+    /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/GnuDemangler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SystemEmulation/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BytePatterns/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/Atmel/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/DATA/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/WildcardAssembler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PDB/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/JVM/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/VersionTracking/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger-rmi-trace/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PyGhidra/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BSim/ghidra_scripts  
+2026-11-07 23:22:54 INFO  (HeadlessAnalyzer) HEADLESS: execution starts  
+2026-11-07 23:22:54 INFO  (HeadlessAnalyzer) Opening existing project: /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/ghidra/PaceU202  
+2026-11-07 23:22:54 INFO  (HeadlessProject) Opening project: /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/ghidra/PaceU202  
+2026-11-07 23:22:55 INFO  (HeadlessAnalyzer) REPORT: Processing project file: /FLASH_U202.bin  
+2026-11-07 23:22:55 INFO  (HeadlessAnalyzer) REPORT: Execute script: Mips16Oracle.java '/mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/oracle_cases.json' '/mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/oracle_results.json'   
+2026-11-07 23:22:56 INFO  (HeadlessAnalyzer) SCRIPT: /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/scripts/Mips16Oracle.java  
+2026-11-07 23:22:57 INFO  (GhidraScript) Mips16Oracle.java> Oracle cases: 236  
+2026-11-07 23:22:57 INFO  (HeadlessAnalyzer) REPORT: Save succeeded for processed file: /FLASH_U202.bin  
+2026-11-07 23:31:01 INFO  (LoggingInitialization) Using log config file: jar:file:/opt/ghidra_12.1.4_PUBLIC/Ghidra/Framework/Generic/lib/Generic.jar!/generic.log4j.xml  
+2026-11-07 23:31:01 INFO  (LoggingInitialization) Using log file: re/ghidra_oracle.log  
+2026-11-07 23:31:01 DEBUG (GhidraObjectInputFilter) Including serial input filter: FileSystem/data/client.rmi.serial.filter  
+2026-11-07 23:31:01 INFO  (Preferences) Loading user preferences: /root/.config/ghidra/ghidra_12.1.4_PUBLIC/preferences  
+2026-11-07 23:31:01 INFO  (Preferences) Loading previous preferences: /root/.config/ghidra/ghidra_11.4.2_PUBLIC/preferences  
+2026-11-07 23:31:01 INFO  (ClassSearcher) Searching for classes...  
+2026-11-07 23:31:02 INFO  (ClassSearcher) Class search complete (742 ms)  
+2026-11-07 23:31:02 INFO  (DefaultSSLContextInitializer) Initializing SSL Context  
+2026-11-07 23:31:02 INFO  (SecureRandomFactory) Initializing Random Number Generator...  
+2026-11-07 23:31:02 INFO  (SecureRandomFactory) Random Number Generator initialization complete: NativePRNGNonBlocking  
+2026-11-07 23:31:02 INFO  (DefaultTrustManagerFactory) Trust manager disabled, cacerts have not been set  
+2026-11-07 23:31:02 INFO  (AnalyzeHeadless) Headless startup complete (2248 ms)  
+2026-11-07 23:31:02 INFO  (ClassSearcher) Class searcher loaded 59 extension points (20 false positives)  
+2026-11-07 23:31:03 INFO  (HeadlessAnalyzer) HEADLESS Script Paths:
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Base/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FileFormats/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/8051/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/DecompilerDependent/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SwiftDemangler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/PIC/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FunctionID/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Decompiler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/MicrosoftCodeAnalyzer/ghidra_scripts
+    /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/GnuDemangler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SystemEmulation/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BytePatterns/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/Atmel/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/DATA/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/WildcardAssembler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PDB/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/JVM/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/VersionTracking/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger-rmi-trace/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PyGhidra/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BSim/ghidra_scripts  
+2026-11-07 23:31:03 INFO  (HeadlessAnalyzer) HEADLESS: execution starts  
+2026-11-07 23:31:03 INFO  (HeadlessAnalyzer) Opening existing project: /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/ghidra/PaceU202  
+2026-11-07 23:31:03 INFO  (HeadlessProject) Opening project: /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/ghidra/PaceU202  
+2026-11-07 23:31:04 INFO  (HeadlessAnalyzer) REPORT: Processing project file: /FLASH_U202.bin  
+2026-11-07 23:31:04 INFO  (HeadlessAnalyzer) REPORT: Execute script: Mips16Oracle.java '/mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/oracle_cases.json' '/mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/oracle_results.json'   
+2026-11-07 23:31:04 INFO  (HeadlessAnalyzer) SCRIPT: /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/scripts/Mips16Oracle.java  
+2026-11-07 23:31:05 INFO  (GhidraScript) Mips16Oracle.java> Oracle cases: 260  
+2026-11-07 23:31:05 INFO  (HeadlessAnalyzer) REPORT: Save succeeded for processed file: /FLASH_U202.bin  

@@ -1,0 +1,6 @@
+800c50d4  lhu v1,0x0(v0)
+800c50d6  or v1,a2
+800c50d8  b 0x800c50ec
+800c50ec  sh v1,0x0(v0)
+800c50ee  jr ra
+800c50f0  _addiu s0,0x0

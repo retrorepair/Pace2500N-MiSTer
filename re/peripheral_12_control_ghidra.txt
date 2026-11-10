@@ -1,0 +1,6 @@
+bfc061a0  lw a0,0x54(pc)
+bfc061a2  jal 0xbfc06850
+bfc061a6  _addiu s0,0x0
+bfc061a8  lw a0,0x4(sp)
+bfc061aa  jr a0
+bfc061ac  _addiu sp,0x8

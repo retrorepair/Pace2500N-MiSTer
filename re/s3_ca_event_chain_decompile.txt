@@ -1,0 +1,411 @@
+
+// ===== 800e8fc4 is inside function 800e8f68 body [[800e8f68, 800e8fd5]]
+
+undefined2 FUN_800e8f68(undefined1 *param_1,undefined4 param_2,undefined1 param_3)
+
+{
+  undefined2 uVar1;
+  undefined1 uStack_10;
+  undefined1 uStack_f;
+  undefined1 uStack_e;
+  undefined1 uStack_d;
+  undefined1 uStack_c;
+  undefined1 uStack_b;
+  undefined1 uStack_a;
+  undefined1 uStack_9;
+  
+  uStack_f = param_1[1];
+  uStack_10 = *param_1;
+  uStack_e = param_1[2];
+  uStack_d = param_1[3];
+  uStack_b = param_1[5];
+  uStack_c = param_1[4];
+  uStack_a = param_1[6];
+  uStack_9 = param_1[7];
+  uVar1 = (*pcRam800e9038)(&uStack_10,param_2,param_3);
+                    /* WARNING: Treating indirect jump as return */
+  return uVar1;
+}
+
+
+
+// ===== 800f0aa6 is inside function 800f0a44 body [[800f0a44, 800f0ab7]]
+
+undefined2 FUN_800f0a44(undefined1 *param_1,int param_2,undefined1 param_3)
+
+{
+  undefined2 uVar1;
+  undefined1 uStack_10;
+  undefined1 uStack_f;
+  undefined1 uStack_e;
+  undefined1 uStack_d;
+  undefined1 uStack_c;
+  undefined1 uStack_b;
+  undefined1 uStack_a;
+  undefined1 uStack_9;
+  
+  uStack_f = param_1[1];
+  uStack_10 = *param_1;
+  uStack_e = param_1[2];
+  uStack_d = param_1[3];
+  uStack_b = param_1[5];
+  uStack_c = param_1[4];
+  uStack_a = param_1[6];
+  uStack_9 = param_1[7];
+  uVar1 = (*pcRam800f0ae4)(&uStack_10,param_2 + 0x8000,param_3);
+                    /* WARNING: Treating indirect jump as return */
+  return uVar1;
+}
+
+
+
+// ===== 800dfa5e is inside function 800df9fc body [[800df9fc, 800dfa63] [800dfab8, 800dfabf]]
+
+undefined4 FUN_800df9fc(int param_1,undefined4 param_2)
+
+{
+  int in_zero;
+  int iVar1;
+  int iVar2;
+  undefined4 uVar3;
+  undefined4 uStack_94;
+  undefined4 uStack_90;
+  undefined1 auStack_88 [132];
+  
+  uStack_90 = param_2;
+  if (*(int *)(param_1 + 8) == 1) {
+    in_zero = (*pcRam800dfa8c)(param_2,auStack_88,3);
+  }
+  iVar1 = (*pcRam800dfa8c)(uStack_90,auStack_88 + in_zero,4);
+  iVar2 = (*pcRam800dfa8c)(uStack_90,auStack_88 + in_zero + iVar1,5);
+  iVar2 = in_zero + iVar1 + iVar2;
+  iVar1 = (*pcRam800dfa8c)(uStack_90,auStack_88 + iVar2,6);
+  iVar1 = (*pcRam800dfa90)(1,auStack_88,iVar2 + iVar1,&uStack_94);
+  uVar3 = uRam800dfa94;
+  if (iVar1 == 0) {
+    (*pcRam800dfa98)(uRam800dfa64,1,4,&uStack_94);
+    uVar3 = uStack_94;
+  }
+                    /* WARNING: Treating indirect jump as return */
+  return uVar3;
+}
+
+
+
+// ===== 800df9ee is inside function 800df9ac body [[800df9ac, 800df9f9]]
+
+undefined4 FUN_800df9ac(undefined4 param_1)
+
+{
+  undefined4 in_zero;
+  int iVar1;
+  int iVar2;
+  undefined4 uVar3;
+  undefined4 uStack_94;
+  undefined4 uStack_90;
+  undefined1 auStack_88 [132];
+  
+  uStack_90 = param_1;
+  iVar1 = (*pcRam800dfab4)(auStack_88);
+  iVar2 = (*pcRam800dfa8c)(uStack_90,auStack_88 + iVar1,1);
+  iVar1 = (*pcRam800dfa90)(in_zero,auStack_88,iVar1 + iVar2,&uStack_94);
+  uVar3 = uRam800dfa94;
+  if (iVar1 == 0) {
+    (*pcRam800dfa98)(uRam800dfa64,in_zero,4,&uStack_94);
+    uVar3 = uStack_94;
+  }
+                    /* WARNING: Treating indirect jump as return */
+  return uVar3;
+}
+
+
+
+// ===== 800e3daa is inside function 800e3cf8 body [[800e3cf8, 800e3e2b]]
+
+void FUN_800e3cf8(int param_1,int param_2)
+
+{
+  byte bVar1;
+  int in_zero;
+  int iVar2;
+  uint uVar3;
+  int iVar4;
+  code *UNRECOVERED_JUMPTABLE;
+  
+  iVar4 = 0xff;
+  uVar3 = *(uint *)(param_2 + 8);
+  if (uVar3 == 0) goto LAB_800e3e18;
+  if (uVar3 == 1) {
+    if (*(int *)(param_1 + 8) != 1) {
+      if (*piRam800e3eec != iRam800e3ef0) {
+        (*pcRam800e3ef4)();
+      }
+      iVar4 = (*pcRam800e3ef8)(param_2);
+      *piRam800e3eec = iVar4;
+    }
+    if (*piRam800e3efc != iRam800e3ef0) {
+      (*pcRam800e3ef4)();
+    }
+    iVar2 = iRam800e3eac;
+    iVar4 = (*pcRam800e3f00)(param_2,iRam800e3eac);
+    *piRam800e3efc = iVar4;
+    bVar1 = *pbRam800e3f04;
+    iVar4 = in_zero;
+    if ((bVar1 & 0x20) == 0) {
+      bVar1 = *(byte *)(iVar2 + 0xb);
+    }
+  }
+  else {
+    if (uVar3 < 3) {
+      if (*(int *)(param_1 + 8) == 4) {
+        *(undefined4 *)(param_2 + 8) = 6;
+        if (*piRam800e3eec != iRam800e3ef0) {
+          (*pcRam800e3ef4)();
+        }
+        iVar2 = (*pcRam800e3ef8)(param_2);
+        *piRam800e3eec = iVar2;
+        *(undefined4 *)(param_2 + 8) = 2;
+      }
+      goto LAB_800e3e18;
+    }
+    if (uVar3 != 3) {
+      if (uVar3 < 5) goto LAB_800e3e18;
+      if (uVar3 == 5) {
+        if (*piRam800e3efc != iRam800e3ef0) {
+          (*pcRam800e3ef4)();
+        }
+        iVar4 = (*pcRam800e3f00)(param_2,iRam800e3eac);
+        *piRam800e3efc = iVar4;
+      }
+      else if (6 < uVar3) {
+        if (uVar3 == 7) {
+          if (*piRam800e3eec != iRam800e3ef0) {
+            (*pcRam800e3ef4)();
+          }
+          iVar2 = (*pcRam800e3ef8)(param_2);
+          *piRam800e3eec = iVar2;
+          goto LAB_800e3e18;
+        }
+        if (uVar3 != 8) goto LAB_800e3e18;
+      }
+    }
+    if (*piRam800e3eec != iRam800e3ef0) {
+      (*pcRam800e3ef4)();
+    }
+    iVar4 = (*pcRam800e3ef8)(param_2);
+    *piRam800e3eec = iVar4;
+    bVar1 = *pbRam800e3f04;
+    iVar4 = in_zero;
+  }
+  if ((bVar1 & 0x80) != 0) {
+    iVar4 = 1;
+  }
+LAB_800e3e18:
+  if (iVar4 != 0xff) {
+    (*pcRam800e3f08)(iVar4);
+  }
+                    /* WARNING: Could not recover jumptable at 0x800e3e28. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+
+
+// ===== 800e3a2a is inside function 800e3948 body [[800e3948, 800e3af3] [800e3b90, 800e3baf]]
+
+undefined4 FUN_800e3948(uint param_1)
+
+{
+  undefined4 in_zero;
+  int iVar1;
+  int iVar2;
+  code *pcVar3;
+  uint uVar4;
+  uint uVar5;
+  undefined4 *puVar6;
+  byte bStack_3d;
+  undefined4 uStack_3c;
+  undefined4 auStack_38 [4];
+  undefined4 uStack_28;
+  undefined4 uStack_24;
+  undefined4 auStack_20 [2];
+  uint uStack_18;
+  undefined4 uStack_14;
+  int iStack_10;
+  undefined4 uStack_c;
+  
+  if (uRam800e3b38 < param_1) {
+    return 1;
+  }
+  if (param_1 == uRam800e3b50) {
+    iVar1 = (*pcRam800e3b84)(iRam800e3b74);
+    if (iVar1 == 0) {
+      if (*piRam800e3b70 == 3) {
+        iStack_10 = 3;
+      }
+      else {
+        iStack_10 = 1;
+      }
+      uStack_c = 1;
+      (*pcRam800e3b64)(1,uRam800e3b60,&uStack_14);
+      if ((*piRam800e3b70 != 1) && (*piRam800e3b70 != 3)) {
+        return in_zero;
+      }
+      puVar6 = auStack_38;
+      uStack_24 = 1;
+      uStack_28 = 0x14;
+      uVar4 = uRam800e3b88;
+    }
+    else {
+      if (iVar1 == 1) {
+        return in_zero;
+      }
+LAB_800e3b94:
+      uStack_c = 3;
+      uStack_14 = in_zero;
+LAB_800e3990:
+      iStack_10 = 1;
+      puVar6 = &uStack_14;
+      in_zero = uStack_14;
+      uVar4 = uRam800e3b60;
+    }
+LAB_800e3994:
+    (*pcRam800e3b64)(1,uVar4,puVar6);
+  }
+  else {
+    if (uRam800e3b4c < param_1) {
+      pcVar3 = pcRam800e3b24;
+      uVar4 = uRam800e3b1c;
+      uVar5 = uRam800e3b1c;
+      if (*(int *)(uRam800e3b1c + 8) != 5) {
+        return in_zero;
+      }
+    }
+    else {
+      if (param_1 != uRam800e3b54) {
+        if (uRam800e3b48 < param_1) {
+          if (*piRam800e3b04 < 4) {
+            iVar1 = (*pcRam800e3b68)(&uStack_3c,&bStack_3d);
+            if (iVar1 == 0) {
+              iVar1 = (*pcRam800e3b6c)(in_zero,uStack_3c,bStack_3d);
+              if (((iVar1 != 1) && (iVar1 != 2)) && (iVar1 != 3)) goto LAB_800e3b94;
+              *piRam800e3b70 = iVar1;
+              if (*piRam800e3afc != iRam800e3b74) {
+                (*pcRam800e3b78)();
+              }
+              uStack_c = 4;
+              iStack_10 = iVar1;
+              iVar2 = (*pcRam800e3b7c)(&uStack_14);
+              *piRam800e3afc = iVar2;
+              if ((iVar1 != 1) && (iVar1 != 3)) {
+                if (iVar1 != 2) {
+                  return in_zero;
+                }
+                uStack_18 = (uint)bStack_3d;
+                puVar6 = auStack_20;
+                uVar4 = uRam800e3b80;
+                goto LAB_800e3994;
+              }
+              pcVar3 = pcRam800e3b30;
+              uVar4 = 0x140;
+              uVar5 = uRam800e3b38;
+              goto LAB_800e3a26;
+            }
+            if (iVar1 == 1) {
+              return in_zero;
+            }
+            uStack_c = 2;
+            uStack_14 = in_zero;
+          }
+          else {
+            uStack_c = 6;
+            uStack_14 = in_zero;
+          }
+        }
+        else {
+          if (param_1 != uRam800e3b58) {
+            return 1;
+          }
+          iVar1 = (*pcRam800e3b5c)();
+          uStack_14 = in_zero;
+          if (iVar1 == 1) {
+            uStack_c = 5;
+          }
+          else {
+            uStack_c = 4;
+          }
+        }
+        goto LAB_800e3990;
+      }
+      iVar1 = (*pcRam800e3b8c)(iRam800e3b74,uRam800e3b18);
+      if (iVar1 != 0) {
+        if (iVar1 != 2) {
+          return in_zero;
+        }
+        goto LAB_800e3b94;
+      }
+      if (*piRam800e3b70 == 3) {
+        iStack_10 = 3;
+      }
+      else {
+        iStack_10 = 1;
+      }
+      uStack_c = 1;
+      pcVar3 = pcRam800e3b64;
+      uVar4 = 1;
+      uVar5 = uRam800e3b60;
+    }
+LAB_800e3a26:
+    (*pcVar3)(uVar4,uVar5);
+  }
+                    /* WARNING: Treating indirect jump as return */
+  return in_zero;
+}
+
+
+
+// ===== 80038afc is inside function 80038aa0 body [[80038aa0, 80038b33]]
+
+undefined4
+FUN_80038aa0(undefined4 param_1,undefined4 param_2,undefined4 param_3,undefined4 *param_4)
+
+{
+  undefined4 in_zero;
+  int iVar1;
+  undefined2 uStack_14;
+  undefined2 uStack_12;
+  undefined4 uStack_10;
+  undefined4 uStack_c;
+  
+  uStack_14 = 0x800;
+  uStack_12 = (undefined2)in_zero;
+  uStack_c = *param_4;
+  uStack_10 = param_2;
+  iVar1 = (*pcRam80038e08)();
+  if (iVar1 == 0) {
+    in_zero = 1;
+  }
+  else {
+    iVar1 = (*pcRam80038e0c)();
+    if (iVar1 == 0) {
+      iVar1 = (*pcRam80038e14)(param_2,*param_4);
+      if (iVar1 != 0) {
+        (*pcRam80038e18)(4);
+        *puRam80038e1c = 1;
+        return 1;
+      }
+      iVar1 = (*pcRam80038e10)(&uStack_14);
+    }
+    else {
+      iVar1 = (*pcRam80038e10)(&uStack_14);
+    }
+    if (iVar1 != 0) {
+      in_zero = 1;
+    }
+  }
+                    /* WARNING: Treating indirect jump as return */
+  return in_zero;
+}
+
+

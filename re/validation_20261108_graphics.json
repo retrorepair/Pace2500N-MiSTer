@@ -1,0 +1,59 @@
+{
+  "utc": "2026-11-08T14:49:42.896428+00:00",
+  "results": [
+    {
+      "name": "test_lsi_observed.py",
+      "returncode": 0,
+      "stdout": "PASS: observed derivative controls, counter-pair clear, self-clearing reset, no RF lock and unknown ID rejection\n",
+      "stderr": ""
+    },
+    {
+      "name": "test_eeprom.py",
+      "returncode": 0,
+      "stdout": "PASS: EEPROM16 address setup/repeated START, erased reads, STOP commit and isolated guest write/readback\n",
+      "stderr": ""
+    },
+    {
+      "name": "test_graphics_fill.py",
+      "returncode": 0,
+      "stdout": "PASS: relocated solid fill, x/y and row stride, preserved padding; unknown opcode/overrun rejected\n",
+      "stderr": ""
+    },
+    {
+      "name": "test_graphics_irq.py",
+      "returncode": 0,
+      "stdout": "PASS: original DMA IRQ mask2 handler acknowledges both luma/chroma commands and guest proceeds\n",
+      "stderr": ""
+    },
+    {
+      "name": "test_external_uart.py",
+      "returncode": 0,
+      "stdout": "PASS: external UART byte lanes, DLAB divisor isolation, FIFO reset, RX/TX state\n",
+      "stderr": ""
+    },
+    {
+      "name": "test_application_i2c.py",
+      "returncode": 0,
+      "stdout": "PASS: genuine I2C ISR sends4 payload bytes after ACK and returns0; NACK sends none and returns8; IRQs acknowledged\n",
+      "stderr": ""
+    },
+    {
+      "name": "test_lsi_grouped.py",
+      "returncode": 0,
+      "stdout": "PASS: grouped APR/readback, uninitialized-read stop; genuine1024-byte upload SHA256 412837c684da392874a8d21e358d09baf51830e2bd6af915077abf8f18f1c094 ; unsupported control stops\n",
+      "stderr": ""
+    },
+    {
+      "name": "test_application_idle.py",
+      "returncode": 0,
+      "stdout": "PASS:100k instructions, all GPR/CP0/RAM, timer/serial/I2C state and IRQ events agree; skipped 84168\n",
+      "stderr": ""
+    }
+  ],
+  "additional_checks": [
+    "36 Ghidra p-code oracle cases: LWL/LWR/SWL/SWR, all offsets, branch delay slots and paired store/load: PASS",
+    "CPython/PyPy100k-instruction differential: GPR/CP0/RAM/PC/HI/LO/timer/I2C/EEPROM/IRQ: PASS",
+    "Native serial IRQ10000 completes actual queued600001110474 through6 original ISR acknowledgements and clears TX count: PASS",
+    "Application CRC accelerator vs100003 normal instructions with/without interrupt deadlines: all CPU/RAM/CP0/timer/IRQ/visit state PASS"
+  ]
+}

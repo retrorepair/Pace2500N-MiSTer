@@ -1,0 +1,36 @@
+bfc20b34  or v0,ra,zero
+bfc20b38  lui at,0x8010
+bfc20b3c  addiu at,at,-0x4230
+bfc20b40  jalr at
+bfc20b44  _nop
+bfc20b48  lui at,0x8000
+bfc20b4c  addiu at,at,0xbc8
+bfc20b50  jalr at
+bfc20b54  _nop
+bfc20b58  or s0,v0,zero
+bfc20b5c  li t9,-0x8
+bfc20b60  lui at,0x8000
+bfc20b64  addiu at,at,0xbd8
+bfc20b68  jalr at
+bfc20b6c  _and a0,t9,s0
+bfc20b70  mtc0 zero,TagLo
+bfc20b74  lui v1,0x8000
+bfc20b78  cache 0x8,0x0(v1)
+bfc20b7c  nop
+bfc20b80  cache 0x14,0x0(v1)
+bfc20b84  nop
+bfc20b88  cache 0x8,0x0(v1)
+bfc20b8c  nop
+bfc20b90  addiu v1,v1,0x10
+bfc20b94  lui t8,0x8000
+bfc20b98  ori t8,t8,0x4000
+bfc20b9c  sltu t7,v1,t8
+bfc20ba0  bne t7,zero,0xbfc20b78
+bfc20ba4  _nop
+bfc20ba8  lui v1,0x8000
+bfc20bac  cache 0x9,0x0(v1)
+bfc20bb0  nop
+bfc20bb4  addiu v1,v1,0x10
+bfc20bb8  lui t6,0x8000
+bfc20bbc  ori t6,t6,0x2000
+bfc20bc0  sltu t9,v1,t6

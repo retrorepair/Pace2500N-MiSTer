@@ -1,0 +1,19 @@
+
+// 800b1af4 crc32_bytes
+
+uint crc32_bytes(byte *param_1,int param_2)
+
+{
+  byte bVar1;
+  uint in_zero;
+  
+  while (param_2 != 0) {
+    bVar1 = *param_1;
+    param_1 = param_1 + 1;
+    in_zero = in_zero << 8 ^ *(uint *)(iRam800b1b3c + (in_zero >> 0x18 ^ (uint)bVar1) * 4);
+    param_2 = param_2 + -1;
+  }
+  return in_zero;
+}
+
+

@@ -1,0 +1,16 @@
+800c4a00  lw v1,0x14(sp)
+800c4a02  lw v0,0x328(pc)
+800c4a04  move t2,v1
+800c4a06  lw v1,0x18(sp)
+800c4a08  jalr v0
+800c4a0a  _move t3,v1
+800c4a0c  move s0,v0
+800c4a0e  lw v0,0x320(pc)
+800c4a10  jalr v0
+800c4a12  _addiu s0,0x0
+800c4a14  move v0,s0
+800c4a16  lw a0,0x24(sp)
+800c4a18  lw s0,0x0(sp)
+800c4a1a  lw s1,0x4(sp)
+800c4a1c  jr a0
+800c4a1e  _addiu sp,0x28

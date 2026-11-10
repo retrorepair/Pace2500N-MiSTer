@@ -1,0 +1,5 @@
+8006ecf6  li v1,0x8000
+8006ecfa  b 0x8006ed02
+8006ed02  and v0,v1
+8006ed04  jr ra
+8006ed06  _addiu s0,0x0

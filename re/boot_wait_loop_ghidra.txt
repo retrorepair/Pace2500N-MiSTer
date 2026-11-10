@@ -1,0 +1,11 @@
+bfc036f8  addiu sp,-0x8
+bfc036fa  sw ra,0x4(sp)
+bfc036fc  jal 0xbfc0b570
+bfc03700  _addiu s0,0x0
+bfc03702  jal 0xbfc0d334
+bfc03706  _li a0,0x14
+bfc03708  jal 0xbfc06100
+bfc0370c  _addiu s0,0x0
+bfc0370e  jal 0xbfc0d334
+bfc03712  _li a0,0x2
+bfc03714  b 0xbfc0370e

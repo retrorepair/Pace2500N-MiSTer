@@ -1,0 +1,8 @@
+80008db0  sw v1,0x308(s0)
+80008db4  b 0x80008dc4
+80008dc4  move v0,zero
+80008dc6  lw a0,0xc(sp)
+80008dc8  lw s0,0x0(sp)
+80008dca  lw s1,0x4(sp)
+80008dcc  jr a0
+80008dce  _addiu sp,0x10

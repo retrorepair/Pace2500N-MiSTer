@@ -1,0 +1,18 @@
+# vsim -c tb_strict -l sim/strict.log -do "onbreak {quit -code 1}; run -all; quit -code 0" 
+# Start time: 23:56:10 on Nov 07,2026
+# Loading sv_std.std
+# Loading sim/work.tb_strict
+# Loading sim/work.pace_firmware_cpu
+# Loading sim/work.pace_bootrom
+# Loading sim/work.pace_muldiv
+# ** Warning: (vsim-3017) sim/tb_strict.sv(38): [TFMPC] - Too few port connections. Expected 26, found 25.
+#    Time: 0 ps  Iteration: 0  Instance: /tb_strict/DUT File: rtl/pace_firmware_cpu.sv
+# ** Warning: (vsim-3722) sim/tb_strict.sv(38): [TFMPC] - Missing connection for port 'interrupt_count'.
+# onbreak {quit -code 1}
+#  Warning: onbreak command for use within macro
+#  run -all
+# PASS: strict firmware endpoint PC=bfc01e1c retired=   3178988 RAM writes=   1770706 MMIO writes=        12
+# ** Note: $finish    : sim/tb_strict.sv(66)
+#    Time: 302239110 ns  Iteration: 2  Instance: /tb_strict
+# End time: 23:58:00 on Nov 07,2026, Elapsed time: 0:01:50
+# Errors: 0, Warnings: 2

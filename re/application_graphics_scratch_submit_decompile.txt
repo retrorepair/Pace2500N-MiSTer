@@ -1,0 +1,148 @@
+
+// 80009564 submit_render_scratch
+
+undefined4 submit_render_scratch(void)
+
+{
+  undefined4 *puVar1;
+  undefined4 uVar2;
+  undefined4 uVar3;
+  undefined4 uVar4;
+  undefined4 uVar5;
+  undefined4 uVar6;
+  undefined4 uVar7;
+  undefined4 uVar8;
+  undefined4 uVar9;
+  undefined4 uVar10;
+  undefined4 uVar11;
+  undefined4 uVar12;
+  undefined4 uVar13;
+  undefined4 uVar14;
+  undefined4 uVar15;
+  undefined4 uVar16;
+  undefined4 uVar17;
+  undefined4 in_zero;
+  int iVar18;
+  int iVar19;
+  undefined1 uVar20;
+  undefined2 uStack_60;
+  undefined2 uStack_5e;
+  undefined2 uStack_54;
+  undefined2 uStack_52;
+  undefined1 auStack_48 [20];
+  undefined4 uStack_34;
+  undefined2 uStack_30;
+  undefined2 uStack_2e;
+  undefined2 uStack_24;
+  undefined2 uStack_22;
+  undefined2 uStack_c;
+  undefined2 uStack_a;
+  
+  iVar19 = iRam80009874;
+  iVar18 = (*pcRam80009878)();
+  if (iVar18 == 2) {
+    *puRam8000987c = 0x1e0;
+  }
+  else {
+    *puRam8000987c = 0x240;
+  }
+  uVar20 = (undefined1)in_zero;
+  *puRam80009880 = uVar20;
+  puVar1 = puRam80009884;
+  *puRam80009884 = in_zero;
+  *(undefined1 *)(puVar1 + 1) = uVar20;
+  *(undefined1 *)(puVar1 + 0x1a9) = uVar20;
+  puVar1[0x22] = in_zero;
+  puVar1[0x28] = 1;
+  (*pcRam80009888)(&uStack_30,in_zero,0x28);
+  uStack_24 = 0x2d0;
+  uStack_22 = *puRam8000987c;
+  uStack_c = 0x2d0;
+  uStack_a = *puRam8000987c;
+  uStack_30 = (undefined2)in_zero;
+  uStack_2e = uStack_30;
+  (*pcRam8000988c)(&uStack_30);
+  (*pcRam80009888)(auStack_48,in_zero,0x18);
+  uStack_34 = 1;
+  (*pcRam80009890)(auStack_48);
+  (*pcRam80009888)(&uStack_60,in_zero,0x18);
+  uStack_54 = (undefined2)in_zero;
+  uStack_60 = 0x2d0;
+  uStack_5e = *puRam8000987c;
+  uStack_52 = uStack_54;
+  (*pcRam80009894)(&uStack_60);
+  puVar1 = puRam8000989c;
+  uVar2 = uRam80009898;
+  *puRam8000989c = 0x3ff;
+  puVar1[1] = 0x3ff;
+  uVar3 = uRam800098a0;
+  *(undefined4 *)(iVar19 + 0x100) = uRam800098a0;
+  uVar4 = uRam800098a4;
+  *(undefined4 *)(iVar19 + 0x104) = uRam800098a4;
+  *(undefined4 *)(iVar19 + 0x108) = uVar2;
+  uVar5 = uRam800098a8;
+  *(undefined4 *)(iVar19 + 0x10c) = uRam800098a8;
+  uVar6 = uRam800098ac;
+  *(undefined4 *)(iVar19 + 0x110) = uRam800098ac;
+  uVar7 = uRam800098b0;
+  *(undefined4 *)(iVar19 + 0x114) = uRam800098b0;
+  uVar8 = uRam800098b4;
+  *(undefined4 *)(iVar19 + 0x118) = uRam800098b4;
+  uVar9 = uRam800098b8;
+  *(undefined4 *)(iVar19 + 0x11c) = uRam800098b8;
+  uVar10 = uRam800098bc;
+  *(undefined4 *)(iVar19 + 0x120) = uRam800098bc;
+  uVar11 = uRam800098c0;
+  *(undefined4 *)(iVar19 + 0x124) = uRam800098c0;
+  uVar12 = uRam800098c4;
+  *(undefined4 *)(iVar19 + 0x128) = uRam800098c4;
+  uVar13 = uRam800098c8;
+  *(undefined4 *)(iVar19 + 300) = uRam800098c8;
+  uVar14 = uRam800098cc;
+  *(undefined4 *)(iVar19 + 0x130) = uRam800098cc;
+  uVar15 = uRam800098d0;
+  *(undefined4 *)(iVar19 + 0x134) = uRam800098d0;
+  uVar16 = uRam800098d4;
+  *(undefined4 *)(iVar19 + 0x138) = uRam800098d4;
+  uVar17 = uRam800098d8;
+  *(undefined4 *)(iVar19 + 0x13c) = uRam800098d8;
+  *(undefined4 *)(iVar19 + 0x140) = uVar3;
+  *(undefined4 *)(iVar19 + 0x144) = uVar4;
+  *(undefined4 *)(iVar19 + 0x148) = uVar2;
+  *(undefined4 *)(iVar19 + 0x14c) = uVar5;
+  *(undefined4 *)(iVar19 + 0x150) = uVar6;
+  *(undefined4 *)(iVar19 + 0x154) = uVar7;
+  *(undefined4 *)(iVar19 + 0x158) = uVar8;
+  *(undefined4 *)(iVar19 + 0x15c) = uVar9;
+  *(undefined4 *)(iVar19 + 0x160) = uVar10;
+  *(undefined4 *)(iVar19 + 0x164) = uVar11;
+  *(undefined4 *)(iVar19 + 0x168) = uVar12;
+  *(undefined4 *)(iVar19 + 0x16c) = uVar13;
+  *(undefined4 *)(iVar19 + 0x170) = uVar14;
+  uVar2 = uRam800098dc;
+  *(undefined4 *)(iVar19 + 0x174) = uVar15;
+  *(undefined4 *)(iVar19 + 0x178) = uVar16;
+  uVar3 = uRam800098e0;
+  *(undefined4 *)(iVar19 + 0x17c) = uVar17;
+  iVar19 = (*pcRam800098e4)(uVar2,in_zero,uVar3);
+  if (iVar19 == 0) {
+    iVar19 = (*pcRam800098f0)(*puRam800098e8,400,puRam800098ec);
+    if (iVar19 == 0) {
+      iVar19 = (*pcRam800098fc)(uRam800098f8,uVar2,uRam800098f4,2);
+      if (iVar19 != 0) {
+        (*pcRam80009900)(*puRam800098ec);
+        in_zero = 1;
+      }
+    }
+    else {
+      in_zero = 1;
+    }
+  }
+  else {
+    in_zero = 1;
+  }
+                    /* WARNING: Treating indirect jump as return */
+  return in_zero;
+}
+
+

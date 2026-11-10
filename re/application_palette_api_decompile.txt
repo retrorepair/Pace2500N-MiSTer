@@ -1,0 +1,94 @@
+
+// 8001fa30 surface_palette_api
+
+void surface_palette_api(int param_1,int param_2)
+
+{
+  int iVar1;
+  int iVar2;
+  int in_zero;
+  byte *pbVar3;
+  int *piVar4;
+  byte *pbVar5;
+  int iVar6;
+  code *UNRECOVERED_JUMPTABLE;
+  undefined4 uStack_328;
+  undefined4 uStack_324;
+  undefined4 uStack_320;
+  undefined4 uStack_31c;
+  undefined4 uStack_318;
+  byte abStack_314 [768];
+  ushort auStack_14 [2];
+  int iStack_10;
+  byte *pbStack_c;
+  
+  iVar2 = iRam8001faa8;
+  uStack_328 = *puRam8001fae8;
+  uStack_324 = puRam8001fae8[1];
+  uStack_320 = puRam8001fae8[2];
+  uStack_31c = puRam8001fae8[3];
+  uStack_318 = puRam8001fae8[4];
+  param_1 = param_1 * 0x20;
+  piVar4 = (int *)(iRam8001faa8 + param_1);
+  if (*piVar4 != 0) {
+    auStack_14[0] = *(ushort *)((int)&uStack_328 + (uint)*(byte *)(piVar4 + 7) * 2);
+    if (*(char *)(iRam8001fad4 + (uint)*(ushort *)(iRam8001fadc + piVar4[5] * 2) * 0x14 + 5) ==
+        '\x02') {
+      iStack_10 = in_zero;
+      pbStack_c = abStack_314;
+      for (iVar6 = in_zero; iVar6 < (int)(uint)auStack_14[0]; iVar6 = iVar6 + 1) {
+        pbVar3 = (byte *)(param_2 + iVar6 * 4);
+        iVar1 = iVar6 * 3;
+        pbVar5 = abStack_314 + iVar1;
+        *pbVar5 = *pbVar3;
+        abStack_314[iVar1 + 1] = pbVar3[1];
+        abStack_314[iVar1 + 2] = pbVar3[2];
+        if ((((*pbVar5 < 0x11) && (abStack_314[iVar1 + 1] < 0x83)) &&
+            (0x77 < abStack_314[iVar1 + 1])) &&
+           ((0x77 < abStack_314[iVar1 + 2] && (abStack_314[iVar1 + 2] < 0x83)))) {
+          abStack_314[iVar1 + 1] = 0x80;
+          abStack_314[iVar1 + 2] = 0x70;
+        }
+        else if ((abStack_314[iVar1 + 1] == 0x80) && (abStack_314[iVar1 + 2] == 0x80)) {
+          abStack_314[iVar1 + 1] = 0x80;
+          abStack_314[iVar1 + 2] = 0x70;
+        }
+        if ((((iVar6 != 0) || (abStack_314[0] != 0)) ||
+            ((abStack_314[1] != '\0' || (abStack_314[2] != '\0')))) && (*pbVar5 < 8)) {
+          *pbVar5 = 8;
+        }
+        if (pbVar3[3] == 0) {
+          (*pcRam8001fe18)(*(undefined4 *)(iVar2 + param_1),iVar6,in_zero);
+        }
+        else {
+          (*pcRam8001fe18)(*(undefined4 *)(iVar2 + param_1),iVar6,1);
+        }
+      }
+      (*pcRam8001fe1c)(*(undefined4 *)(iVar2 + param_1),auStack_14);
+    }
+    else {
+      iStack_10 = 1;
+      pbStack_c = abStack_314;
+      for (iVar6 = in_zero; iVar6 < (int)(uint)auStack_14[0]; iVar6 = iVar6 + 1) {
+        iVar1 = iVar6 * 3;
+        pbVar3 = (byte *)(param_2 + iVar6 * 4);
+        abStack_314[iVar1] = *pbVar3;
+        abStack_314[iVar1 + 1] = pbVar3[1];
+        abStack_314[iVar1 + 2] = pbVar3[2];
+        if (pbVar3[3] == 0) {
+          (*pcRam8001fe18)(*(undefined4 *)(iVar2 + param_1),iVar6,in_zero);
+        }
+        else {
+          (*pcRam8001fe18)(*(undefined4 *)(iVar2 + param_1),iVar6,1);
+        }
+      }
+      (*pcRam8001fe1c)(*(undefined4 *)(iVar2 + param_1),auStack_14);
+    }
+  }
+                    /* WARNING: Could not recover jumptable at 0x8001fc16. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+

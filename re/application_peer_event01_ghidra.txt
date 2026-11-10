@@ -1,0 +1,17 @@
+8002aa5c  addiu sp,-0x8
+8002aa5e  sw ra,0x4(sp)
+8002aa60  move a1,a0
+8002aa62  lw v1,0xb8(pc)
+8002aa64  lbu v1,0x0(v1)
+8002aa66  cmpi v1,0x1
+8002aa68  btnez 0x8002aa78
+8002aa6a  lbu a0,0x3(a1)
+8002aa6c  lbu a1,0x4(a1)
+8002aa6e  li v0,0x1
+8002aa70  and a1,v0
+8002aa72  lw v0,0xac(pc)
+8002aa74  jalr v0
+8002aa76  _lw a2,0xac(pc)
+8002aa78  lw a0,0x4(sp)
+8002aa7a  jr a0
+8002aa7c  _addiu sp,0x8

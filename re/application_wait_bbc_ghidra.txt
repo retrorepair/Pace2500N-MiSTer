@@ -1,0 +1,10 @@
+80000ba0  mtc0 a0,Status
+80000ba4  nop
+80000ba8  nop
+80000bac  nop
+80000bb0  mfc0 t4,Status
+80000bb4  nop
+80000bb8  bne a0,t4,0x80000ba0
+80000bbc  _nop
+80000bc0  jr ra
+80000bc4  _nop

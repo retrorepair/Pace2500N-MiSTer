@@ -1,0 +1,28 @@
+
+// 80024f78 runtime_wait_wrapper
+
+void runtime_wait_wrapper(byte *param_1)
+
+{
+  char *pcVar1;
+  code *pcVar2;
+  int iVar3;
+  byte bVar4;
+  code *UNRECOVERED_JUMPTABLE;
+  
+  pcVar1 = pcRam80024fcc;
+  if ((*pcRam80024fcc != '\0') &&
+     (iVar3 = (*pcRam80024fd0)(*(undefined4 *)(pcRam80024fcc + 4),100,(int)param_1 << 5),
+     pcVar2 = pcRam80024fd4, iVar3 == 0)) {
+    bVar4 = (pcVar1[8] | *param_1) & ~param_1[1];
+    pcVar1[8] = bVar4;
+    *pbRam80024fd8 = bVar4;
+    (*pcVar2)(*(undefined4 *)(pcVar1 + 4));
+  }
+                    /* WARNING: Could not recover jumptable at 0x80024fc8. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+

@@ -1,0 +1,2 @@
+80028e9c  jr a0
+80028e9e  _addiu sp,0x8

@@ -1,0 +1,12 @@
+
+// 8007faf8 runtime_send_message
+
+void runtime_send_message(void)
+
+{
+  (*pcRam8007fe24)();
+                    /* WARNING: Treating indirect jump as return */
+  return;
+}
+
+

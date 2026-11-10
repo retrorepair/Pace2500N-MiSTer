@@ -1,0 +1,139 @@
+
+// bfc12614 header_local_copy
+
+void header_local_copy(undefined1 *param_1)
+
+{
+  undefined1 uVar1;
+  undefined1 *puVar2;
+  undefined1 *puVar3;
+  undefined1 auStack_20 [32];
+  
+  puVar2 = auStack_20;
+  puVar3 = param_1 + 0x20;
+  do {
+    uVar1 = *param_1;
+    param_1 = param_1 + 1;
+    *puVar2 = uVar1;
+    puVar2 = puVar2 + 1;
+  } while (puVar3 != param_1);
+  return;
+}
+
+
+
+// bfc12630 handoff_setup
+
+void handoff_setup(void)
+
+{
+  int iVar1;
+  undefined4 uVar2;
+  code *UNRECOVERED_JUMPTABLE;
+  
+  iVar1 = iRambfc12894;
+  if (*piRambfc12890 == 0) {
+    func_0xbfc119b8(uRambfc12898);
+  }
+  else {
+    func_0xbfc119b8(uRambfc1289c);
+    func_0xbfc11b58(*(undefined4 *)(iVar1 + 0x18));
+    func_0xbfc119b8(uRambfc128a0);
+    func_0xbfc11b58(*(undefined4 *)(iVar1 + 0x1c));
+  }
+  func_0xbfc119a0();
+  if (*piRambfc128a4 == 0) {
+    func_0xbfc119b8(uRambfc128a8);
+  }
+  else {
+    func_0xbfc119b8(uRambfc128ac);
+    func_0xbfc11b58(*puRambfc128b0);
+    func_0xbfc119b8(uRambfc128a0);
+    func_0xbfc11b58(*puRambfc128b4);
+  }
+  func_0xbfc119a0();
+  if (*piRambfc12890 == 0) {
+    if (*piRambfc128a4 == 0) goto LAB_bfc126da;
+    goto LAB_bfc126cc;
+  }
+  uVar2 = uRambfc128b8;
+  if (*piRambfc128a4 != 0) {
+    if (*(uint *)(iVar1 + 0x18) == *puRambfc128b0) {
+      if (*(uint *)(iVar1 + 0x1c) < *puRambfc128b4) {
+LAB_bfc126cc:
+        uVar2 = uRambfc128bc;
+      }
+    }
+    else if (*(uint *)(iVar1 + 0x18) < *puRambfc128b0) goto LAB_bfc126cc;
+  }
+  func_0xbfc119b8(uVar2);
+  func_0xbfc119a0();
+LAB_bfc126da:
+                    /* WARNING: Could not recover jumptable at 0xbfc126e0. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+
+
+// bfc12790 select_and_handoff
+
+void select_and_handoff(void)
+
+{
+  undefined4 uVar1;
+  int iVar2;
+  code *UNRECOVERED_JUMPTABLE;
+  undefined1 auStack_68 [32];
+  undefined1 auStack_48 [32];
+  undefined1 auStack_28 [8];
+  int iStack_20;
+  
+  func_0xbfc1aaa4(auStack_48,uRambfc128dc,0x20);
+  func_0xbfc128f8();
+  uVar1 = uRambfc128e0;
+  func_0xbfc11990();
+  func_0xbfc119b8(uVar1);
+  func_0xbfc119b8(uVar1);
+  func_0xbfc119b8(uVar1);
+  func_0xbfc119b8(uVar1);
+  func_0xbfc119a0();
+  func_0xbfc119b8(uRambfc128e4);
+  func_0xbfc119a0();
+  func_0xbfc03668();
+  iVar2 = func_0xbfc125a4();
+  if (iVar2 == 0) {
+    func_0xbfc119b8(uRambfc128e8);
+    func_0xbfc119a0();
+    func_0xbfc1aaa4(*puRambfc128c8,auStack_48,0x20);
+    func_0xbfc12d00();
+  }
+  func_0xbfc12610();
+  func_0xbfc124f8(auStack_68);
+  func_0xbfc1aaa4(auStack_28,auStack_68,0x20);
+  handoff_setup();
+  if (*piRambfc128ec != 0) {
+    func_0xbfc119b8(uRambfc128f0);
+    func_0xbfc119a0();
+    func_0xbfc1aaa4(*puRambfc128c8,auStack_48,0x20);
+    func_0xbfc12d00();
+  }
+  if (iStack_20 == 0) {
+    func_0xbfc119b8(uRambfc128f4);
+    func_0xbfc119a0();
+    func_0xbfc1aaa4(*puRambfc128c8,auStack_48,0x20);
+    func_0xbfc12d00();
+  }
+  else {
+    header_local_copy(auStack_28);
+    func_0xbfc1aaa4(*puRambfc128c8,auStack_28,0x20);
+    func_0xbfc036f8();
+  }
+                    /* WARNING: Could not recover jumptable at 0xbfc12888. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+

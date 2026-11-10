@@ -1,0 +1,16 @@
+
+// 80054ddc av_selection_or_default
+
+undefined4 av_selection_or_default(void)
+
+{
+  undefined4 uVar1;
+  
+  uVar1 = uRam80054f84;
+  if ((*pcRam80054f94 != '\0') && (*(int *)(pcRam80054f94 + 4) != *piRam80054f98)) {
+    uVar1 = *(undefined4 *)(pcRam80054f94 + 4);
+  }
+  return uVar1;
+}
+
+

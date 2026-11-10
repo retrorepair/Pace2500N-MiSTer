@@ -1,0 +1,12 @@
+bfc12614  addiu sp,-0x20
+bfc12616  move v0,sp
+bfc12618  move v1,a0
+bfc1261a  addiu a3,v1,0x20
+bfc1261e  lbu a2,0x0(v1)
+bfc12620  addiu v1,0x1
+bfc12622  sb a2,0x0(v0)
+bfc12624  addiu v0,0x1
+bfc12626  cmp a3,v1
+bfc12628  btnez 0xbfc1261e
+bfc1262a  jr ra
+bfc1262c  _addiu sp,0x20

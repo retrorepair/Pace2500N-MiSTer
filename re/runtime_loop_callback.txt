@@ -1,0 +1,4 @@
+8002a1bc  addiu sp,-0x10
+8002a1be  sw ra,0xc(sp)
+8002a1c0  lw v1,0xc0(pc)
+8002a1c2  b 0x8002a284

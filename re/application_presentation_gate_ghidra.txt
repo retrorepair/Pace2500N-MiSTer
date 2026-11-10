@@ -1,0 +1,13 @@
+80054ddc  lw v1,0x1b8(pc)
+80054dde  lb v0,0x0(v1)
+80054de0  beqz v0,0x80054df0
+80054de2  lw v0,0x4(v1)
+80054de4  lw a3,0x1b4(pc)
+80054de6  lw a3,0x0(a3)
+80054de8  cmp v0,a3
+80054dea  bteqz 0x80054df0
+80054dec  lw v0,0x4(v1)
+80054dee  b 0x80054df2
+80054df0  lw v0,0x194(pc)
+80054df2  jr ra
+80054df4  _addiu s0,0x0

@@ -1,0 +1,27 @@
+bfc16c9c  addiu sp,sp,-0x30
+bfc16ca0  sw t3,0x2c(sp)
+bfc16ca4  sw t2,0x28(sp)
+bfc16ca8  sw t1,0x24(sp)
+bfc16cac  sw t0,0x20(sp)
+bfc16cb0  sw a3,0x1c(sp)
+bfc16cb4  sw a2,0x18(sp)
+bfc16cb8  sw a1,0x14(sp)
+bfc16cbc  sw a0,0x10(sp)
+bfc16cc0  sw ra,0xc(sp)
+bfc16cc4  sw s8,0x8(sp)
+bfc16cc8  addiu s8,sp,0x8
+bfc16ccc  bal 0xbfc16cd4
+bfc16cd0  _sw s0,0x0(sp)
+bfc16cd4  move s0,ra
+bfc16cd8  lui at,0x0
+bfc16cdc  addiu at,at,0x34
+bfc16ce0  addu at,at,s0
+bfc16ce4  jalr at
+bfc16ce8  _addiu a2,sp,0x18
+bfc16cec  move v1,v0
+bfc16cf0  lw s8,0x8(sp)
+bfc16cf4  lw ra,0xc(sp)
+bfc16cf8  lw s0,0x0(sp)
+bfc16cfc  nop
+bfc16d00  jr ra
+bfc16d04  _addiu sp,sp,0x30

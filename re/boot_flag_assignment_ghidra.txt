@@ -1,0 +1,31 @@
+bfc004b8  lui t0,0xbfc0
+bfc004bc  addiu t0,t0,0x770
+bfc004c0  jalr t0
+bfc004c4  _nop
+bfc004c8  lui t0,0xbfc0
+bfc004cc  addiu t0,t0,0x540
+bfc004d0  jalr t0
+bfc004d4  _nop
+bfc004d8  lui t0,0xbfc0
+bfc004dc  addiu t0,t0,0x804
+bfc004e0  jalr t0
+bfc004e4  _nop
+bfc004e8  lui t0,0xbfc0
+bfc004ec  addiu t0,t0,0x984
+bfc004f0  jalr t0
+bfc004f4  _nop
+bfc004f8  lui at,0x8001
+bfc004fc  sw v0,-0x7e08(at)
+bfc00500  mfc0 k1,Config
+bfc00504  li a0,-0x8
+bfc00508  and k1,a0,k1
+bfc0050c  mtc0 k1,Config
+bfc00510  nop
+bfc00514  lui k1,0x1000
+bfc00518  ori k1,k1,0x401
+bfc0051c  mtc0 k1,Status
+bfc00520  nop
+bfc00524  lui t0,0xbfc0
+bfc00528  addiu t0,t0,0x9a0
+bfc0052c  jr t0
+bfc00530  _nop

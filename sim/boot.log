@@ -1,0 +1,18 @@
+# vsim -c tb_boot -l sim/boot.log -do "onbreak {quit -code 1}; run -all; quit -code 0" 
+# Start time: 23:56:10 on Nov 07,2026
+# Loading sv_std.std
+# Loading sim/work.tb_boot
+# Loading sim/work.pace_firmware_cpu
+# Loading sim/work.pace_bootrom
+# Loading sim/work.pace_muldiv
+# ** Warning: (vsim-3017) sim/tb_boot.sv(21): [TFMPC] - Too few port connections. Expected 26, found 25.
+#    Time: 0 ps  Iteration: 0  Instance: /tb_boot/DUT File: rtl/pace_firmware_cpu.sv
+# ** Warning: (vsim-3722) sim/tb_boot.sv(21): [TFMPC] - Missing connection for port 'interrupt_count'.
+# onbreak {quit -code 1}
+#  Warning: onbreak command for use within macro
+#  run -all
+# PASS: original U202 ROM executes seven genuine MMIO setup writes, PC=bfc00498 retired=        42
+# ** Note: $finish    : sim/tb_boot.sv(48)
+#    Time: 3460 ns  Iteration: 2  Instance: /tb_boot
+# End time: 23:56:10 on Nov 07,2026, Elapsed time: 0:00:00
+# Errors: 0, Warnings: 2

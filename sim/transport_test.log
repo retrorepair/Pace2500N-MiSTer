@@ -1,0 +1,6 @@
+PASS transport:         30 packets,       1802 exact DMA bytes,          8 sections; CRC, duplicates, loss, full ring, wrap, high-half masks, BE status
+PASS filter block RAM: sequential software clear and checkpoint seed restore
+- sim/tb_transport.sv:117: Verilog $finish
+- S i m u l a t i o n   R e p o r t: Verilator 5.044 2026-01-01
+- Verilator: $finish at 296us; walltime 0.013 s; speed 0.000 s/s
+- Verilator: cpu 0.000 s on 1 threads; alloced 0 MB

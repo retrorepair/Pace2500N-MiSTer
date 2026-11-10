@@ -1,0 +1,41 @@
+
+// 8006e9b0 key_event_post
+
+void key_event_post(undefined2 param_1,int param_2)
+
+{
+  int iVar1;
+  undefined4 uVar2;
+  undefined4 uVar3;
+  code *UNRECOVERED_JUMPTABLE;
+  undefined2 uStack_14;
+  undefined2 uStack_12;
+  uint uStack_10;
+  uint uStack_c;
+  
+  uStack_14 = 2;
+  uStack_10 = (uint)*(ushort *)(param_2 + 8);
+  uStack_c = (uint)*(ushort *)(param_2 + 10);
+  uStack_12 = param_1;
+  if ((*(ushort *)(param_2 + 8) & 0xff00) == 0) {
+    iVar1 = (*pcRam8006eac4)(*(undefined4 *)(param_2 + 0xc),*(undefined2 *)(param_2 + 8));
+    uVar2 = uRam8006ea8c;
+    uVar3 = uRam8006eac8;
+  }
+  else {
+    iVar1 = (*pcRam8006eacc)(*(undefined4 *)(param_2 + 0xc),*(undefined2 *)(param_2 + 8));
+    uVar2 = uRam8006ea94;
+    uVar3 = uRam8006ead0;
+  }
+  if (iVar1 == 0) {
+    uVar2 = uRam8006ead8;
+    uVar3 = uRam8006ead4;
+  }
+  (*pcRam8006eadc)(uVar2,&uStack_14,uVar3);
+                    /* WARNING: Could not recover jumptable at 0x8006ea00. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+

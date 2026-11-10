@@ -1,0 +1,31 @@
+
+// 8002926c nvram_read_shadow
+
+void nvram_read_shadow(int param_1,int *param_2,int param_3)
+
+{
+  int iVar1;
+  int iVar2;
+  code *UNRECOVERED_JUMPTABLE;
+  
+  iVar2 = iRam80029558;
+  if (((uint)(param_1 + *param_2) < 0x4001) && (param_3 != 0)) {
+    if (*(char *)(iRam80029558 + 0x4000) == '\0') {
+      iVar2 = (*pcRam80029568)(param_1,*param_2,param_3,uRam80029564);
+      *param_2 = iVar2;
+    }
+    else {
+      iVar1 = (*pcRam8002956c)(*(undefined4 *)(iRam80029558 + 0x4004),100);
+      if (iVar1 == 0) {
+        (*pcRam80029570)(param_3,iVar2 + param_1,*param_2);
+        (*pcRam80029574)(*(undefined4 *)(iVar2 + 0x4004));
+      }
+    }
+  }
+                    /* WARNING: Could not recover jumptable at 0x800292e8. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+

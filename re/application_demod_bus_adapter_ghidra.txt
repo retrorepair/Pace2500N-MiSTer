@@ -1,0 +1,9 @@
+80028ec0  addiu sp,-0x8
+80028ec2  sw ra,0x4(sp)
+80028ec4  lw v1,0x178(pc)
+80028ec6  jalr v1
+80028ec8  _addiu s0,0x0
+80028eca  move v0,zero
+80028ecc  lw a0,0x4(sp)
+80028ece  jr a0
+80028ed0  _addiu sp,0x8

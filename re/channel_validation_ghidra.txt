@@ -1,0 +1,13 @@
+bfc038f0  lw v1,0x378(pc)
+bfc038f2  sll a0,a0,0x10
+bfc038f6  lbu v1,0x0(v1)
+bfc038f8  srl a0,a0,0x10
+bfc038fc  move t8,v1
+bfc038fe  btnez 0xbfc03904
+bfc03900  li v0,0x1
+bfc03902  b 0xbfc0390a
+bfc03904  sltiu a0,0x10
+bfc03906  bteqz 0xbfc03900
+bfc03908  move v0,zero
+bfc0390a  jr ra
+bfc0390c  _addiu s0,0x0

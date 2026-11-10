@@ -1,0 +1,7 @@
+bfc00984  addiu sp,sp,-0x8
+bfc00988  sw ra,0x4(sp)
+bfc0098c  jalx 0xbfc0b444
+bfc00990  _nop
+bfc00994  lw ra,0x4(sp)
+bfc00998  jr ra
+bfc0099c  _addiu sp,sp,0x8

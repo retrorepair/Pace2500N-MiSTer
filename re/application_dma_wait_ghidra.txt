@@ -1,0 +1,15 @@
+800058e0  jalr a3
+800058e2  _li a1,0x1
+800058e4  move v1,zero
+800058e6  sw v1,0x10(s1)
+800058e8  sw v1,0x0(s1)
+800058ea  lw v1,0x33c(pc)
+800058ec  sw v1,0x30(s1)
+800058ee  li v1,0x1
+800058f0  sb v1,0x4(s0)
+800058f2  move v0,zero
+800058f4  lw a0,0xc(sp)
+800058f6  lw s0,0x0(sp)
+800058f8  lw s1,0x4(sp)
+800058fa  jr a0
+800058fc  _addiu sp,0x10

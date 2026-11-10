@@ -1,0 +1,18 @@
+{
+  "step": 237000000,
+  "source": "guest RAM display list/field buffers/CLUT",
+  "protected_loader_handoff_observed": false,
+  "hardware_capture": false,
+  "host_firmware_patches": [],
+  "root": "01583FE8",
+  "descriptor": "00583FE8",
+  "width": 720,
+  "height": 576,
+  "depth": 8,
+  "even": "00584048",
+  "odd": "005B6A58",
+  "clut": "005E9468",
+  "distinct_indices": 1,
+  "index_sha256": "905f335ebcf30708acfcd93a813fd3cfe869312af1845288282dbaff38ac6de5",
+  "png_sha256": "53b30e7802627d9790f5b18be2922eaf68170a47c29404e424e13db546da0849"
+}

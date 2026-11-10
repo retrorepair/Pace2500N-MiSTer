@@ -1,0 +1,18 @@
+# vsim -c tb_research -l sim/research.log -do "onbreak {quit -code 1}; run -all; quit -code 0" 
+# Start time: 23:58:24 on Nov 07,2026
+# Loading sv_std.std
+# Loading sim/work.tb_research
+# Loading sim/work.pace_firmware_cpu
+# Loading sim/work.pace_bootrom
+# Loading sim/work.pace_muldiv
+# ** Warning: (vsim-3017) sim/tb_research.sv(40): [TFMPC] - Too few port connections. Expected 26, found 25.
+#    Time: 0 ps  Iteration: 0  Instance: /tb_research/DUT File: rtl/pace_firmware_cpu.sv
+# ** Warning: (vsim-3722) sim/tb_research.sv(40): [TFMPC] - Missing connection for port 'interrupt_count'.
+# onbreak {quit -code 1}
+#  Warning: onbreak command for use within macro
+#  run -all
+# PASS: experimental real U202 8M instructions PC=9fc0de68 IRQ=       110 tick=0000006d guessed=      4418 MMIO=      2240
+# ** Note: $finish    : sim/tb_research.sv(66)
+#    Time: 784599750 ns  Iteration: 2  Instance: /tb_research
+# End time: 00:04:43 on Nov 08,2026, Elapsed time: 0:06:19
+# Errors: 0, Warnings: 2

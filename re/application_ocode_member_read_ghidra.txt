@@ -1,0 +1,11 @@
+8006c0de  lw v0,0x1f8(sp)
+8006c0e0  addu v1,a3,v1
+8006c0e2  slt v1,v0
+8006c0e4  bteqz 0x8006c0ec
+8006c0e6  lw v0,0x380(pc)
+8006c0e8  jalr v0
+8006c0ea  _lw a0,0x1f8(sp)
+8006c0ec  lw v0,0x1f8(sp)
+8006c0ee  lw a0,0x0(v0)
+8006c0f0  sw a0,0x610(sp)
+8006c0f4  lw v1,0x0(s0)

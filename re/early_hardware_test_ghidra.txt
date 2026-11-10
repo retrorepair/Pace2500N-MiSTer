@@ -1,0 +1,17 @@
+bfc0b3c0  lw v1,0xe4(pc)
+bfc0b3c2  sll a0,a0,0x18
+bfc0b3c6  srl a0,a0,0x18
+bfc0b3ca  lw v0,0xe0(pc)
+bfc0b3cc  and v0,a1
+bfc0b3ce  sw v0,0x128(v1)
+bfc0b3d2  move v0,a0
+bfc0b3d4  li a2,0xc000
+bfc0b3d8  or v0,a2
+bfc0b3da  sw v0,0x124(v1)
+bfc0b3de  lw v0,0x124(v1)
+bfc0b3e2  li a0,0x4000
+bfc0b3e6  and v0,a0
+bfc0b3e8  cmpi v0,0x4000
+bfc0b3ec  bteqz 0xbfc0b3de
+bfc0b3ee  jr ra
+bfc0b3f0  _addiu s0,0x0

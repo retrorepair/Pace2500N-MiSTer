@@ -1,0 +1,12 @@
+8003a928  addiu sp,-0x10
+8003a92a  sw ra,0xc(sp)
+8003a92c  lw v0,0xb0(pc)
+8003a92e  jalr v0
+8003a930  _li a0,0x32
+8003a932  lw v0,0xb0(pc)
+8003a934  jalr v0
+8003a936  _addiu s0,0x0
+8003a938  lw v1,0x4(sp)
+8003a93a  addiu v1,0x1
+8003a93c  sw v1,0x4(sp)
+8003a93e  b 0x8003a938

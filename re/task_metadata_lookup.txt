@@ -1,0 +1,10 @@
+8001e92c  addiu sp,-0x10
+8001e92e  sw ra,0xc(sp)
+8001e930  move a1,a0
+8001e932  lw v1,0x22c(pc)
+8001e934  jalr v1
+8001e936  _addiu a0,sp,0x4
+8001e938  lw v0,0x4(sp)
+8001e93a  lw a0,0xc(sp)
+8001e93c  jr a0
+8001e93e  _addiu sp,0x10

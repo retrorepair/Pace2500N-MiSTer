@@ -1,0 +1,153 @@
+
+// ===== 800f2d00 is inside function 800f2c6c body [[800f2c6c, 800f2cbf] [800f2d70, 800f2d91]]
+
+undefined4 FUN_800f2c6c(undefined4 param_1)
+
+{
+  undefined4 in_zero;
+  undefined1 uVar1;
+  
+  do {
+  } while (*pcRam800f2d48 == '\x01');
+  if (*piRam800f2d4c != 0) {
+    if (*piRam800f2d50 != 4) {
+      return 2;
+    }
+    func_0x80024260(1);
+  }
+  *puRam800f2d54 = param_1;
+  *puRam800f2d58 = 1;
+  uVar1 = (undefined1)in_zero;
+  *puRam800f2d5c = uVar1;
+  *puRam800f2d60 = uVar1;
+  *puRam800f2d64 = in_zero;
+  *puRam800f2d68 = uVar1;
+  *puRam800f2d6c = 1;
+  *puRam800f3060 = in_zero;
+  func_0x800f354c();
+  func_0x800f32f8();
+  return in_zero;
+}
+
+
+
+// 800f2cc0 in already printed function 800f2c6c
+
+// 800f2c80 in already printed function 800f2c6c
+
+// ===== 800f3040 is inside function 800f2f88 body [[800f2f88, 800f305d] [800f3134, 800f3145]]
+
+void FUN_800f2f88(void)
+
+{
+  *puRam800f30fc = (char)*(undefined4 *)(*piRam800f30d4 + 0x14);
+  if ((*pbRam800f3100 & 0xf) != 0) {
+    *(undefined4 *)(*piRam800f30d4 + 0x14) = 0xbf;
+    if (*pcRam800f3104 == '\0') {
+      if ((*pbRam800f3108 & 4) == 0) {
+        if (*piRam800f3120 == 1) {
+          if ((*pbRam800f3124 & 2) == 0) {
+            if ((*pbRam800f3128 & 8) != 0) {
+              *puRam800f312c = 3;
+              func_0x800f3558();
+              func_0x800f3248();
+            }
+          }
+          else {
+            func_0x800f3148();
+          }
+        }
+        else if ((*pbRam800f3130 & 1) != 0) {
+          func_0x800f31e8();
+        }
+      }
+      else {
+        *puRam800f310c = 1;
+        if (*piRam800f3110 == 1) {
+          *puRam800f3114 = (char)*(undefined4 *)*piRam800f30d4;
+        }
+        func_0x800f3564();
+        *(undefined4 *)(*piRam800f30d4 + 0x14) = 0xbf;
+        *puRam800f3118 = 3;
+        *puRam800f311c = 2;
+        func_0x800f3248();
+      }
+    }
+  }
+  return;
+}
+
+
+
+// 800f3000 in already printed function 800f2f88
+
+// 800f2fc0 in already printed function 800f2f88
+
+// ===== 800f2f80 is inside function 800f2e48 body [[800f2e48, 800f2f87]]
+
+undefined4 FUN_800f2e48(void)
+
+{
+  undefined4 in_zero;
+  int iVar1;
+  undefined1 uVar2;
+  
+  if (*pcRam800f30a4 == '\x01') {
+    in_zero = 1;
+  }
+  else {
+    iVar1 = func_0x80024300(*puRam800f30a8,400,uRam800f30ac);
+    if (iVar1 == 0) {
+      func_0x800d1448(uRam800f30b4,uRam800f30b8,uRam800f30b0,in_zero);
+      iVar1 = func_0x80024164(uRam800f30c0,in_zero,uRam800f30bc);
+      if (iVar1 == 0) {
+        *puRam800f30c4 = in_zero;
+        uVar2 = (undefined1)in_zero;
+        *puRam800f30c8 = uVar2;
+        *puRam800f30cc = uVar2;
+        *puRam800f30d0 = uVar2;
+        if ((*(uint *)(*piRam800f30d4 + 4) & 0x10) == 0) {
+          func_0x80024260(1);
+          if ((*(uint *)(*piRam800f30d4 + 4) & 0x10) == 0) {
+            *puRam800f30e0 = 5;
+            *puRam800f30e4 = in_zero;
+          }
+        }
+        else {
+          func_0x80024260(1);
+          if ((*(uint *)(*piRam800f30d4 + 4) & 0x10) != 0) {
+            *puRam800f30d8 = 4;
+            *puRam800f30dc = 1;
+          }
+        }
+        iVar1 = func_0x80024300(*puRam800f30a8,1000,puRam800f30e8);
+        if (iVar1 == 0) {
+          iVar1 = func_0x80023b58(uRam800f30ec,in_zero,*puRam800f30e8,1000);
+          if (iVar1 == 0) {
+            func_0x80024260(2);
+            *(undefined4 *)(*piRam800f30d4 + 0x14) = in_zero;
+            *(undefined4 *)(*piRam800f30d4 + 0x14) = 0xbf;
+            func_0x80002ab4(6,uRam800f30f4);
+            func_0x800f3558();
+            *puRam800f30f8 = 1;
+          }
+          else {
+            in_zero = 3;
+          }
+        }
+        else {
+          in_zero = 3;
+        }
+      }
+      else {
+        in_zero = 3;
+      }
+    }
+    else {
+      in_zero = 3;
+    }
+  }
+  return in_zero;
+}
+
+

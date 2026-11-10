@@ -1,0 +1,16 @@
+bfc05904  addiu sp,-0x8
+bfc05906  sw ra,0x4(sp)
+bfc05908  li v1,0x2
+bfc0590a  sb v1,0x1(a0)
+bfc0590c  move a2,a1
+bfc0590e  move a1,a0
+bfc05910  lw a0,0x50(pc)
+bfc05912  jal 0xbfc06850
+bfc05916  _addiu s0,0x0
+bfc05918  bnez v0,0xbfc0591e
+bfc0591a  move v0,zero
+bfc0591c  b 0xbfc05920
+bfc0591e  lw v0,0x70(pc)
+bfc05920  lw a0,0x4(sp)
+bfc05922  jr a0
+bfc05924  _addiu sp,0x8

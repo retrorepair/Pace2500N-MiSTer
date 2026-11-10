@@ -1,0 +1,75 @@
+bfc00408  lui t0,0x1040
+bfc0040c  mtc0 t0,Status
+bfc00410  nop
+bfc00414  mtc0 zero,Cause
+bfc00418  nop
+bfc0041c  lui t0,0x2
+bfc00420  ori t0,t0,0xd8c2
+bfc00424  mtc0 t0,Config
+bfc00428  nop
+bfc0042c  mtc0 zero,WatchLo
+bfc00430  nop
+bfc00434  mtc0 zero,WatchHi
+bfc00438  nop
+bfc0043c  lui at,0xb000
+bfc00440  lui t0,0x4000
+bfc00444  ori t0,t0,0x21
+bfc00448  sw t0,0x430(at)
+bfc0044c  lui at,0xb000
+bfc00450  li t0,0x141
+bfc00454  sw t0,0x440(at)
+bfc00458  lui at,0xb000
+bfc0045c  li t0,0x1
+bfc00460  sw t0,0x410(at)
+bfc00464  lui at,0xb000
+bfc00468  li t0,0x23
+bfc0046c  sw t0,0x400(at)
+bfc00470  lui at,0xb000
+bfc00474  li t0,0x200
+bfc00478  sw t0,0x600(at)
+bfc0047c  lui at,0xb000
+bfc00480  lui t0,0x23
+bfc00484  ori t0,t0,0x2323
+bfc00488  sw t0,0x610(at)
+bfc0048c  lui at,0xb200
+bfc00490  li t0,0x80
+bfc00494  sw t0,0x6000(at)
+bfc00498  lui sp,0x8020
+bfc0049c  addiu sp,sp,0x2cf8
+bfc004a0  lui gp,0x8001
+bfc004a4  addiu gp,gp,0x1f8
+bfc004a8  lui t0,0xbfc0
+bfc004ac  addiu t0,t0,0x8b4
+bfc004b0  jalr t0
+bfc004b4  _nop
+bfc004b8  lui t0,0xbfc0
+bfc004bc  addiu t0,t0,0x770
+bfc004c0  jalr t0
+bfc004c4  _nop
+bfc004c8  lui t0,0xbfc0
+bfc004cc  addiu t0,t0,0x540
+bfc004d0  jalr t0
+bfc004d4  _nop
+bfc004d8  lui t0,0xbfc0
+bfc004dc  addiu t0,t0,0x804
+bfc004e0  jalr t0
+bfc004e4  _nop
+bfc004e8  lui t0,0xbfc0
+bfc004ec  addiu t0,t0,0x984
+bfc004f0  jalr t0
+bfc004f4  _nop
+bfc004f8  lui at,0x8001
+bfc004fc  sw v0,-0x7e08(at)
+bfc00500  mfc0 k1,Config
+bfc00504  li a0,-0x8
+bfc00508  and k1,a0,k1
+bfc0050c  mtc0 k1,Config
+bfc00510  nop
+bfc00514  lui k1,0x1000
+bfc00518  ori k1,k1,0x401
+bfc0051c  mtc0 k1,Status
+bfc00520  nop
+bfc00524  lui t0,0xbfc0
+bfc00528  addiu t0,t0,0x9a0
+bfc0052c  jr t0
+bfc00530  _nop

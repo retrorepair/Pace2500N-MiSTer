@@ -1,0 +1,11 @@
+80029788  addiu sp,-0x8
+8002978a  sw ra,0x4(sp)
+8002978c  move a1,a0
+8002978e  lw a0,0x1c(pc)
+80029790  addiu a1,0x3
+80029792  lw v0,0x1c(pc)
+80029794  jalr v0
+80029796  _li a2,0x6
+80029798  lw a0,0x4(sp)
+8002979a  jr a0
+8002979c  _addiu sp,0x8

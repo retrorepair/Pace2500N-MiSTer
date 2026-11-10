@@ -1,0 +1,13 @@
+bfc0b41c  lw v1,0x88(pc)
+bfc0b41e  sw a1,0x148(v1)
+bfc0b422  move v0,a0
+bfc0b424  li a2,0xc000
+bfc0b428  or v0,a2
+bfc0b42a  sw v0,0x144(v1)
+bfc0b42e  lw v0,0x144(v1)
+bfc0b432  li a0,0x4000
+bfc0b436  and v0,a0
+bfc0b438  cmpi v0,0x4000
+bfc0b43c  bteqz 0xbfc0b42e
+bfc0b43e  jr ra
+bfc0b440  _addiu s0,0x0

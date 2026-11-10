@@ -1,0 +1,17 @@
+800b1af4  move v1,zero
+800b1af6  b 0x800b1b0e
+800b1af8  lbu a3,0x0(a0)
+800b1afa  addiu a0,0x1
+800b1afc  srl v0,v1,0x18
+800b1b00  xor v0,a3
+800b1b02  sll v0,v0,0x2
+800b1b04  lw a3,0x38(pc)
+800b1b06  addu v0,a3,v0
+800b1b08  lw v0,0x0(v0)
+800b1b0a  sll v1,v1,0x8
+800b1b0c  xor v1,v0
+800b1b0e  move t8,a1
+800b1b10  addiu a1,-0x1
+800b1b12  btnez 0x800b1af8
+800b1b14  jr ra
+800b1b16  _move v0,v1

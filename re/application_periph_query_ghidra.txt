@@ -1,0 +1,8 @@
+8002a1d0  lw a2,0x8(a3)
+8002a1d2  sll a3,a1,0x1
+8002a1d4  lb s0,0x2(s0)
+8002a1d6  lbu a1,0x15(s0)
+8002a1d8  lb s0,0x3(s0)
+8002a1da  addiu v0,-0x23
+8002a1dc  lb s0,0xf(s0)
+8002a1de  sh v1,0x0(a2)

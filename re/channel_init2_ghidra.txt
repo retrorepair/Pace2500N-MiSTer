@@ -1,0 +1,12 @@
+bfc038a0  srl a0,a0,0x18
+bfc038a4  sltiu a0,0x2
+bfc038a6  bteqz 0xbfc038b4
+bfc038a8  sll a0,a0,0x1
+bfc038aa  lw v0,0x40(pc)
+bfc038ac  jal 0xbfc0378c
+bfc038b0  _addu a0,v0,a0
+bfc038b2  b 0xbfc038b8
+bfc038b4  li v0,0x203
+bfc038b8  lw a0,0x4(sp)
+bfc038ba  jr a0
+bfc038bc  _addiu sp,0x8

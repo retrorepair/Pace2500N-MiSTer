@@ -1,0 +1,7 @@
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_muldiv.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_bootrom.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_debug_uart.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_firmware_cpu.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_pal576i.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_boot_monitor.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/Pace2500N.sv

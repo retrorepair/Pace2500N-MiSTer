@@ -1,0 +1,173 @@
+{
+  "verified_utc": "2026-11-09T00:37:54.143393+00:00",
+  "build": "C:\\Users\\joelw\\Downloads\\Pace2500N_RealFirmwareBoot_v042_with_handoff\\Pace2500N\\builds\\v048_transport",
+  "compilation_log": "C:\\Users\\joelw\\Downloads\\Pace2500N_RealFirmwareBoot_v042_with_handoff\\Pace2500N\\compile_v048_transport_g.log",
+  "compilation_log_sha256": "4d1969332fd6b8fb060fae792a8dcc6252b27f364f528b7581abdfc1719490b3",
+  "rbf": "C:\\Users\\joelw\\Downloads\\Pace2500N_RealFirmwareBoot_v042_with_handoff\\Pace2500N\\builds\\v048_transport\\output_files\\Pace2500N.rbf",
+  "rbf_sha256": "4085c2a69c1986b274da9f0830ec29b1d4aa81064ea7d95398f0f9d6803148d7",
+  "rbf_bytes": 3947576,
+  "minimum_reported_slack_ns": 0.096,
+  "timing": [
+    {
+      "type": "Setup 'pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk'",
+      "slack_ns": 0.096
+    },
+    {
+      "type": "Setup 'emu|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk'",
+      "slack_ns": 1.204
+    },
+    {
+      "type": "Setup 'sysmem|fpga_interfaces|clocks_resets|h2f_user0_clk'",
+      "slack_ns": 1.494
+    },
+    {
+      "type": "Setup 'FPGA_CLK1_50'",
+      "slack_ns": 7.698
+    },
+    {
+      "type": "Setup 'FPGA_CLK2_50'",
+      "slack_ns": 8.184
+    },
+    {
+      "type": "Setup 'pll_audio|pll_audio_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk'",
+      "slack_ns": 21.028
+    },
+    {
+      "type": "Hold 'emu|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk'",
+      "slack_ns": 0.246
+    },
+    {
+      "type": "Hold 'pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk'",
+      "slack_ns": 0.246
+    },
+    {
+      "type": "Hold 'pll_audio|pll_audio_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk'",
+      "slack_ns": 0.284
+    },
+    {
+      "type": "Hold 'FPGA_CLK2_50'",
+      "slack_ns": 0.41
+    },
+    {
+      "type": "Hold 'FPGA_CLK1_50'",
+      "slack_ns": 0.414
+    },
+    {
+      "type": "Hold 'sysmem|fpga_interfaces|clocks_resets|h2f_user0_clk'",
+      "slack_ns": 0.418
+    },
+    {
+      "type": "Recovery 'pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk'",
+      "slack_ns": 3.014
+    },
+    {
+      "type": "Recovery 'sysmem|fpga_interfaces|clocks_resets|h2f_user0_clk'",
+      "slack_ns": 4.343
+    },
+    {
+      "type": "Recovery 'FPGA_CLK1_50'",
+      "slack_ns": 15.542
+    },
+    {
+      "type": "Recovery 'emu|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk'",
+      "slack_ns": 15.845
+    },
+    {
+      "type": "Removal 'FPGA_CLK1_50'",
+      "slack_ns": 1.059
+    },
+    {
+      "type": "Removal 'pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk'",
+      "slack_ns": 1.178
+    },
+    {
+      "type": "Removal 'emu|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk'",
+      "slack_ns": 1.941
+    },
+    {
+      "type": "Removal 'sysmem|fpga_interfaces|clocks_resets|h2f_user0_clk'",
+      "slack_ns": 3.215
+    },
+    {
+      "type": "Minimum Pulse Width 'pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|fpll_0|fpll|vcoph[0]'",
+      "slack_ns": 1.122
+    },
+    {
+      "type": "Minimum Pulse Width 'pll_audio|pll_audio_inst|altera_pll_i|general[0].gpll~FRACTIONAL_PLL|vcoph[0]'",
+      "slack_ns": 1.196
+    },
+    {
+      "type": "Minimum Pulse Width 'emu|pll|pll_inst|altera_pll_i|general[0].gpll~FRACTIONAL_PLL|vcoph[0]'",
+      "slack_ns": 1.25
+    },
+    {
+      "type": "Minimum Pulse Width 'pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk'",
+      "slack_ns": 1.955
+    },
+    {
+      "type": "Minimum Pulse Width 'sysmem|fpga_interfaces|clocks_resets|h2f_user0_clk'",
+      "slack_ns": 3.61
+    },
+    {
+      "type": "Minimum Pulse Width 'emu|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk'",
+      "slack_ns": 8.561
+    },
+    {
+      "type": "Minimum Pulse Width 'FPGA_CLK1_50'",
+      "slack_ns": 9.21
+    },
+    {
+      "type": "Minimum Pulse Width 'FPGA_CLK2_50'",
+      "slack_ns": 9.217
+    },
+    {
+      "type": "Minimum Pulse Width 'FPGA_CLK3_50'",
+      "slack_ns": 9.73
+    },
+    {
+      "type": "Minimum Pulse Width 'pll_audio|pll_audio_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk'",
+      "slack_ns": 18.926
+    }
+  ],
+  "source_sha256": {
+    "rtl/pace_muldiv.sv": "311f4f3b00c2ae22a891ae78e9412b983ce78412a0e0b75a49693a62f6d8797b",
+    "rtl/pace_bootrom.sv": "dcee6fb11e56037901038420dc18bbf3a18c1f55f28b2e6d8f7c0e38c6a05c16",
+    "rtl/pace_debug_uart.sv": "140c36f4f7cd8b8db8831753ae750c1108148882ca0ada3786be5e69b7123043",
+    "rtl/pace_firmware_cpu.sv": "f23bd4c576af8f5b44c2f29137fde1c960859309b0d5b214a4f8081c62ea9065",
+    "rtl/pace_pal576i.sv": "e760c74eae7515b3b3b035898f68d1adb420527c8d1b305c9e3116b590e6b83c",
+    "rtl/pace_boot_monitor.sv": "05d33b3a3c77ff11a67481cf4cdebbfe6dbb2fcb98ccd1ee0e5b481cdef97179",
+    "rtl/pace_keyboard_remote.sv": "b17522a575394d5c29f3806a9e20f18fc537201ac7daf015673824c81f82e580",
+    "rtl/pace_guide_peripherals.sv": "c7961db9998d74204c06577cb225e3fb7a39f17249d945d93fa3c9ca37a30193",
+    "rtl/pace_guide_blitter.sv": "5b1338bc028e8fa34f4a1884a60d29f81bea08f862da452ef2bbe379d4e0f0b0",
+    "rtl/pace_guide_video.sv": "b984e93f55a7ad3bd120847c429849a86bb2fb3ab41f551b49a223445483fd1d",
+    "rtl/Pace2500N_Transport.sv": "2946cbffaede0f611b4d26833fdf741d08a0988c719245fca146e620c5e9b533",
+    "rtl/pace_ts_replay.sv": "2cce4d33a6999cb127a9885f6b4ab1aeef7aa54ff4012511fa0affb95cfec411",
+    "rtl/pace_section_demux.sv": "91f483e9f8d7036d8e395a2236609a3e9860519cf39ea449903d77f97c3d4a95",
+    "rtl/pace_mmio_response.sv": "5c5dc323905021f2eed62a7e971379ce54faa716f9783a6f18f9d589165c59b9",
+    "rtl/pace_ts_load_tracker.sv": "4e57a56c67d0f93f0c18c120bffd4febd95885e4488718a0e10a2e274ffa8894",
+    "rtl/pace_checkpoint_demux_match.vh": "7f0be75fe44aac4d191d01f27f3a5c261cb1fd6e3e74366d76773787ec213b51",
+    "rtl/pace_checkpoint_csr.vh": "5dbd8eb3192b7b5b0bb7a1a1a891a0917db4ef5be6463b21dd623040720a995d",
+    "rom/bootloader_words.hex": "a7a5844dbaced792aed4fec73dacaa2a470a7196ef67fd1adaf539bf02c14b94",
+    "rom/checkpoint_cpu.hex": "60002cfa6487a3eda7a0fec828f3d37acae61b92ad5464698d5c50e3a4793be3",
+    "rom/checkpoint_csr.hex": "e1a8f4ff9c9049abe6cac217c569de63c1b40a84a3c9eac735c4d17f545c4d48",
+    "rom/checkpoint_demux_limit.hex": "636cab68b0a9b70da25824375f00a4eb18c397d59cb6083fb3b9a6ba7b7aa11e",
+    "rom/checkpoint_demux_match.hex": "b1096567c69b5dd7bbcadf6a625b37f90ab636455adfe812bba3e6b599f45f46",
+    "rom/checkpoint_demux_pid.hex": "75ecf8d69f1dc1184ba4a7ee08924c0507fdf40793bc88cf7e59efcd112bd58a",
+    "rom/checkpoint_demux_pointer.hex": "feed313e79610134bc9574ce12762e50934dc9f57503a1f3eb1a6c56ffd52711",
+    "rom/checkpoint_eeprom.hex": "c09ae7b608bff8514a350b018427dc61d1bcd2fb99dd6e47f23f6f6438d6eb34",
+    "rom/checkpoint_lsi4.hex": "1323d72d2f5c8b6819797619b41a0389a117b34188a888ac408155e03b478eb3",
+    "rom/font8x8.hex": "c236b190e0c9b94bfcd17098c1fb8b8191a4aa4519aac4aab4e15fb9ef865562",
+    "rom/monitor.hex": "ce205cdf02456002bebcb717ce06a1ecf7229fc513b70e5dc8bdc01226dc9ebe"
+  },
+  "qsf_sha256": "d8571e0aa17e56c76bb9b516f77048c45a1bb499c1f1c811e2962d937994d2ec",
+  "sdc_sha256": "80ffbedacdd651552ad145cfbb243a21723588e2b59f7b6688437ce4fcde70f4",
+  "fit_summary": "Fitter Status : Successful - Mon Nov 09 00:36:04 2026\nQuartus Prime Version : 17.0.2 Build 602 07/19/2017 SJ Lite Edition\nRevision Name : Pace2500N\nTop-level Entity Name : sys_top\nFamily : Cyclone V\nDevice : 5CSEBA6U23I7\nTiming Models : Final\nLogic utilization (in ALMs) : 31,615 / 41,910 ( 75 % )\nTotal registers : 37146\nTotal pins : 145 / 314 ( 46 % )\nTotal virtual pins : 0\nTotal block memory bits : 3,057,921 / 5,662,720 ( 54 % )\nTotal RAM Blocks : 387 / 553 ( 70 % )\nTotal DSP Blocks : 50 / 112 ( 45 % )\nTotal HSSI RX PCSs : 0\nTotal HSSI PMA RX Deserializers : 0\nTotal HSSI TX PCSs : 0\nTotal HSSI PMA TX Serializers : 0\nTotal PLLs : 3 / 6 ( 50 % )\nTotal DLLs : 0 / 4 ( 0 % )\n",
+  "timing_scope": "Reported TimeQuest domains; upstream unconstrained-path warnings remain",
+  "hardware_verified": false,
+  "fpga_cpu_execution": true,
+  "protected_loader_cold_boot_solved": false,
+  "checkpoint_ram_interventions": [
+    "80054F84 FFFFFFFF->00000000",
+    "80430A28 00000000->00000001"
+  ]
+}

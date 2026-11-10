@@ -1,0 +1,53 @@
+{
+  "utc": "2026-11-08T19:28:45.777579+00:00",
+  "results": [
+    {
+      "name": "test_application_crc.py",
+      "returncode": 0,
+      "stdout": "PASS: application CRC100003 instructions, all GPR/RAM/CP0/HI/LO/PC/timer/IRQ state and instruction visits agree, with and without deadlines\n",
+      "stderr": ""
+    },
+    {
+      "name": "test_jump_delay_interrupt.py",
+      "returncode": 0,
+      "stdout": "PASS: J and JAL delay-slot IRQ saves branch EPC/BD, ERET restarts branch and preserves link\n",
+      "stderr": ""
+    },
+    {
+      "name": "test_graphics_fill.py",
+      "returncode": 0,
+      "stdout": "PASS: relocated solid fill, x/y and row stride, preserved padding; unknown opcode/overrun rejected\n",
+      "stderr": ""
+    },
+    {
+      "name": "test_graphics_index_fill.py",
+      "returncode": 0,
+      "stdout": "PASS: indexed rectangle with odd starting line, independent field colors and untouched padding/rows\n",
+      "stderr": ""
+    },
+    {
+      "name": "test_graphics_packed_copy.py",
+      "returncode": 0,
+      "stdout": "PASS: packed copy pitch, odd-start field order, padding, unused color, overlap and bounds\n",
+      "stderr": ""
+    },
+    {
+      "name": "test_graphics_irq.py",
+      "returncode": 0,
+      "stdout": "PASS: original DMA IRQ mask2 handler acknowledges both luma/chroma commands and guest proceeds\n",
+      "stderr": ""
+    },
+    {
+      "name": "test_diagnostic_gates.py",
+      "returncode": 0,
+      "stdout": "PASS: staged patch provenance, alias consistency, idempotence, precondition refusal and untouched original ROM\n",
+      "stderr": ""
+    },
+    {
+      "name": "test_application_idle.py",
+      "returncode": 0,
+      "stdout": "PASS:100k instructions, all GPR/CP0/RAM, timer/serial/I2C state and IRQ events agree; skipped 84168\n",
+      "stderr": ""
+    }
+  ]
+}

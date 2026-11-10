@@ -1,0 +1,18 @@
+# vsim -c tb_m16_pc -l sim/m16_pc.log -do "onbreak {quit -code 1}; run -all; quit -code 0" 
+# Start time: 23:58:02 on Nov 07,2026
+# Loading sv_std.std
+# Loading sim/work.tb_m16_pc
+# Loading sim/work.pace_firmware_cpu
+# Loading sim/work.pace_bootrom
+# Loading sim/work.pace_muldiv
+# ** Warning: (vsim-3017) sim/tb_m16_pc.sv(9): [TFMPC] - Too few port connections. Expected 26, found 25.
+#    Time: 0 ps  Iteration: 0  Instance: /tb_m16_pc/DUT File: rtl/pace_firmware_cpu.sv
+# ** Warning: (vsim-3722) sim/tb_m16_pc.sv(9): [TFMPC] - Missing connection for port 'interrupt_count'.
+# onbreak {quit -code 1}
+#  Warning: onbreak command for use within macro
+#  run -all
+# PASS: MIPS16 PC-relative bases, normal and JR/JAL delay slots, both JAL halfword alignments
+# ** Note: $finish    : sim/tb_m16_pc.sv(58)
+#    Time: 3060 ns  Iteration: 1  Instance: /tb_m16_pc
+# End time: 23:58:02 on Nov 07,2026, Elapsed time: 0:00:00
+# Errors: 0, Warnings: 2

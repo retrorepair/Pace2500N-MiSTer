@@ -1,0 +1,6 @@
+800114ee  li v1,0x1
+800114f0  lw v0,0x58(pc)
+800114f2  sb v1,0x0(v0)
+800114f4  lw a0,0x4(sp)
+800114f6  jr a0
+800114f8  _addiu sp,0x8

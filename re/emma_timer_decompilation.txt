@@ -1,0 +1,140 @@
+
+// bfc0434c timer0_interrupt
+
+void timer0_interrupt(void)
+
+{
+  uint uVar1;
+  code *UNRECOVERED_JUMPTABLE;
+  
+  uVar1 = *puRambfc043a4;
+  *puRambfc043a0 = 1;
+  if (((uVar1 & 1) != 0) && (*piRambfc043a8 != 0)) {
+    (*(code *)*puRambfc043ac)();
+  }
+                    /* WARNING: Could not recover jumptable at 0xbfc0436e. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+
+
+// bfc04210 timer_control
+
+void timer_control(byte *param_1)
+
+{
+  byte bVar1;
+  uint *puVar2;
+  int iVar3;
+  undefined4 *puVar4;
+  byte *pbVar5;
+  uint uVar6;
+  uint uVar7;
+  code *UNRECOVERED_JUMPTABLE;
+  
+  puVar2 = puRambfc04328;
+  if ((((param_1 == (byte *)0x0) || (uVar7 = (uint)*param_1, 2 < uVar7)) ||
+      (puVar4 = (undefined4 *)(iRambfc04304 + uVar7 * 0x14), *(char *)(puVar4 + 4) == '\0')) ||
+     (iVar3 = func_0xbfc01604(*puVar4,uRambfc04318), iVar3 != 0)) goto LAB_bfc042e2;
+  bVar1 = param_1[1];
+  if (bVar1 == 0) {
+    uVar6 = *puVar2 & ~(1 << (uVar7 & 0x1f));
+LAB_bfc04282:
+    *puVar2 = uVar6;
+  }
+  else if (bVar1 == 1) {
+    *puVar2 = *puVar2 | 1 << (uVar7 & 0x1f);
+  }
+  else {
+    if (bVar1 < 3) {
+      uVar6 = 1 << (uVar7 & 0x1f);
+      *puVar2 = *puVar2 & ~uVar6;
+      func_0xbfc042ec(uVar7,puVar4[1]);
+      uVar6 = *puVar2 | uVar6;
+      goto LAB_bfc04282;
+    }
+    if (bVar1 == 3) {
+      pbVar5 = param_1 + 4;
+      param_1 = (byte *)(puVar4 + 2);
+    }
+    else {
+      if (bVar1 != 4) goto LAB_bfc042d4;
+      pbVar5 = (byte *)(puVar4 + 2);
+      param_1 = param_1 + 4;
+    }
+    func_0xbfc18e34(pbVar5,param_1,8);
+  }
+LAB_bfc042d4:
+  func_0xbfc0162c(*puVar4);
+LAB_bfc042e2:
+                    /* WARNING: Could not recover jumptable at 0xbfc042e8. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+
+
+// bfc06ec8 event_task
+
+void event_task(void)
+
+{
+  undefined4 in_zero;
+  int iVar1;
+  undefined4 uVar2;
+  
+  uVar2 = uRambfc06f34;
+  do {
+    func_0xbfc0c24c(uVar2);
+    func_0xbfc0c1fc(uRambfc06f34,uRambfc06f38);
+    if (*piRambfc06f24 != 0) {
+      (*(code *)*piRambfc06f24)();
+    }
+    func_0xbfc0c1fc(uRambfc06f3c,uRambfc06f38);
+    *puRambfc06f40 = 1;
+    iVar1 = *piRambfc06f28;
+    if (iVar1 != 0) {
+      *(int *)(iVar1 + 8) = *(int *)(iVar1 + 8) + -1;
+      while ((*piRambfc06f28 != 0 && (*(int *)(*piRambfc06f28 + 8) == 0))) {
+        func_0xbfc06e54();
+      }
+    }
+    *puRambfc06f40 = (char)in_zero;
+    uVar2 = uRambfc06f3c;
+  } while( true );
+}
+
+
+
+// bfc01bd4 emma_interrupt_dispatch
+
+void emma_interrupt_dispatch(void)
+
+{
+  uint in_zero;
+  uint *puVar1;
+  uint uVar2;
+  code *UNRECOVERED_JUMPTABLE;
+  
+  do {
+    puVar1 = (uint *)(iRambfc01dc8 + in_zero * 8);
+    uVar2 = *puVar1;
+    if (uVar2 == uRambfc01dcc) {
+LAB_bfc01c1a:
+                    /* WARNING: Could not recover jumptable at 0xbfc01c1c. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+      (*UNRECOVERED_JUMPTABLE)();
+      return;
+    }
+    if (((*puRambfc01dd0 & *puRambfc01dd4 & uVar2) != 0) && (puVar1[1] != 0)) {
+      (**(code **)(iRambfc01dc8 + in_zero * 8 + 4))();
+      goto LAB_bfc01c1a;
+    }
+    in_zero = in_zero + 1 & 0xff;
+  } while( true );
+}
+
+

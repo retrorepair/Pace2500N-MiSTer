@@ -1,0 +1,9 @@
+bfc05410  addiu sp,-0x8
+bfc05412  sw ra,0x4(sp)
+bfc05414  lw a0,0x18c(pc)
+bfc05416  li a1,0x1
+bfc05418  jal 0xbfc0b7ac
+bfc0541c  _move a2,zero
+bfc0541e  lw a0,0x4(sp)
+bfc05420  jr a0
+bfc05422  _addiu sp,0x8

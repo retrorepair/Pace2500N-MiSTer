@@ -1,0 +1,80 @@
+
+// 8002aa5c peer_event01
+
+void peer_event01(int param_1)
+
+{
+  code *UNRECOVERED_JUMPTABLE;
+  
+  if (*pcRam8002ab18 == '\x01') {
+    (*pcRam8002ab1c)(*(undefined1 *)(param_1 + 3),*(byte *)(param_1 + 4) & 1,uRam8002ab20);
+  }
+                    /* WARNING: Could not recover jumptable at 0x8002aa7a. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+
+
+// 8002aa80 peer_event02
+
+void peer_event02(int param_1)
+
+{
+  byte bVar1;
+  
+  if ((*(char *)(param_1 + 3) == '\0') && ((*(byte *)(param_1 + 4) & 0xc0) == 0)) {
+    bVar1 = *(char *)(param_1 + 4) << 4 | *(byte *)(param_1 + 5) >> 4;
+    if ((*(byte *)(param_1 + 4) >> 4 & 3) != 2) {
+      if (*pcRam8002ab18 == '\x01') {
+        (*pcRam8002ab24)(bVar1);
+      }
+      *pbRam8002ab28 = bVar1;
+    }
+  }
+                    /* WARNING: Treating indirect jump as return */
+  return;
+}
+
+
+
+// 8002ab2c peer_event03
+
+void peer_event03(int param_1)
+
+{
+  byte bVar1;
+  
+  if ((*(char *)(param_1 + 3) == '\0') && ((*(byte *)(param_1 + 4) & 0xc0) == 0)) {
+    bVar1 = *(char *)(param_1 + 4) << 4 | *(byte *)(param_1 + 5) >> 4;
+    if ((*(byte *)(param_1 + 4) >> 4 & 3) != 2) {
+      if (*pcRam8002ab9c == '\x01') {
+        (*pcRam8002aba0)(bVar1);
+      }
+      *pbRam8002aba4 = bVar1;
+    }
+  }
+                    /* WARNING: Treating indirect jump as return */
+  return;
+}
+
+
+
+// 8002ab84 peer_event06
+
+void peer_event06(int param_1)
+
+{
+  code *UNRECOVERED_JUMPTABLE;
+  
+  if (*pcRam8002ab9c == '\x01') {
+    (*pcRam8002aba8)(param_1 + 3);
+  }
+                    /* WARNING: Could not recover jumptable at 0x8002ab98. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+

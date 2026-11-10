@@ -1,0 +1,29 @@
+[
+  {
+    "source": "re/fpga_guide_checkpoint/RAM.bin",
+    "pool": "0x80312a9c",
+    "size": 10240,
+    "entry": 64,
+    "slots": 160,
+    "free_bits": 124,
+    "bitmap": "0x803129e0"
+  },
+  {
+    "source": "re/transport/native_updates_early.bin",
+    "pool": "0x80312a9c",
+    "size": 10240,
+    "entry": 64,
+    "slots": 160,
+    "free_bits": 116,
+    "bitmap": "0x803129e0"
+  },
+  {
+    "source": "re/transport/native_final.bin",
+    "pool": "0x80312a9c",
+    "size": 10240,
+    "entry": 64,
+    "slots": 160,
+    "free_bits": 120,
+    "bitmap": "0x803129e0"
+  }
+]

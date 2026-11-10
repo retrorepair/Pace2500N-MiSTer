@@ -1,0 +1,54 @@
+{
+  "firmware_sha256": "32f6b2e84d0c4c4ec280a72f2d080e4b6fa5e68e8438ef712f34f97f63d38c7f",
+  "base": "80000000",
+  "artifact": "Initialized segments only; zero gaps are not recovered BSS contents",
+  "bytes": 1073800,
+  "sha256": "66273af550467e9baa87a178fa19ccbd533c9cf859263a90d152be461a0a86f8",
+  "segments": [
+    {
+      "destination": "A0000400",
+      "source": "9FC20D00",
+      "declared_bytes": 208,
+      "output_bytes": 208,
+      "source_bytes": 208,
+      "encoding": "raw",
+      "sha256": "07f0eb0a41699f5bcb58220346f308fe4807546484667a74842690a8bf0b83ee"
+    },
+    {
+      "destination": "80000800",
+      "source": "9FC20DD0",
+      "declared_bytes": 500,
+      "output_bytes": 500,
+      "source_bytes": 500,
+      "encoding": "raw",
+      "sha256": "507a65e5eb932f6ac775d8deadaf5a7f49f4a3bd720dc7a4721fea959229e4ed"
+    },
+    {
+      "destination": "800FBE10",
+      "source": "9FCC6278",
+      "declared_bytes": 39800,
+      "output_bytes": 39800,
+      "source_bytes": 39800,
+      "encoding": "raw",
+      "sha256": "a414f0392e4391c2d55fe8aa9f147f60a539e352574a0df67fa34d3cd9f9e20f"
+    },
+    {
+      "destination": "80105988",
+      "source": "9FCCFDF0",
+      "declared_bytes": 2304,
+      "output_bytes": 2304,
+      "source_bytes": 2304,
+      "encoding": "raw",
+      "sha256": "a1431217dec3c07b5b7ed56708b9fe3d596b7a1093fe617755a17cc31f373d70"
+    },
+    {
+      "destination": "800009F4",
+      "source": "9FCD06F0",
+      "declared_bytes": 1029144,
+      "output_bytes": 1029152,
+      "source_bytes": 847553,
+      "encoding": "dictionary halfwords,16-bit masks",
+      "sha256": "c31357bbc62180456e4d91572a65312227c9cf0a2245e24bacc0fb33030cadba"
+    }
+  ]
+}

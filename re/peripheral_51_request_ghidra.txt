@@ -1,0 +1,14 @@
+bfc062c8  addiu sp,-0x8
+bfc062ca  sw ra,0x4(sp)
+bfc062cc  sll a0,a0,0x18
+bfc062d0  srl a0,a0,0x18
+bfc062d4  move v1,zero
+bfc062d6  sltu v1,a0
+bfc062d8  move a1,t8
+bfc062da  sll a1,a1,0x18
+bfc062de  srl a1,a1,0x18
+bfc062e2  jal 0xbfc0633c
+bfc062e6  _li a0,0x1
+bfc062e8  lw a0,0x4(sp)
+bfc062ea  jr a0
+bfc062ec  _addiu sp,0x8

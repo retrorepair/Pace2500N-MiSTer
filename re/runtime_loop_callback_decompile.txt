@@ -1,0 +1,15 @@
+
+// 8002a1bc runtime_loop_callback
+
+void runtime_loop_callback(void)
+
+{
+  undefined4 auStack_c [2];
+  
+  auStack_c[0] = *puRam8002a280;
+  (*pcRam8002a348)(auStack_c,4);
+                    /* WARNING: Treating indirect jump as return */
+  return;
+}
+
+

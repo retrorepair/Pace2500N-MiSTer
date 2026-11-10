@@ -1,0 +1,11 @@
+800250e0  addiu sp,-0x10
+800250e2  sw ra,0xc(sp)
+800250e4  addiu v0,sp,0x7
+800250e8  sb a1,0x0(v0)
+800250ea  addiu a1,sp,0x7
+800250ee  lw v0,0x378(pc)
+800250f0  jalr v0
+800250f2  _li a2,0x1
+800250f4  lw a0,0xc(sp)
+800250f6  jr a0
+800250f8  _addiu sp,0x10

@@ -1,0 +1,16 @@
+8002a634  addiu sp,-0x8
+8002a636  sw ra,0x4(sp)
+8002a638  cmpi a0,0x1
+8002a63a  btnez 0x8002a646
+8002a63c  li a0,0x1
+8002a63e  lw v0,0x18(pc)
+8002a640  jalr v0
+8002a642  _move a1,a0
+8002a644  b 0x8002a64e
+8002a646  li a0,0x1
+8002a648  lw v0,0xc(pc)
+8002a64a  jalr v0
+8002a64c  _move a1,zero
+8002a64e  lw a0,0x4(sp)
+8002a650  jr a0
+8002a652  _addiu sp,0x8

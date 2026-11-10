@@ -1,0 +1,10 @@
+bfc06220  addiu sp,-0x8
+bfc06222  sw ra,0x4(sp)
+bfc06224  lw a0,0x1f8(pc)
+bfc06226  lw a1,0x1fc(pc)
+bfc06228  move a2,zero
+bfc0622a  jal 0xbfc0c188
+bfc0622e  _li a3,0x6
+bfc06230  lw a0,0x4(sp)
+bfc06232  jr a0
+bfc06234  _addiu sp,0x8

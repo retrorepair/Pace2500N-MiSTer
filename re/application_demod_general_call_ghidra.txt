@@ -1,0 +1,11 @@
+80028f20  move s0,v0
+80028f22  lw v0,0x138(pc)
+80028f24  jalr v0
+80028f26  _addiu s0,0x0
+80028f28  move v1,zero
+80028f2a  sltu v1,s0
+80028f2c  move v0,t8
+80028f2e  lw a0,0x14(sp)
+80028f30  lw s0,0x0(sp)
+80028f32  jr a0
+80028f34  _addiu sp,0x18

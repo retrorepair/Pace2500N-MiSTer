@@ -1,0 +1,16 @@
+80084008  addiu sp,-0x18
+8008400a  sw ra,0x14(sp)
+8008400c  sw s0,0x0(sp)
+8008400e  move s0,a0
+80084010  lw v1,0xfc(pc)
+80084012  jalr v1
+80084014  _addiu a0,sp,0x4
+80084016  move a0,s0
+80084018  addiu a1,sp,0x4
+8008401a  lw v1,0xf8(pc)
+8008401c  jalr v1
+8008401e  _li a2,0xc
+80084020  lw a0,0x14(sp)
+80084022  lw s0,0x0(sp)
+80084024  jr a0
+80084026  _addiu sp,0x18

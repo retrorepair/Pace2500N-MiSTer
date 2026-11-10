@@ -1,0 +1,204 @@
+
+// 800bb30c eeprom_read
+
+void eeprom_read(uint param_1)
+
+{
+  undefined4 in_zero;
+  int iVar1;
+  uint uVar2;
+  code *UNRECOVERED_JUMPTABLE;
+  undefined1 uStack_10;
+  char cStack_f;
+  undefined1 auStack_e [2];
+  undefined1 *puStack_c;
+  
+  iVar1 = (*pcRam800bb580)();
+  if ((param_1 >> 0x18 != *(uint *)(iVar1 + 4)) ||
+     (((param_1 & 0xffff) < 0x100 && ((uRam800bb584 & param_1) == uRam800bb584)))) {
+    puStack_c = &uStack_10;
+    cStack_f = (char)param_1;
+    (*pcRam800bb588)(param_1 & 0xff,in_zero,1);
+    uVar2 = (*pcRam800bb58c)(puStack_c);
+    if (((cStack_f == *(char *)(iVar1 + 0x24)) || (uVar2 != *(byte *)(iVar1 + 0x24))) &&
+       ((iVar1 != 0 && ((uRam800bb590 & param_1) != 0)))) {
+      (*pcRam800bb588)(cStack_f,5,2,auStack_e);
+      (*pcRam800bb594)(auStack_e);
+    }
+  }
+                    /* WARNING: Could not recover jumptable at 0x800bb3a4. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+
+
+// 800bb3a8 eeprom_write
+
+void eeprom_write(uint param_1,int param_2,int param_3,int param_4)
+
+{
+  uint in_zero;
+  uint uVar1;
+  uint uVar2;
+  int iVar3;
+  int in_t0;
+  code *UNRECOVERED_JUMPTABLE;
+  ushort in_hi;
+  byte in_lo;
+  undefined1 uStack_41;
+  byte bStack_40;
+  byte bStack_3f;
+  undefined1 auStack_3e [2];
+  int iStack_3c;
+  uint uStack_38;
+  ushort uStack_34;
+  ushort uStack_32;
+  int iStack_30;
+  undefined1 *puStack_2c;
+  undefined1 *puStack_28;
+  undefined1 *puStack_24;
+  undefined1 *puStack_20;
+  undefined1 *puStack_1c;
+  int iStack_18;
+  
+  iStack_3c = param_4;
+  iStack_30 = param_3;
+  iStack_18 = param_2;
+  if ((param_1 >> 0x18 != *(uint *)(in_t0 + 4)) ||
+     (((param_1 & 0xffff) < 0x100 && ((uRam800bb584 & param_1) == uRam800bb584)))) {
+    puStack_2c = &uStack_41;
+    param_1 = param_1 & 0xff;
+    (*pcRam800bb588)(param_1);
+    uVar1 = (*pcRam800bb58c)(puStack_2c);
+    if ((param_1 == *(byte *)(in_t0 + 0x24)) || (uVar1 != *(byte *)(in_t0 + 0x24))) {
+      puStack_28 = auStack_3e;
+      (*pcRam800bb588)(param_1,5,2);
+      uVar1 = (*pcRam800bb594)(puStack_28);
+      if (((uint)(iStack_18 + iStack_30) <= uVar1) && (iStack_30 != 0)) {
+        uVar1 = iStack_18 + 0x1e;
+        uVar2 = *(int *)(in_t0 + 0xc) - 1;
+        if (uVar2 == 0) {
+          trap(7);
+        }
+        else {
+          in_lo = (byte)(uVar1 / uVar2);
+          in_hi = (ushort)(uVar1 % uVar2);
+        }
+        uVar2 = *(int *)(in_t0 + 0xc) - 1;
+        if (uVar2 == 0) {
+          trap(7);
+          bStack_3f = in_lo;
+        }
+        else {
+          in_hi = (ushort)(uVar1 % uVar2);
+          bStack_3f = (byte)(uVar1 / uVar2);
+        }
+        uVar1 = iStack_18 + iStack_30 + 0x1d;
+        uVar2 = *(int *)(in_t0 + 0xc) - 1;
+        if (uVar2 == 0) {
+          trap(7);
+          uStack_32 = in_hi;
+        }
+        else {
+          bStack_3f = (byte)(uVar1 / uVar2);
+          uStack_32 = (ushort)(uVar1 % uVar2);
+        }
+        uVar2 = *(int *)(in_t0 + 0xc) - 1;
+        bStack_40 = in_lo;
+        uStack_38 = in_zero;
+        uStack_34 = in_hi;
+        if (uVar2 == 0) {
+          trap(7);
+        }
+        else {
+          uStack_32 = (ushort)(uVar1 % uVar2);
+        }
+        for (; (int)uStack_38 < (int)(uint)bStack_40; uStack_38 = uStack_38 + 1) {
+          puStack_24 = &uStack_41;
+          (*pcRam800bb588)(param_1,in_zero,1);
+          param_1 = (*pcRam800bb58c)(puStack_24);
+        }
+        if (bStack_40 == bStack_3f) {
+          iVar3 = uStack_34 + 1;
+          uVar1 = (uint)uStack_32 - (uint)uStack_34;
+        }
+        else {
+          (*pcRam800bb588)(param_1,uStack_34 + 1,(*(int *)(in_t0 + 0xc) + -1) - (uint)uStack_34,
+                           iStack_3c);
+          puStack_20 = &uStack_41;
+          iStack_3c = iStack_3c + ((*(int *)(in_t0 + 0xc) + -1) - (uint)uStack_34);
+          (*pcRam800bb588)(param_1,in_zero,1);
+          param_1 = (*pcRam800bb58c)(puStack_20);
+          uStack_38 = (uint)bStack_40;
+          while (uStack_38 = uStack_38 + 1, (int)uStack_38 < (int)(uint)bStack_3f) {
+            (*pcRam800bb588)(param_1,1,*(int *)(in_t0 + 0xc) + -1,iStack_3c);
+            iStack_3c = iStack_3c + *(int *)(in_t0 + 0xc) + -1;
+            puStack_1c = &uStack_41;
+            (*pcRam800bb930)(param_1,in_zero,1);
+            param_1 = (*pcRam800bb934)(puStack_1c);
+          }
+          uVar1 = (uint)uStack_32;
+          iVar3 = 1;
+        }
+        (*pcRam800bb930)(param_1,iVar3,uVar1 + 1,iStack_3c);
+      }
+    }
+  }
+                    /* WARNING: Could not recover jumptable at 0x800bb5ec. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+
+
+// 800bb888 eeprom_ready
+
+void eeprom_ready(undefined4 param_1,undefined4 param_2,undefined4 param_3,undefined4 param_4)
+
+{
+  (*pcRam800bb938)();
+  (*pcRam800bb954)(param_1,param_2,param_3,param_4);
+                    /* WARNING: Treating indirect jump as return */
+  return;
+}
+
+
+
+// 800bb8b4 eeprom_init
+
+uint eeprom_init(int param_1)
+
+{
+  uint in_zero;
+  uint uVar1;
+  uint in_lo;
+  
+  *(char *)(param_1 + 0x49) = (char)in_zero;
+  *(char *)(param_1 + 0x48) = (char)in_zero;
+  uVar1 = in_zero;
+  while( true ) {
+    if (*(uint *)(param_1 + 0xc) == 0) {
+      trap(7);
+    }
+    else {
+      in_lo = *(uint *)(param_1 + 8) / *(uint *)(param_1 + 0xc);
+    }
+    if (in_lo >> 3 <= uVar1) break;
+    *(undefined1 *)(*(int *)(param_1 + 0x40) + uVar1) = 0xff;
+    uVar1 = uVar1 + 1;
+  }
+  uVar1 = *(int *)(param_1 + 4) << 0x18 | uRam800bb940 | (uint)*(byte *)(param_1 + 0x24);
+  (*pcRam800bb958)(uVar1,uVar1);
+  (*pcRam800bb95c)(param_1);
+  uVar1 = uRam800bb960;
+  if (*(char *)(param_1 + 0x49) == '\0') {
+    uVar1 = in_zero;
+  }
+                    /* WARNING: Treating indirect jump as return */
+  return uVar1;
+}
+
+

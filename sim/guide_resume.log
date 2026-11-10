@@ -1,0 +1,5 @@
+DONE PC 800d3614 retired  200100000 GPU          0
+- sim/tb_guide_resume.sv:77: Verilog $finish
+- S i m u l a t i o n   R e p o r t: Verilator 5.044 2026-01-01
+- Verilator: $finish at 8ms; walltime 1.482 s; speed 5.394 ms/s
+- Verilator: cpu 1.484 s on 1 threads; alloced 0 MB

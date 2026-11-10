@@ -1,0 +1,107 @@
+2026-11-07 22:20:13 INFO  (LoggingInitialization) Using log config file: jar:file:/opt/ghidra_12.1.4_PUBLIC/Ghidra/Framework/Generic/lib/Generic.jar!/generic.log4j.xml  
+2026-11-07 22:20:13 INFO  (LoggingInitialization) Using log file: re/ghidra_inspect.log  
+2026-11-07 22:20:13 DEBUG (GhidraObjectInputFilter) Including serial input filter: FileSystem/data/client.rmi.serial.filter  
+2026-11-07 22:20:13 INFO  (Preferences) Loading user preferences: /root/.config/ghidra/ghidra_12.1.4_PUBLIC/preferences  
+2026-11-07 22:20:13 INFO  (Preferences) Loading previous preferences: /root/.config/ghidra/ghidra_11.4.2_PUBLIC/preferences  
+2026-11-07 22:20:13 INFO  (ClassSearcher) Searching for classes...  
+2026-11-07 22:20:14 INFO  (ClassSearcher) Class search complete (1205 ms)  
+2026-11-07 22:20:14 INFO  (DefaultSSLContextInitializer) Initializing SSL Context  
+2026-11-07 22:20:14 INFO  (SecureRandomFactory) Initializing Random Number Generator...  
+2026-11-07 22:20:14 INFO  (SecureRandomFactory) Random Number Generator initialization complete: NativePRNGNonBlocking  
+2026-11-07 22:20:14 INFO  (DefaultTrustManagerFactory) Trust manager disabled, cacerts have not been set  
+2026-11-07 22:20:15 INFO  (AnalyzeHeadless) Headless startup complete (3947 ms)  
+2026-11-07 22:20:15 INFO  (ClassSearcher) Class searcher loaded 59 extension points (20 false positives)  
+2026-11-07 22:20:15 INFO  (HeadlessAnalyzer) HEADLESS Script Paths:
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Base/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FileFormats/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/8051/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/DecompilerDependent/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SwiftDemangler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/PIC/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FunctionID/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Decompiler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/MicrosoftCodeAnalyzer/ghidra_scripts
+    /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/GnuDemangler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SystemEmulation/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BytePatterns/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/Atmel/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/DATA/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/WildcardAssembler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PDB/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/JVM/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/VersionTracking/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger-rmi-trace/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PyGhidra/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BSim/ghidra_scripts  
+2026-11-07 22:20:15 INFO  (HeadlessAnalyzer) HEADLESS: execution starts  
+2026-11-07 22:20:15 INFO  (HeadlessAnalyzer) Opening existing project: /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/ghidra/PaceU202  
+2026-11-07 22:20:16 INFO  (HeadlessProject) Opening project: /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/ghidra/PaceU202  
+2026-11-07 22:20:17 INFO  (HeadlessAnalyzer) REPORT: Processing project file: /FLASH_U202.bin  
+2026-11-07 22:20:18 INFO  (HeadlessAnalyzer) REPORT: Execute script: InspectStrictRead.java '/mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/strict_read_ghidra.txt'   
+2026-11-07 22:20:19 INFO  (HeadlessAnalyzer) SCRIPT: /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/scripts/InspectStrictRead.java  
+2026-11-07 22:20:19 ERROR (HeadlessAnalyzer) REPORT SCRIPT ERROR:  ghidra.program.model.listing.ContextChangeException: Context register change conflicts with one or more instructions
+	at ghidra.program.database.code.CodeManager.checkContextWrite(CodeManager.java:2593)
+	at ghidra.program.database.register.ProgramRegisterContextDB.checkContextWrite(ProgramRegisterContextDB.java:210)
+	at ghidra.program.database.register.ProgramRegisterContextDB.setValue(ProgramRegisterContextDB.java:256)
+	at InspectStrictRead.run(InspectStrictRead.java:18)
+	at ghidra.app.script.GhidraScript.executeNormal(GhidraScript.java:460)
+	at ghidra.app.script.GhidraScript.doExecute(GhidraScript.java:314)
+	at ghidra.app.script.GhidraScript.execute(GhidraScript.java:290)
+	at ghidra.app.util.headless.HeadlessAnalyzer.runScript(HeadlessAnalyzer.java:585)
+	at ghidra.app.util.headless.HeadlessAnalyzer.runScriptsList(HeadlessAnalyzer.java:937)
+	at ghidra.app.util.headless.HeadlessAnalyzer.analyzeProgram(HeadlessAnalyzer.java:1093)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processFileNoImport(HeadlessAnalyzer.java:1191)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processFolderNoImport(HeadlessAnalyzer.java:1363)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processNoImport(HeadlessAnalyzer.java:1392)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processLocal(HeadlessAnalyzer.java:449)
+	at ghidra.app.util.headless.AnalyzeHeadless.launch(AnalyzeHeadless.java:199)
+	at ghidra.GhidraLauncher.launch(GhidraLauncher.java:81)
+	at ghidra.Ghidra.main(Ghidra.java:54)
+ 
+2026-11-07 22:20:19 INFO  (HeadlessAnalyzer) REPORT: Save succeeded for processed file: /FLASH_U202.bin  
+2026-11-07 22:20:51 INFO  (LoggingInitialization) Using log config file: jar:file:/opt/ghidra_12.1.4_PUBLIC/Ghidra/Framework/Generic/lib/Generic.jar!/generic.log4j.xml  
+2026-11-07 22:20:51 INFO  (LoggingInitialization) Using log file: re/ghidra_inspect.log  
+2026-11-07 22:20:51 DEBUG (GhidraObjectInputFilter) Including serial input filter: FileSystem/data/client.rmi.serial.filter  
+2026-11-07 22:20:51 INFO  (Preferences) Loading user preferences: /root/.config/ghidra/ghidra_12.1.4_PUBLIC/preferences  
+2026-11-07 22:20:51 INFO  (Preferences) Loading previous preferences: /root/.config/ghidra/ghidra_11.4.2_PUBLIC/preferences  
+2026-11-07 22:20:51 INFO  (ClassSearcher) Searching for classes...  
+2026-11-07 22:20:52 INFO  (ClassSearcher) Class search complete (928 ms)  
+2026-11-07 22:20:52 INFO  (DefaultSSLContextInitializer) Initializing SSL Context  
+2026-11-07 22:20:52 INFO  (SecureRandomFactory) Initializing Random Number Generator...  
+2026-11-07 22:20:52 INFO  (SecureRandomFactory) Random Number Generator initialization complete: NativePRNGNonBlocking  
+2026-11-07 22:20:52 INFO  (DefaultTrustManagerFactory) Trust manager disabled, cacerts have not been set  
+2026-11-07 22:20:53 INFO  (AnalyzeHeadless) Headless startup complete (2924 ms)  
+2026-11-07 22:20:53 INFO  (ClassSearcher) Class searcher loaded 59 extension points (20 false positives)  
+2026-11-07 22:20:53 INFO  (HeadlessAnalyzer) HEADLESS Script Paths:
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Base/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FileFormats/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/8051/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/DecompilerDependent/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SwiftDemangler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/PIC/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FunctionID/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Decompiler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/MicrosoftCodeAnalyzer/ghidra_scripts
+    /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/GnuDemangler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SystemEmulation/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BytePatterns/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/Atmel/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/DATA/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/WildcardAssembler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PDB/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/JVM/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/VersionTracking/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger-rmi-trace/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PyGhidra/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BSim/ghidra_scripts  
+2026-11-07 22:20:53 INFO  (HeadlessAnalyzer) HEADLESS: execution starts  
+2026-11-07 22:20:53 INFO  (HeadlessAnalyzer) Opening existing project: /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/ghidra/PaceU202  
+2026-11-07 22:20:53 INFO  (HeadlessProject) Opening project: /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/ghidra/PaceU202  
+2026-11-07 22:20:55 INFO  (HeadlessAnalyzer) REPORT: Processing project file: /FLASH_U202.bin  
+2026-11-07 22:20:55 INFO  (HeadlessAnalyzer) REPORT: Execute script: InspectStrictRead.java '/mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/strict_read_ghidra.txt'   
+2026-11-07 22:20:57 INFO  (HeadlessAnalyzer) SCRIPT: /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/scripts/InspectStrictRead.java  
+2026-11-07 22:20:57 INFO  (HeadlessAnalyzer) REPORT: Save succeeded for processed file: /FLASH_U202.bin  

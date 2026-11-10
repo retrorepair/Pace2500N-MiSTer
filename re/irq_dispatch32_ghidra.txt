@@ -1,0 +1,50 @@
+bfc0ee4c  addiu sp,sp,-0x10
+bfc0ee50  sw at,0x0(sp)
+bfc0ee54  sw ra,0x4(sp)
+bfc0ee58  sw s0,0x8(sp)
+bfc0ee5c  sw s1,0xc(sp)
+bfc0ee60  mfc0 s0,Cause
+bfc0ee64  nop
+bfc0ee68  andi s1,s0,0x7c
+bfc0ee6c  bne s1,zero,0xbfc0eef0
+bfc0ee70  _nop
+bfc0ee74  mfc0 s0,Cause
+bfc0ee78  nop
+bfc0ee7c  lui s1,0x0
+bfc0ee80  ori s1,s1,0xff00
+bfc0ee84  and s0,s0,s1
+bfc0ee88  mfc0 s1,Status
+bfc0ee8c  nop
+bfc0ee90  and s0,s0,s1
+bfc0ee94  jal 0xbfc0e5f8
+bfc0ee98  _nop
+bfc0ee9c  andi s1,s0,0x400
+bfc0eea0  beq s1,zero,0xbfc0eeb8
+bfc0eea4  _nop
+bfc0eea8  jalx 0xbfc01bd4
+bfc0eeac  _li a0,0x2
+bfc0eeb0  j 0xbfc0e850
+bfc0eeb4  _nop
+bfc0eeb8  andi s1,s0,0x8000
+bfc0eebc  beq s1,zero,0xbfc0eee8
+bfc0eec0  _nop
+bfc0eec4  lui at,0x8001
+bfc0eec8  lw t0,0x3adc(at)
+bfc0eecc  mtc0 t0,Compare
+bfc0eed0  nop
+bfc0eed4  nop
+bfc0eed8  mtc0 zero,Count
+bfc0eedc  nop
+bfc0eee0  jal 0xbfc0ed70
+bfc0eee4  _nop
+bfc0eee8  j 0xbfc0e850
+bfc0eeec  _nop
+bfc0eef0  lw at,0x0(sp)
+bfc0eef4  lw ra,0x4(sp)
+bfc0eef8  lw s0,0x8(sp)
+bfc0eefc  lw s1,0xc(sp)
+bfc0ef00  addiu sp,sp,0x10
+bfc0ef04  lui k0,0x9fc0
+bfc0ef08  addiu k0,k0,0x1274
+bfc0ef0c  jr k0
+bfc0ef10  _nop

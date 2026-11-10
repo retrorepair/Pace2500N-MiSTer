@@ -1,0 +1,12 @@
+80004eac  sw v0,0x148(s0)
+80004eb0  addiu v0,sp,0xe
+80004eb4  lbu v1,0x0(v0)
+80004eb6  li v0,0xc000
+80004eba  or v1,v0
+80004ebc  sw v1,0x144(s0)
+80004ec0  move v0,s1
+80004ec2  lw a0,0x24(sp)
+80004ec4  lw s0,0x0(sp)
+80004ec6  lw s1,0x4(sp)
+80004ec8  jr a0
+80004eca  _addiu sp,0x28

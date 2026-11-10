@@ -1,0 +1,217 @@
+Info: *******************************************************************
+Info: Running Quartus Prime Shell
+    Info: Version 17.0.2 Build 602 07/19/2017 SJ Lite Edition
+    Info: Copyright (C) 2017  Intel Corporation. All rights reserved.
+    Info: Your use of Intel Corporation's design tools, logic functions 
+    Info: and other software and tools, and its AMPP partner logic 
+    Info: functions, and any output files from any of the foregoing 
+    Info: (including device programming or simulation files), and any 
+    Info: associated documentation or information are expressly subject 
+    Info: to the terms and conditions of the Intel Program License 
+    Info: Subscription Agreement, the Intel Quartus Prime License Agreement,
+    Info: the Intel MegaCore Function License Agreement, or other 
+    Info: applicable license agreement, including, without limitation, 
+    Info: that your use is for the sole purpose of programming logic 
+    Info: devices manufactured by Intel and sold by Intel or its 
+    Info: authorized distributors.  Please refer to the applicable 
+    Info: agreement for further details.
+    Info: Processing started: Sun Nov 08 23:10:48 2026
+Info: Command: quartus_sh --flow compile Pace2500N
+Info: Quartus(args): compile Pace2500N
+Info: Project Name = C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/Pace2500N
+Info: Revision Name = Pace2500N
+Info (293032): Detected changes in source files.
+    Info (293027): Source file: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/rtl/Pace2500N_Transport.sv has changed.
+    Info (293027): Source file: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/rtl/pace_section_demux.sv has changed.
+    Info (293033): A new file was added to the project: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/rtl/pace_mmio_response.sv.
+    Info (293033): A new file was added to the project: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/rtl/pace_ts_load_tracker.sv.
+Info (293032): Detected changes in source files.
+    Info (293027): Source file: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/rtl/Pace2500N_Transport.sv has changed.
+    Info (293027): Source file: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/rtl/pace_section_demux.sv has changed.
+    Info (293033): A new file was added to the project: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/rtl/pace_mmio_response.sv.
+    Info (293033): A new file was added to the project: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/rtl/pace_ts_load_tracker.sv.
+Info (293032): Detected changes in source files.
+    Info (293027): Source file: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/rtl/Pace2500N_Transport.sv has changed.
+    Info (293027): Source file: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/rtl/pace_section_demux.sv has changed.
+    Info (293033): A new file was added to the project: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/rtl/pace_mmio_response.sv.
+    Info (293033): A new file was added to the project: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/rtl/pace_ts_load_tracker.sv.
+Info: *******************************************************************
+Info: Running Quartus Prime Shell
+    Info: Version 17.0.2 Build 602 07/19/2017 SJ Lite Edition
+    Info: Processing started: Sun Nov 08 23:10:50 2026
+Info: Command: quartus_sh -t sys/build_id.tcl compile Pace2500N Pace2500N
+Info: Quartus(args): compile Pace2500N Pace2500N
+Info (23030): Evaluation of Tcl script sys/build_id.tcl was successful
+Info: Quartus Prime Shell was successful. 0 errors, 0 warnings
+    Info: Peak virtual memory: 4775 megabytes
+    Info: Processing ended: Sun Nov 08 23:10:51 2026
+    Info: Elapsed time: 00:00:01
+    Info: Total CPU time (on all processors): 00:00:01
+Info: *******************************************************************
+Info: Running Quartus Prime Analysis & Synthesis
+    Info: Version 17.0.2 Build 602 07/19/2017 SJ Lite Edition
+    Info: Processing started: Sun Nov 08 23:10:52 2026
+Info: Command: quartus_map --read_settings_files=on --write_settings_files=off Pace2500N -c Pace2500N
+Info (16303): Aggressive Performance optimization mode selected -- timing performance will be prioritized at the potential cost of increased logic area and compilation time
+    Info (16304): Mode behavior is affected by advanced setting Restructure Multiplexers (default for this mode is Off)
+    Info (16304): Mode behavior is affected by advanced setting Placement Effort Multiplier (default for this mode is 4.0)
+Info (20030): Parallel compilation is enabled and will use 12 of the 12 processors detected
+Info (12021): Found 2 design units, including 2 entities, in source file rtl/pace_pll.sv
+    Info (12023): Found entity 1: pll File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/rtl/pace_pll.sv Line: 2
+    Info (12023): Found entity 2: pace_pll_impl File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/rtl/pace_pll.sv Line: 6
+Info (12021): Found 1 design units, including 1 entities, in source file sys/pll_hdmi.v
+    Info (12023): Found entity 1: pll_hdmi File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/pll_hdmi.v Line: 8
+Info (12021): Found 1 design units, including 1 entities, in source file sys/pll_hdmi/pll_hdmi_0002.v
+    Info (12023): Found entity 1: pll_hdmi_0002 File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/pll_hdmi/pll_hdmi_0002.v Line: 2
+Info (12021): Found 1 design units, including 1 entities, in source file sys/pll_audio.v
+    Info (12023): Found entity 1: pll_audio File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/pll_audio.v Line: 8
+Info (12021): Found 1 design units, including 1 entities, in source file sys/pll_audio/pll_audio_0002.v
+    Info (12023): Found entity 1: pll_audio_0002 File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/pll_audio/pll_audio_0002.v Line: 2
+Info (12021): Found 1 design units, including 1 entities, in source file sys/pll_cfg/pll_cfg.v
+    Info (12023): Found entity 1: pll_cfg File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/pll_cfg/pll_cfg.v Line: 8
+Info (12021): Found 1 design units, including 1 entities, in source file sys/pll_cfg/pll_cfg_hdmi.v
+    Info (12023): Found entity 1: pll_cfg_hdmi File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/pll_cfg/pll_cfg_hdmi.v Line: 16
+Info (12021): Found 1 design units, including 1 entities, in source file sys/pll_cfg/altera_pll_reconfig_top.v
+    Info (12023): Found entity 1: altera_pll_reconfig_top File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/pll_cfg/altera_pll_reconfig_top.v Line: 16
+Info (12021): Found 6 design units, including 6 entities, in source file sys/pll_cfg/altera_pll_reconfig_core.v
+    Info (12023): Found entity 1: altera_pll_reconfig_core File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/pll_cfg/altera_pll_reconfig_core.v Line: 16
+    Info (12023): Found entity 2: self_reset File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/pll_cfg/altera_pll_reconfig_core.v Line: 1691
+    Info (12023): Found entity 3: dprio_mux File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/pll_cfg/altera_pll_reconfig_core.v Line: 1739
+    Info (12023): Found entity 4: fpll_dprio_init File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/pll_cfg/altera_pll_reconfig_core.v Line: 1789
+    Info (12023): Found entity 5: dyn_phase_shift File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/pll_cfg/altera_pll_reconfig_core.v Line: 1884
+    Info (12023): Found entity 6: generic_lcell_comb File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/pll_cfg/altera_pll_reconfig_core.v Line: 2112
+Info (12021): Found 3 design units, including 3 entities, in source file sys/sys_top.v
+    Info (12023): Found entity 1: sys_top File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/sys_top.v Line: 22
+    Info (12023): Found entity 2: sync_fix File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/sys_top.v Line: 1897
+    Info (12023): Found entity 3: csync File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/sys_top.v Line: 1929
+Info (12021): Found 2 design units, including 1 entities, in source file sys/ascal.vhd
+    Info (12022): Found design unit 1: ascal-rtl File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/ascal.vhd Line: 269
+    Info (12023): Found entity 1: ascal File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/ascal.vhd Line: 114
+Info (12021): Found 2 design units, including 1 entities, in source file sys/pll_hdmi_adj.vhd
+    Info (12022): Found design unit 1: pll_hdmi_adj-rtl File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/pll_hdmi_adj.vhd Line: 53
+    Info (12023): Found entity 1: pll_hdmi_adj File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/pll_hdmi_adj.vhd Line: 21
+Info (12021): Found 3 design units, including 3 entities, in source file sys/math.sv
+    Info (12023): Found entity 1: sys_udiv File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/math.sv Line: 3
+    Info (12023): Found entity 2: sys_umul File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/math.sv Line: 46
+    Info (12023): Found entity 3: sys_umuldiv File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/math.sv Line: 85
+Info (12021): Found 5 design units, including 5 entities, in source file sys/hq2x.sv
+    Info (12023): Found entity 1: Hq2x File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/hq2x.sv Line: 13
+    Info (12023): Found entity 2: hq2x_in File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/hq2x.sv Line: 226
+    Info (12023): Found entity 3: hq2x_buf File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/hq2x.sv Line: 250
+    Info (12023): Found entity 4: DiffCheck File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/hq2x.sv Line: 271
+    Info (12023): Found entity 5: Blend File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/hq2x.sv Line: 298
+Info (12021): Found 1 design units, including 1 entities, in source file sys/scandoubler.v
+    Info (12023): Found entity 1: scandoubler File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/scandoubler.v Line: 22
+Info (12021): Found 1 design units, including 1 entities, in source file sys/scanlines.v
+    Info (12023): Found entity 1: scanlines File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/scanlines.v Line: 1
+Info (12021): Found 1 design units, including 1 entities, in source file sys/shadowmask.sv
+    Info (12023): Found entity 1: shadowmask File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/shadowmask.sv Line: 1
+Info (12021): Found 2 design units, including 2 entities, in source file sys/video_cleaner.sv
+    Info (12023): Found entity 1: video_cleaner File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/video_cleaner.sv Line: 12
+    Info (12023): Found entity 2: s_fix File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/video_cleaner.sv Line: 81
+Info (12021): Found 2 design units, including 2 entities, in source file sys/gamma_corr.sv
+    Info (12023): Found entity 1: gamma_corr File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/gamma_corr.sv Line: 1
+    Info (12023): Found entity 2: gamma_fast File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/gamma_corr.sv Line: 62
+Info (12021): Found 1 design units, including 1 entities, in source file sys/video_mixer.sv
+    Info (12023): Found entity 1: video_mixer File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/video_mixer.sv Line: 19
+Info (12021): Found 2 design units, including 2 entities, in source file sys/video_freak.sv
+    Info (12023): Found entity 1: video_freak File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/video_freak.sv Line: 16
+    Info (12023): Found entity 2: video_scale_int File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/video_freak.sv Line: 141
+Info (12021): Found 2 design units, including 2 entities, in source file sys/video_freezer.sv
+    Info (12023): Found entity 1: video_freezer File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/video_freezer.sv Line: 21
+    Info (12023): Found entity 2: sync_lock File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/video_freezer.sv Line: 80
+Info (12021): Found 2 design units, including 2 entities, in source file sys/arcade_video.v
+    Info (12023): Found entity 1: arcade_video File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/arcade_video.v Line: 29
+    Info (12023): Found entity 2: screen_rotate File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/arcade_video.v Line: 168
+Info (12021): Found 1 design units, including 1 entities, in source file sys/osd.v
+    Info (12023): Found entity 1: osd File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/osd.v Line: 4
+Info (12021): Found 1 design units, including 1 entities, in source file sys/vga_out.sv
+    Info (12023): Found entity 1: vga_out File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/vga_out.sv Line: 2
+Info (12021): Found 1 design units, including 1 entities, in source file sys/yc_out.sv
+    Info (12023): Found entity 1: yc_out File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/yc_out.sv Line: 27
+Info (12021): Found 1 design units, including 1 entities, in source file sys/i2c.v
+    Info (12023): Found entity 1: i2c File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/i2c.v Line: 2
+Info (12021): Found 1 design units, including 1 entities, in source file sys/alsa.sv
+    Info (12023): Found entity 1: alsa File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/alsa.sv Line: 22
+Info (12021): Found 1 design units, including 1 entities, in source file sys/i2s.v
+    Info (12023): Found entity 1: i2s File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/i2s.v Line: 2
+Info (12021): Found 1 design units, including 1 entities, in source file sys/spdif.v
+    Info (12023): Found entity 1: spdif File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/spdif.v Line: 33
+Info (12021): Found 2 design units, including 2 entities, in source file sys/audio_out.sv
+    Info (12023): Found entity 1: audio_out File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/audio_out.sv Line: 22
+    Info (12023): Found entity 2: aud_mix_top File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/audio_out.sv Line: 281
+Info (12021): Found 3 design units, including 3 entities, in source file sys/iir_filter.v
+    Info (12023): Found entity 1: IIR_filter File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/iir_filter.v Line: 22
+    Info (12023): Found entity 2: iir_filter_tap File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/iir_filter.v Line: 148
+    Info (12023): Found entity 3: DC_blocker File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/iir_filter.v Line: 189
+Info (12021): Found 2 design units, including 2 entities, in source file sys/ltc2308.sv
+    Info (12023): Found entity 1: ltc2308 File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/ltc2308.sv Line: 28
+    Info (12023): Found entity 2: ltc2308_tape File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/ltc2308.sv Line: 105
+Info (12021): Found 1 design units, including 1 entities, in source file sys/sigma_delta_dac.v
+    Info (12023): Found entity 1: sigma_delta_dac File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/sigma_delta_dac.v Line: 6
+Info (12021): Found 1 design units, including 1 entities, in source file sys/mt32pi.sv
+    Info (12023): Found entity 1: mt32pi File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/mt32pi.sv Line: 8
+Info (12021): Found 1 design units, including 1 entities, in source file sys/mcp23009.sv
+    Info (12023): Found entity 1: mcp23009 File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/mcp23009.sv Line: 5
+Info (12021): Found 1 design units, including 1 entities, in source file sys/f2sdram_safe_terminator.sv
+    Info (12023): Found entity 1: f2sdram_safe_terminator File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/f2sdram_safe_terminator.sv Line: 55
+Info (12021): Found 1 design units, including 1 entities, in source file sys/ddr_svc.sv
+    Info (12023): Found entity 1: ddr_svc File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/ddr_svc.sv Line: 23
+Info (12021): Found 2 design units, including 2 entities, in source file sys/sysmem.sv
+    Info (12023): Found entity 1: sysmem_lite File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/sysmem.sv Line: 2
+    Info (12023): Found entity 2: sysmem_HPS_fpga_interfaces File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/sysmem.sv Line: 241
+Info (12021): Found 1 design units, including 1 entities, in source file sys/sd_card.sv
+    Info (12023): Found entity 1: sd_card File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/sd_card.sv Line: 28
+Info (12021): Found 4 design units, including 4 entities, in source file sys/hps_io.sv
+    Info (12023): Found entity 1: hps_io File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/hps_io.sv Line: 35
+    Info (12023): Found entity 2: ps2_device File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/hps_io.sv Line: 711
+    Info (12023): Found entity 3: video_calc File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/hps_io.sv Line: 854
+    Info (12023): Found entity 4: confstr_rom File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/sys/hps_io.sv Line: 1033
+Info (12021): Found 1 design units, including 1 entities, in source file rtl/pace_muldiv.sv
+    Info (12023): Found entity 1: pace_muldiv File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/rtl/pace_muldiv.sv Line: 4
+Info (12021): Found 1 design units, including 1 entities, in source file rtl/pace_bootrom.sv
+    Info (12023): Found entity 1: pace_bootrom File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/rtl/pace_bootrom.sv Line: 5
+Info (12021): Found 1 design units, including 1 entities, in source file rtl/pace_debug_uart.sv
+    Info (12023): Found entity 1: pace_debug_uart File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/rtl/pace_debug_uart.sv Line: 4
+Info (12021): Found 1 design units, including 1 entities, in source file rtl/pace_firmware_cpu.sv
+    Info (12023): Found entity 1: pace_firmware_cpu File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/rtl/pace_firmware_cpu.sv Line: 7
+Info (12021): Found 1 design units, including 1 entities, in source file rtl/pace_pal576i.sv
+    Info (12023): Found entity 1: pace_pal576i File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/rtl/pace_pal576i.sv Line: 9
+Info (12021): Found 1 design units, including 1 entities, in source file rtl/pace_boot_monitor.sv
+    Info (12023): Found entity 1: pace_boot_monitor File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/rtl/pace_boot_monitor.sv Line: 3
+Info (12021): Found 1 design units, including 1 entities, in source file rtl/pace_keyboard_remote.sv
+    Info (12023): Found entity 1: pace_keyboard_remote File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/rtl/pace_keyboard_remote.sv Line: 4
+Info (12021): Found 1 design units, including 1 entities, in source file rtl/pace_guide_peripherals.sv
+    Info (12023): Found entity 1: pace_guide_peripherals File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/rtl/pace_guide_peripherals.sv Line: 4
+Info (12021): Found 1 design units, including 1 entities, in source file rtl/pace_guide_blitter.sv
+    Info (12023): Found entity 1: pace_guide_blitter File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/rtl/pace_guide_blitter.sv Line: 4
+Info (12021): Found 1 design units, including 1 entities, in source file rtl/pace_guide_video.sv
+    Info (12023): Found entity 1: pace_guide_video File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/rtl/pace_guide_video.sv Line: 4
+Info (12021): Found 1 design units, including 1 entities, in source file rtl/pace2500n_transport.sv
+    Info (12023): Found entity 1: emu File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/rtl/Pace2500N_Transport.sv Line: 3
+Info (12021): Found 1 design units, including 1 entities, in source file rtl/pace_ts_replay.sv
+    Info (12023): Found entity 1: pace_ts_replay File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/rtl/pace_ts_replay.sv Line: 4
+Warning (10229): Verilog HDL Expression warning at pace_section_demux.sv(66): truncated literal to match 14 bits File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/rtl/pace_section_demux.sv Line: 66
+Error (10170): Verilog HDL syntax error at pace_section_demux.sv(66) near text: "'d";  expecting ";". Check for and fix any syntax errors that appear immediately before or at the specified keyword. The Intel FPGA Knowledge Database contains many articles with specific details on how to resolve this error. Visit the Knowledge Database at https://www.altera.com/support/support-resources/knowledge-base/search.html and search for this specific error message number. File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/rtl/pace_section_demux.sv Line: 66
+Error (10112): Ignored design unit "pace_section_demux" at pace_section_demux.sv(6) due to previous errors File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/rtl/pace_section_demux.sv Line: 6
+Info (12021): Found 0 design units, including 0 entities, in source file rtl/pace_section_demux.sv
+Info (12021): Found 1 design units, including 1 entities, in source file rtl/pace_mmio_response.sv
+    Info (12023): Found entity 1: pace_mmio_response File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/rtl/pace_mmio_response.sv Line: 4
+Info (12021): Found 1 design units, including 1 entities, in source file rtl/pace_ts_load_tracker.sv
+    Info (12023): Found entity 1: pace_ts_load_tracker File: C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/rtl/pace_ts_load_tracker.sv Line: 3
+Info (144001): Generated suppressed messages file C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/output_files/Pace2500N.map.smsg
+Error: Quartus Prime Analysis & Synthesis was unsuccessful. 2 errors, 1 warning
+    Error: Peak virtual memory: 4980 megabytes
+    Error: Processing ended: Sun Nov 08 23:11:03 2026
+    Error: Elapsed time: 00:00:11
+    Error: Total CPU time (on all processors): 00:00:20
+Error (293001): Quartus Prime Full Compilation was unsuccessful. 4 errors, 1 warning
+Error: Flow compile (for project C:/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/builds/v048_transport/Pace2500N) was not successful
+Error: ERROR: Error(s) found while running an executable. See report file(s) for error message(s). Message log indicates which executable was run last.
+
+Error (23031): Evaluation of Tcl script c:/intelfpga_lite/17.0/quartus/common/tcl/internal/qsh_flow.tcl unsuccessful
+Error: Quartus Prime Shell was unsuccessful. 11 errors, 1 warning
+    Error: Peak virtual memory: 4705 megabytes
+    Error: Processing ended: Sun Nov 08 23:11:04 2026
+    Error: Elapsed time: 00:00:16
+    Error: Total CPU time (on all processors): 00:00:02

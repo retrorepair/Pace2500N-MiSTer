@@ -1,0 +1,180 @@
+{
+  "last_write_step": 279036597,
+  "armed": [
+    {
+      "channel": 20,
+      "pid": "0052",
+      "units": [
+        {
+          "unit": 21,
+          "rules": [
+            {
+              "offset": 0,
+              "value": "C1",
+              "mask": "FF"
+            },
+            {
+              "offset": 3,
+              "value": "01",
+              "mask": "FE"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "channel": 21,
+      "pid": "0036",
+      "units": [
+        {
+          "unit": 17,
+          "rules": [
+            {
+              "offset": 0,
+              "value": "A3",
+              "mask": "FE"
+            },
+            {
+              "offset": 3,
+              "value": "0B",
+              "mask": "FF"
+            },
+            {
+              "offset": 4,
+              "value": "B9",
+              "mask": "FE"
+            },
+            {
+              "offset": 8,
+              "value": "CD",
+              "mask": "FF"
+            },
+            {
+              "offset": 9,
+              "value": "26",
+              "mask": "FF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "channel": 22,
+      "pid": "0014",
+      "units": [
+        {
+          "unit": 10,
+          "rules": [
+            {
+              "offset": 0,
+              "value": "73",
+              "mask": "FF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "channel": 23,
+      "pid": "0011",
+      "units": [
+        {
+          "unit": 4,
+          "rules": [
+            {
+              "offset": 0,
+              "value": "42",
+              "mask": "FB"
+            },
+            {
+              "offset": 3,
+              "value": "00",
+              "mask": "FF"
+            },
+            {
+              "offset": 4,
+              "value": "00",
+              "mask": "FF"
+            },
+            {
+              "offset": 8,
+              "value": "00",
+              "mask": "FF"
+            },
+            {
+              "offset": 9,
+              "value": "20",
+              "mask": "FF"
+            }
+          ]
+        },
+        {
+          "unit": 5,
+          "rules": [
+            {
+              "offset": 0,
+              "value": "42",
+              "mask": "FF"
+            }
+          ]
+        },
+        {
+          "unit": 6,
+          "rules": [
+            {
+              "offset": 0,
+              "value": "4A",
+              "mask": "FF"
+            },
+            {
+              "offset": 3,
+              "value": "10",
+              "mask": "FF"
+            },
+            {
+              "offset": 4,
+              "value": "00",
+              "mask": "FF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "channel": 24,
+      "pid": "0010",
+      "units": [
+        {
+          "unit": 2,
+          "rules": [
+            {
+              "offset": 0,
+              "value": "40",
+              "mask": "FE"
+            },
+            {
+              "offset": 3,
+              "value": "00",
+              "mask": "FF"
+            },
+            {
+              "offset": 4,
+              "value": "20",
+              "mask": "FF"
+            }
+          ]
+        },
+        {
+          "unit": 3,
+          "rules": [
+            {
+              "offset": 0,
+              "value": "40",
+              "mask": "FF"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

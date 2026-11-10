@@ -1,0 +1,17 @@
+
+// 800b1ac4 application_later_wait
+
+void application_later_wait(undefined4 param_1,undefined4 param_2)
+
+{
+  undefined1 auStack_28 [8];
+  undefined4 uStack_20;
+  undefined4 uStack_1c;
+  
+  (*pcRam800b1aec)(auStack_28);
+  (*pcRam800b1af0)(param_1,param_2,uStack_20,uStack_1c);
+                    /* WARNING: Treating indirect jump as return */
+  return;
+}
+
+

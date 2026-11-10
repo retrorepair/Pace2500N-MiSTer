@@ -1,0 +1,14 @@
+bfc05738  lbu v1,0x0(a0)
+bfc0573a  move v0,zero
+bfc0573c  addiu v1,0x1
+bfc0573e  cmp a1,v1
+bfc05740  btnez 0xbfc0574c
+bfc05742  sltiu a1,0x20
+bfc05744  bteqz 0xbfc0574c
+bfc05746  sltiu a1,0x3
+bfc05748  btnez 0xbfc0574c
+bfc0574a  li v0,0x1
+bfc0574c  sll v0,v0,0x18
+bfc05750  srl v0,v0,0x18
+bfc05754  jr ra
+bfc05756  _addiu s0,0x0

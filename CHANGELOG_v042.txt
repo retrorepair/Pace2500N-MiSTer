@@ -1,0 +1,5 @@
+v0.4.2 synthesizer lean revision of v0.4.1:
+ - one synchronous M10K ROM read port; removed live hex viewer
+ - extra FSM state S_ROMREAD for registered ROM latency
+ - still original U202 boot code, DDR3, 576i live monitor
+ - source verified by structural and ROM integrity checks; Quartus not available

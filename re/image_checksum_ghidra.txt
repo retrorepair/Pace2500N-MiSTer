@@ -1,0 +1,17 @@
+bfc129e4  move v1,a0
+bfc129e6  b 0xbfc129fe
+bfc129e8  sll v0,v1,0x8
+bfc129ea  lbu a3,0x0(a1)
+bfc129ec  srl v1,v1,0x18
+bfc129f0  xor v1,a3
+bfc129f2  sll v1,v1,0x2
+bfc129f4  lw a3,0xa4(pc)
+bfc129f6  addu v1,a3,v1
+bfc129f8  lw v1,0x0(v1)
+bfc129fa  addiu a1,0x1
+bfc129fc  xor v1,v0
+bfc129fe  move t8,a2
+bfc12a00  addiu a2,-0x1
+bfc12a02  btnez 0xbfc129e8
+bfc12a04  jr ra
+bfc12a06  _move v0,v1

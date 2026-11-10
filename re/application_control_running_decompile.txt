@@ -1,0 +1,22 @@
+
+// 80036b24 control_mark_application_running
+
+void control_mark_application_running(void)
+
+{
+  code *pcVar1;
+  code *UNRECOVERED_JUMPTABLE;
+  
+  if ((*puRam80036c54 & 4) != 0) {
+    (*pcRam80036c64)(uRam80036cbc,*(undefined4 *)(iRam80036c60 + *piRam80036c58 * 4));
+  }
+  pcVar1 = pcRam80036cc0;
+  *piRam80036c58 = 2;
+  (*pcVar1)();
+                    /* WARNING: Could not recover jumptable at 0x80036b50. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+

@@ -1,0 +1,3 @@
+8001c0f8  lw v0,0x2ec(pc)
+8001c0fa  jr ra
+8001c0fc  _addiu s0,0x0

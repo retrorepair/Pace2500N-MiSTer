@@ -1,0 +1,13 @@
+Pace2500N MiSTer real firmware boot v0.4.1
+
+Quartus Error 10028: multiple constant drivers at rtl/Pace2500N.sv line 83
+Cause: the hps_io `sd_buff_wr` output was illegally tied to 1'b0.
+
+OLD: .sd_buff_din('{16'h0000}),.sd_buff_wr(1'b0)
+NEW: .sd_buff_din('{16'h0000}),.sd_buff_wr()
+
+This file has been changed in the included source.
+If you already extracted v0.4, applying this one-line edit is sufficient
+to address that specific synthesis error; re-run Quartus compilation.
+
+No successful Quartus build has been independently verified.

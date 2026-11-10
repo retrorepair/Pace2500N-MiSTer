@@ -1,0 +1,36 @@
+{
+  "steps": 11252288,
+  "pc": "800291F4",
+  "comparisons": [
+    {
+      "destination": "A0000400",
+      "bytes": 208,
+      "differences": 0,
+      "first_offsets": []
+    },
+    {
+      "destination": "80000800",
+      "bytes": 500,
+      "differences": 0,
+      "first_offsets": []
+    },
+    {
+      "destination": "800FBE10",
+      "bytes": 39800,
+      "differences": 0,
+      "first_offsets": []
+    },
+    {
+      "destination": "80105988",
+      "bytes": 2304,
+      "differences": 0,
+      "first_offsets": []
+    },
+    {
+      "destination": "800009F4",
+      "bytes": 1029152,
+      "differences": 0,
+      "first_offsets": []
+    }
+  ]
+}

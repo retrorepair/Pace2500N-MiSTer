@@ -1,0 +1,14 @@
+8002a59c  addiu sp,-0x10
+8002a59e  sw ra,0xc(sp)
+8002a5a0  lw v1,0x78(pc)
+8002a5a2  lw v1,0x0(v1)
+8002a5a4  sw v1,0x4(sp)
+8002a5a6  addiu a0,sp,0x4
+8002a5a8  lw a2,0x74(pc)
+8002a5aa  jalr a2
+8002a5ac  _li a1,0x4
+8002a5ae  lw v1,0x74(pc)
+8002a5b0  lbu v0,0x0(v1)
+8002a5b2  lw a0,0xc(sp)
+8002a5b4  jr a0
+8002a5b6  _addiu sp,0x10

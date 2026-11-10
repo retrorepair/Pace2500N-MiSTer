@@ -1,0 +1,36 @@
+{
+  "step": "See v047_guide_d_navigation.log; renderer context initially200M",
+  "source": "FPGA guest RAM readback via HPS /dev/mem; offline palette rendering",
+  "protected_loader_handoff_observed": false,
+  "hardware_capture": false,
+  "host_firmware_patches": [
+    {
+      "step": 143268918,
+      "address": "80054F84",
+      "space": "RAM",
+      "old": "FFFFFFFF",
+      "new": "00000000",
+      "purpose": "Change AV selection native default return"
+    },
+    {
+      "step": 184000000,
+      "address": "80430A28",
+      "space": "RAM application object",
+      "old": "00000000",
+      "new": "00000001",
+      "purpose": "Host-forced presentation readiness; NOT a peripheral response"
+    }
+  ],
+  "root": "01583FE8",
+  "descriptor": "00583FE8",
+  "width": 720,
+  "height": 576,
+  "depth": 8,
+  "even": "00584048",
+  "odd": "005B6A58",
+  "clut": "005E9468",
+  "distinct_indices": 28,
+  "index_sha256": "74695ee3962f14a3eea468e1703b70e121034a2020e4dffa948f05f09f375423",
+  "png_sha256": "ff9db48735894079378720e29d85b56a85185ed9586d0f68c07175e166d26537",
+  "hardware_ram_readback": true
+}

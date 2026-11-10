@@ -1,0 +1,36 @@
+# vsim -c tb_timer -l sim/timer.log -do "onbreak {quit -code 1}; run -all; quit -code 0" 
+# Start time: 23:58:13 on Nov 07,2026
+# Loading sv_std.std
+# Loading sim/work.tb_timer
+# Loading sim/work.pace_firmware_cpu
+# Loading sim/work.pace_bootrom
+# Loading sim/work.pace_muldiv
+# ** Warning: (vsim-3017) sim/tb_timer.sv(5): [TFMPC] - Too few port connections. Expected 26, found 7.
+#    Time: 0 ps  Iteration: 0  Instance: /tb_timer/DUT File: rtl/pace_firmware_cpu.sv
+# ** Warning: (vsim-3722) sim/tb_timer.sv(5): [TFMPC] - Missing connection for port 'mem_req'.
+# ** Warning: (vsim-3722) sim/tb_timer.sv(5): [TFMPC] - Missing connection for port 'mem_we'.
+# ** Warning: (vsim-3722) sim/tb_timer.sv(5): [TFMPC] - Missing connection for port 'mem_addr'.
+# ** Warning: (vsim-3722) sim/tb_timer.sv(5): [TFMPC] - Missing connection for port 'mem_wdata'.
+# ** Warning: (vsim-3722) sim/tb_timer.sv(5): [TFMPC] - Missing connection for port 'mem_be'.
+# ** Warning: (vsim-3722) sim/tb_timer.sv(5): [TFMPC] - Missing connection for port 'pc'.
+# ** Warning: (vsim-3722) sim/tb_timer.sv(5): [TFMPC] - Missing connection for port 'instruction'.
+# ** Warning: (vsim-3722) sim/tb_timer.sv(5): [TFMPC] - Missing connection for port 'retired'.
+# ** Warning: (vsim-3722) sim/tb_timer.sv(5): [TFMPC] - Missing connection for port 'ram_writes'.
+# ** Warning: (vsim-3722) sim/tb_timer.sv(5): [TFMPC] - Missing connection for port 'last_ram_address'.
+# ** Warning: (vsim-3722) sim/tb_timer.sv(5): [TFMPC] - Missing connection for port 'last_mmio_address'.
+# ** Warning: (vsim-3722) sim/tb_timer.sv(5): [TFMPC] - Missing connection for port 'last_mmio_value'.
+# ** Warning: (vsim-3722) sim/tb_timer.sv(5): [TFMPC] - Missing connection for port 'last_mmio_read'.
+# ** Warning: (vsim-3722) sim/tb_timer.sv(5): [TFMPC] - Missing connection for port 'mmio_writes'.
+# ** Warning: (vsim-3722) sim/tb_timer.sv(5): [TFMPC] - Missing connection for port 'guessed_reads'.
+# ** Warning: (vsim-3722) sim/tb_timer.sv(5): [TFMPC] - Missing connection for port 'halt_code'.
+# ** Warning: (vsim-3722) sim/tb_timer.sv(5): [TFMPC] - Missing connection for port 'mips16'.
+# ** Warning: (vsim-3722) sim/tb_timer.sv(5): [TFMPC] - Missing connection for port 'reached_mips16'.
+# ** Warning: (vsim-3722) sim/tb_timer.sv(5): [TFMPC] - Missing connection for port 'interrupt_count'.
+# onbreak {quit -code 1}
+#  Warning: onbreak command for use within macro
+#  run -all
+# PASS: Count/Compare, masks, software Cause bits, BEV, MIPS16 EPC, taken/untaken delay BD
+# ** Note: $finish    : sim/tb_timer.sv(61)
+#    Time: 1070 ns  Iteration: 1  Instance: /tb_timer
+# End time: 23:58:13 on Nov 07,2026, Elapsed time: 0:00:00
+# Errors: 0, Warnings: 20

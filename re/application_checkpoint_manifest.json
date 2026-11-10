@@ -1,0 +1,1239 @@
+{
+  "created_utc": "2026-11-08T14:16:00Z",
+  "kind": "Software RE checkpoint; no new FPGA bitstream",
+  "latest": "application_lsi_strict_02: unsupported group5 APR0400=D5",
+  "loader_handoff_observed": false,
+  "hardware": "v046 EXP remains deployed; v044 fallback unchanged",
+  "files": [
+    {
+      "path": "CURRENT_STATUS.md",
+      "bytes": 15480,
+      "sha256": "154059dbf4e546957622637138fb577a2fe674074ebce641c5b5d9093bc774e9"
+    },
+    {
+      "path": "firmware/FLASH_U202.bin",
+      "bytes": 2097152,
+      "sha256": "32f6b2e84d0c4c4ec280a72f2d080e4b6fa5e68e8438ef712f34f97f63d38c7f"
+    },
+    {
+      "path": "firmware/FLASH_U203.bin",
+      "bytes": 2097152,
+      "sha256": "7832d619b63e369bdd4a0f3de8dd73c98a99285d96c94a8bb0a39fe829ce1f40"
+    },
+    {
+      "path": "handoff.md",
+      "bytes": 16652,
+      "sha256": "e9ff89f9f556d2a2b7118420cf8c37b2d51af64b4e1e6dd2462323ef22ca5cf1"
+    },
+    {
+      "path": "OVERNIGHT_WORK_LOG.md",
+      "bytes": 8531,
+      "sha256": "32c12c4299ec9d3d09fd68e24dfe74add93c50583242805e0c3060453ba4d179"
+    },
+    {
+      "path": "re/application_board_input_ghidra.txt",
+      "bytes": 1007,
+      "sha256": "99bb54fbee7d1306280ffe19210d510f0008e907ecead6095340af1b4fb516c6"
+    },
+    {
+      "path": "re/application_boot_02.json",
+      "bytes": 30516688,
+      "sha256": "7a81786e739f41cc5a8c7bce2492140c5e92c8d2d1fe714a411300def9fd0cd3"
+    },
+    {
+      "path": "re/application_boot_02.txt",
+      "bytes": 265,
+      "sha256": "7c2fa0e09c5b543eb2e3e2fd84bb451d37a35e0a30cf8e3b5e0e42448a0a8875"
+    },
+    {
+      "path": "re/application_boot_03.json",
+      "bytes": 50029217,
+      "sha256": "053aa41f1e57eba765ccb2ec8176bce4d260218b9e6ac53781d6debf05d33f7b"
+    },
+    {
+      "path": "re/application_boot_03.txt",
+      "bytes": 265,
+      "sha256": "7c2fa0e09c5b543eb2e3e2fd84bb451d37a35e0a30cf8e3b5e0e42448a0a8875"
+    },
+    {
+      "path": "re/application_chip_identity_ghidra.txt",
+      "bytes": 365,
+      "sha256": "da8325e250f6e44c3edf6ae3752f278f29c287bc2323a61de0e01898a1bc5f47"
+    },
+    {
+      "path": "re/application_command43_ghidra.txt",
+      "bytes": 648,
+      "sha256": "3832156d6e34eaa3c4623ae054f32c45c9f19f73272e2d28db0a64ebe6ae23b8"
+    },
+    {
+      "path": "re/application_command53_builder_ghidra.txt",
+      "bytes": 492,
+      "sha256": "7f3c7256078d0756d149ca711214e22a218cce21e52bc1cbffa408fd431010c3"
+    },
+    {
+      "path": "re/application_command53_start_ghidra.txt",
+      "bytes": 284,
+      "sha256": "14759f2aebc619dfa4bc1c7bfd273b98bf6133c4f5f5c56ab6c9fa2ae386ab4b"
+    },
+    {
+      "path": "re/application_command54_builder_ghidra.txt",
+      "bytes": 322,
+      "sha256": "19ccae5f9084800f26f6f3deb1f1c9c8887b1c4566e406f1549f501077217c7a"
+    },
+    {
+      "path": "re/application_compatibility_ghidra.txt",
+      "bytes": 1904,
+      "sha256": "014570697c965556cc4e5d82729b97af708279d5758a884f4ff4496f9e129897"
+    },
+    {
+      "path": "re/application_demod_address_map_ghidra.txt",
+      "bytes": 203,
+      "sha256": "d0535bde9b98bd35e5382248f3d3602f5a1d4c8b685c26f12c8d3caf84b28c63"
+    },
+    {
+      "path": "re/application_demod_bus_adapter_ghidra.txt",
+      "bytes": 203,
+      "sha256": "da90dff511a7dad8b64e83e5291d370a074e491ab1cf0e2d2f6954c310a5aeb3"
+    },
+    {
+      "path": "re/application_demod_field_read_ghidra.txt",
+      "bytes": 256,
+      "sha256": "ae0e312804e989d1217deb4577a1075a1b2db035218d41c5aa4d05fbd30205ab"
+    },
+    {
+      "path": "re/application_demod_field_write_ghidra.txt",
+      "bytes": 255,
+      "sha256": "e7b9aac3542515b9c371c5792b4f2e322c28a0930fd5320f1603a03e918c28aa"
+    },
+    {
+      "path": "re/application_demod_general_call_ghidra.txt",
+      "bytes": 244,
+      "sha256": "178dbed26fbddc88fd758abcad894374da3942d0276b3bc2e23a7c8fbcbff52c"
+    },
+    {
+      "path": "re/application_demod_id_ghidra.txt",
+      "bytes": 353,
+      "sha256": "67c4b76b672fd88f0f786cc3ac0945ece91c97e3dcb25120917f115f4b28caf3"
+    },
+    {
+      "path": "re/application_demod_read_ghidra.txt",
+      "bytes": 382,
+      "sha256": "50a3abdb44888b57ba8f1a5c2f9364b2452639b180b3e8793d7da4f589331767"
+    },
+    {
+      "path": "re/application_demod_register_block_write_ghidra.txt",
+      "bytes": 2367,
+      "sha256": "fcc0128cbe3a561526ed1dae70774a707f1d42fe320732c6e077d8a403dd034e"
+    },
+    {
+      "path": "re/application_demod_register_map_ghidra.txt",
+      "bytes": 1163,
+      "sha256": "e9b368bcde8463670a1286ac15a7b349bfb8b9a435b4d2a7e23c9de374c341d0"
+    },
+    {
+      "path": "re/application_demod_register_read_ghidra.txt",
+      "bytes": 2949,
+      "sha256": "7e2c7fae6597eb9272e4d0438a4c48c2d53ae47e12cb97fb17f5bf1d2b3122ad"
+    },
+    {
+      "path": "re/application_demod_register_write_ghidra.txt",
+      "bytes": 515,
+      "sha256": "e4c07e3cfd35bd7161dfb83827a6230c4e44e8cf4623af22a72003ce8099a6fa"
+    },
+    {
+      "path": "re/application_demod_seed00_01.json",
+      "bytes": 12064671,
+      "sha256": "e37f4ce82e50ead12fbd76d3c2308cd5f551401b2ce2211bcdaafbf09cef64ac"
+    },
+    {
+      "path": "re/application_demod_seed00_01.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "re/application_demod_seedFF_01.json",
+      "bytes": 12064671,
+      "sha256": "9a4fb46f3c2f065f71db092df988954acd99693279ff243f3c93600c005424dd"
+    },
+    {
+      "path": "re/application_demod_seedFF_01.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "re/application_demod_start_ghidra.txt",
+      "bytes": 1209,
+      "sha256": "79c7d5a0de4368c99e41d5a05af0140f64c42b063e88acd89230f82c758a2818"
+    },
+    {
+      "path": "re/application_entry_01.json",
+      "bytes": 102416,
+      "sha256": "f6eccdbb678746747da69cfa33a2884131a493f69fcc3559f20c8f1e76b7459c"
+    },
+    {
+      "path": "re/application_entry_01.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "re/application_entry_02.json",
+      "bytes": 123205,
+      "sha256": "a9914092d425a786092a84c870f4d0a5172ab32e35e728e87ff66386ebd82898"
+    },
+    {
+      "path": "re/application_entry_02.pkl.gz",
+      "bytes": 2735048,
+      "sha256": "38064334bd89e00593e4549df15f00e7d87737b57b6a8c4e992502e5d8179c84"
+    },
+    {
+      "path": "re/application_entry_02.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "re/application_entry_03.json",
+      "bytes": 138985,
+      "sha256": "d8af0437d1c2ff44f6f881bfe921ba9cc90f8a26bae9870a2870ee38786a0999"
+    },
+    {
+      "path": "re/application_entry_03.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "re/application_entry_04.json",
+      "bytes": 547714,
+      "sha256": "c76000f0eff08ca5315a273f35d91d1bc78d8339c6fdcbb196a2509a36f4ab80"
+    },
+    {
+      "path": "re/application_entry_04.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "re/application_entry_05.json",
+      "bytes": 552645,
+      "sha256": "f4183ba72480cf6d70b7f6c8c6fcb8caeb1f6e154a48b77565d76dba58cc09ca"
+    },
+    {
+      "path": "re/application_entry_05.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "re/application_entry_06.json",
+      "bytes": 1034710,
+      "sha256": "12a494ac89c010279c18993fd0121c65574fdf3ab3646a9ca3bcd325a20bf6d8"
+    },
+    {
+      "path": "re/application_entry_06.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "re/application_entry_07.json",
+      "bytes": 1219492,
+      "sha256": "e859c6c413fafcb71cbef94af56d68ed673a23bcbd4cf8b780e3cd828dab88e3"
+    },
+    {
+      "path": "re/application_entry_07.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "re/application_entry_08.json",
+      "bytes": 1663913,
+      "sha256": "ef1cd91f3d5e60c91e7bff59b4ba714d634b6b2ff3d7d72c4b3062e4b63bf828"
+    },
+    {
+      "path": "re/application_entry_08.pkl.gz",
+      "bytes": 2837662,
+      "sha256": "57f36cad3ebcfc61afd68cb31d91ca0043444ccbdbbfc722d4c98f6df25636ff"
+    },
+    {
+      "path": "re/application_entry_08.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "re/application_entry_09.json",
+      "bytes": 7707481,
+      "sha256": "58eb21fbec4eb78c643d27fe5697a5787d390487c11541777c2e4af6a892563c"
+    },
+    {
+      "path": "re/application_entry_09.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "re/application_entry_ghidra.txt",
+      "bytes": 1557,
+      "sha256": "71cc8b827877d0065399e626866d32b457fc9a1931b5aff149a85c2712b6a70b"
+    },
+    {
+      "path": "re/application_external_latch_ghidra.txt",
+      "bytes": 1086,
+      "sha256": "45148bf54e6ab0fb8e9c6ff137ed2ebcfaa654a89e5e13c618ea10dfc3ca8e55"
+    },
+    {
+      "path": "re/application_extraction_comparison.json",
+      "bytes": 690,
+      "sha256": "89bb03cf1567a467b4eeaf201b1fe68d6d9f615864ca5e7ba9ddcde8ae04541d"
+    },
+    {
+      "path": "re/application_frontend_bus_probe_ghidra.txt",
+      "bytes": 325,
+      "sha256": "6936ced32d9e3a4b12d4207221eb38b13a9692a448a5dea7508aa1333cb700a3"
+    },
+    {
+      "path": "re/application_frontend_bus_target_ghidra.txt",
+      "bytes": 325,
+      "sha256": "9705bba7a7f7606662ac927546da0d6bb0e990724f4ad63a5ff253e094343022"
+    },
+    {
+      "path": "re/application_frontend_i2c_access_ghidra.txt",
+      "bytes": 133,
+      "sha256": "e172876f556db319f2ebe1784e7c7cd10e3aada3224b90748ef778da216960f3"
+    },
+    {
+      "path": "re/application_frontend_i2c_read_ghidra.txt",
+      "bytes": 646,
+      "sha256": "e10f401a0ab7774be031daa5cdd59e4084c7f07b40c94ea9db0f80a459674bdf"
+    },
+    {
+      "path": "re/application_frontend_task_ghidra.txt",
+      "bytes": 5020,
+      "sha256": "43f7a2e31fdcfddcb5b30c0661efe68c5f57cf45f92f835afe6000561482d37c"
+    },
+    {
+      "path": "re/application_frontend_wait_ghidra.txt",
+      "bytes": 993,
+      "sha256": "292f132549343f98a2593ce63b392105ac9f951a81aed35a026f654363d03b0e"
+    },
+    {
+      "path": "re/application_gpio_init_ghidra.txt",
+      "bytes": 1378,
+      "sha256": "36d90f72f0edeca2889f9831d1754d2609c9e7185cd49fb1a31bd332be594fb5"
+    },
+    {
+      "path": "re/application_handoff_ghidra.txt",
+      "bytes": 277,
+      "sha256": "b6a5ef3993a91239539ff91ffcab165ea2056ff81c71ee79f6acd816cba7cf1b"
+    },
+    {
+      "path": "re/APPLICATION_HANDOFF_INVESTIGATION.md",
+      "bytes": 9671,
+      "sha256": "ad21ea48ef5f5e2f75eced25a05ef7f6f3d5e29af9c33107fcb282fdf55a9b5e"
+    },
+    {
+      "path": "re/application_hardware_init_ghidra.txt",
+      "bytes": 830,
+      "sha256": "aeb040eeb5c0d3c083829c71c2740a0a2e0cfd4c96952a2b0787f3b4f850a606"
+    },
+    {
+      "path": "re/application_header_read_ghidra.txt",
+      "bytes": 1372,
+      "sha256": "391ae5a641ab6f59b2a998b50fb93e808413f07368f1f99be97260207ba60dd8"
+    },
+    {
+      "path": "re/application_i2c_absent_01.json",
+      "bytes": 42939811,
+      "sha256": "56ec0823606f61b2d03e8892d42c84ec6bf33f8aba9c7f019d3c90f9e8ede68e"
+    },
+    {
+      "path": "re/application_i2c_absent_01.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "re/application_i2c_ack_01.json",
+      "bytes": 4626691,
+      "sha256": "074e73e831e88dfd1646fbbc950066af0858a147a63dd9d6d13d9649acae7e8e"
+    },
+    {
+      "path": "re/application_i2c_ack_01.pkl.gz",
+      "bytes": 2949995,
+      "sha256": "bfee981a5f2afe88458acfbb4b480a19f8602b5d9b92fb0fc18a5e4b0fa1af02"
+    },
+    {
+      "path": "re/application_i2c_ack_01.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "re/application_i2c_ack_02.json",
+      "bytes": 6164753,
+      "sha256": "568e5aa78a09959ffbf67b8fa3bfe79dc99702698cc15e0f56ab189766981dc7"
+    },
+    {
+      "path": "re/application_i2c_ack_02.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "re/application_i2c_completion_ghidra.txt",
+      "bytes": 590,
+      "sha256": "59e8069d09a1405dde3da62ebd44a51e1510bd371e56089eeb34d61eee772bf3"
+    },
+    {
+      "path": "re/application_i2c_demod_probe_01.json",
+      "bytes": 6222315,
+      "sha256": "06f8a9272e68337c2d8befe72873c599d8c4b5174d6f7e91e1a7d99ffa4e5d84"
+    },
+    {
+      "path": "re/application_i2c_demod_probe_01.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "re/application_i2c_descriptor_ghidra.txt",
+      "bytes": 2447,
+      "sha256": "b28d926e90621e88cca48836e35e3f7cdd0b20f4c51fa925732936ee4e95a7e9"
+    },
+    {
+      "path": "re/application_i2c_error_ghidra.txt",
+      "bytes": 523,
+      "sha256": "675d722a8e601b51d6d656206858cfc08b954e3c8673de4339f4bf45eaf95e21"
+    },
+    {
+      "path": "re/application_i2c_isr_ghidra.txt",
+      "bytes": 2098,
+      "sha256": "cbb84fce192b78f2d05f0e2a6eb05b262fc654c2b253b96e11a15dc5e3b565a5"
+    },
+    {
+      "path": "re/application_i2c_lisr_ghidra.txt",
+      "bytes": 232,
+      "sha256": "4ed79d4b685454db51435c4fe63d8ad05fd61727927f9756379193fa17624a24"
+    },
+    {
+      "path": "re/application_i2c_nack_01.json",
+      "bytes": 4168304,
+      "sha256": "1251758b250ee2c57b295c19e62974eb1e0bdd0488d45aa402ba572e9218af17"
+    },
+    {
+      "path": "re/application_i2c_nack_01.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "re/application_i2c_open_ghidra.txt",
+      "bytes": 1547,
+      "sha256": "a45e16760c9fe573d48e7f1708e575d41e0014df8aeddcfea735ece59d4fff58"
+    },
+    {
+      "path": "re/application_i2c_receive_ghidra.txt",
+      "bytes": 477,
+      "sha256": "15ab1209cb3032573e473a1216ec0e4f035ae79623ade3a485f7f791460864b0"
+    },
+    {
+      "path": "re/application_i2c_task_ghidra.txt",
+      "bytes": 3019,
+      "sha256": "6afa067702196dce36128cac25aa7ea220659de0b28fd15e7f98362dfe9fa334"
+    },
+    {
+      "path": "re/application_i2c_wait_ghidra.txt",
+      "bytes": 1581,
+      "sha256": "05d2f03f35e19f53340abbce4cda433480c0a38f0acc71db671c1f9462359676"
+    },
+    {
+      "path": "re/application_initialized_segments.bin",
+      "bytes": 1073800,
+      "sha256": "66273af550467e9baa87a178fa19ccbd533c9cf859263a90d152be461a0a86f8"
+    },
+    {
+      "path": "re/application_initialized_segments.json",
+      "bytes": 1748,
+      "sha256": "98753308873b0b8ef1e804182f32a808948aacf779052f108873c1776a0ec729"
+    },
+    {
+      "path": "re/application_lsi_strict_01.json",
+      "bytes": 10823469,
+      "sha256": "29a1b48a542f46af278f331fc3cfe07087a1ce9f09d95d8a00d35caabd5d84f2"
+    },
+    {
+      "path": "re/application_lsi_strict_01.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "re/application_lsi_strict_02.json",
+      "bytes": 10823344,
+      "sha256": "94ee45d1d56faf3ff0626d86c3715e35c1b919908704782670a231d01e3ffc5c"
+    },
+    {
+      "path": "re/application_lsi_strict_02.pkl.gz",
+      "bytes": 3184653,
+      "sha256": "08864eb4286f95001fee9a6eaa885cba03d15103429148f6ef4906fa6b588b2e"
+    },
+    {
+      "path": "re/application_memory_init_ghidra.txt",
+      "bytes": 1698,
+      "sha256": "ea2799f599ca1aaf311259b871adfe88f1652570bfb9b0d25e6388f8d407ccb7"
+    },
+    {
+      "path": "re/application_memory_init_tail_ghidra.txt",
+      "bytes": 1171,
+      "sha256": "4a914ed74e785ee89a1a600ab85fe20f2a5f8e8bd72ae8499a9587e763700c6c"
+    },
+    {
+      "path": "re/application_nucleus_entry_ghidra.txt",
+      "bytes": 1345,
+      "sha256": "3a127b1db18e4516aa1b22ece93e694504c4a100dabc6cf2b86ce27febec2e18"
+    },
+    {
+      "path": "re/application_peer_callback21_ghidra.txt",
+      "bytes": 114,
+      "sha256": "c0f159c192b48b27c294750db6ab451361f3fe183bb2024fff99121f03358b97"
+    },
+    {
+      "path": "re/application_peer_callbackF4_ghidra.txt",
+      "bytes": 163,
+      "sha256": "caabeeee0a0995963aed861f5f2ba27c2bcc04dbdfcc2b586dd4ee322b9e610e"
+    },
+    {
+      "path": "re/application_peer_callbacks_ghidra.txt",
+      "bytes": 245,
+      "sha256": "cdf8835cc43d5c0c4e623feda10028b0e0db70f8eeffc2b3bdb6029426426978"
+    },
+    {
+      "path": "re/application_peer_dispatch_ghidra.txt",
+      "bytes": 946,
+      "sha256": "93bc4e89cf3ab466c543eeea324c8e6989a03eeb19b7bb694217699c29324cb7"
+    },
+    {
+      "path": "re/application_peer_init_decompile.txt",
+      "bytes": 1858,
+      "sha256": "eabc9b71f45a826ad8f4bd160924f281e6b68e6dfdd7987bad575871277f5619"
+    },
+    {
+      "path": "re/application_peer_init_ghidra.txt",
+      "bytes": 3214,
+      "sha256": "b556889ac0569f752eb6f0237c6acb69fac79049ced6b4bd3684fb54c630d06c"
+    },
+    {
+      "path": "re/application_peer_init_mapped_decompile.txt",
+      "bytes": 2370,
+      "sha256": "7e9adb4253e4906cfc2f731e6a7e55afe9c6459786bb306063a623c057a23a75"
+    },
+    {
+      "path": "re/application_periph_query_ghidra.txt",
+      "bytes": 195,
+      "sha256": "8b0591c5751202aebac4d80dffd53bb7a3aeefafc308b999beb6ea31c2ab3192"
+    },
+    {
+      "path": "re/application_periph_wait_ghidra.txt",
+      "bytes": 418,
+      "sha256": "a8badb0e3885dbfb7546355863bc11d7b9c601cb9b8c7192e323e988f4b9f11a"
+    },
+    {
+      "path": "re/application_peripheral_finish_ghidra.txt",
+      "bytes": 97,
+      "sha256": "3717f2e2b9d51a6a74993ae59e1f84bd11893ac26b03024657df078856b85c1c"
+    },
+    {
+      "path": "re/application_query14_ghidra.txt",
+      "bytes": 590,
+      "sha256": "99a0695493954720b4ea6b685e9e691b08fe1c0ac92f2f917c503be11e6e9175"
+    },
+    {
+      "path": "re/application_query18_ghidra.txt",
+      "bytes": 279,
+      "sha256": "d4a4fbb7514b6a5433a58a62bc2bb89ffaa72b1a9282221cf0d90119736be088"
+    },
+    {
+      "path": "re/application_query1F_ghidra.txt",
+      "bytes": 590,
+      "sha256": "b22dd0cf279a7a4919c7033622a9da063d292154afc81cb64b392876dd410dc7"
+    },
+    {
+      "path": "re/application_ram_entry_ghidra.txt",
+      "bytes": 1102,
+      "sha256": "1a4283ab93de57b4273bf0da2fc83656b72e20f11640d8f5f400352727a6ae2f"
+    },
+    {
+      "path": "re/application_response23_ghidra.txt",
+      "bytes": 114,
+      "sha256": "a188d88d679c42849b4b5e8e141127924d0142f5935d5c627418057c4e8c26e9"
+    },
+    {
+      "path": "re/application_response28_ghidra.txt",
+      "bytes": 114,
+      "sha256": "6b584f08388599a75bd481004ffd74df6d3694f506a4a2f33a66d762359eb53b"
+    },
+    {
+      "path": "re/application_responseF4_ghidra.txt",
+      "bytes": 40,
+      "sha256": "de2596059b973b6ec83ec2f20d645a846f00b8e1dc95a85b8c6fc64075441adc"
+    },
+    {
+      "path": "re/application_serial_config_ghidra.txt",
+      "bytes": 1276,
+      "sha256": "de0aa451f5752a649bb00d9a16a9f77df68b10d4cb87d801fe27910b1049b47c"
+    },
+    {
+      "path": "re/application_serial_send_ghidra.txt",
+      "bytes": 1542,
+      "sha256": "cb67748271e7a9b63581f4fc0e137af5da51cb03b467fe194a7df101414f5825"
+    },
+    {
+      "path": "re/application_serial_task_ghidra.txt",
+      "bytes": 134,
+      "sha256": "b72c44d841f78b308e8e32e174480c72cc03a89be59f949079d9df173aa8db96"
+    },
+    {
+      "path": "re/application_status28_get_ghidra.txt",
+      "bytes": 327,
+      "sha256": "e845b55d570b935bc551dc5aec98da3c5b160633e8875b064e98812d8523397b"
+    },
+    {
+      "path": "re/application_status28_wait_ghidra.txt",
+      "bytes": 522,
+      "sha256": "18e93607b8c539bfeecb80e0d2647d9d444899bed71de95e087805a6cf3c88af"
+    },
+    {
+      "path": "re/application_supervisor_controls_ghidra.txt",
+      "bytes": 248,
+      "sha256": "08bd0aca1e0a89624c829033e43dd16ffb144478d0e13b41fb5cfa03c7ee5286"
+    },
+    {
+      "path": "re/application_validate_ghidra.txt",
+      "bytes": 2991,
+      "sha256": "0f44236a9bc930e8cf69429f8de1d5a985fef0f36f30e203df111ec4b5a28866"
+    },
+    {
+      "path": "re/boot_atmel_fresh.json",
+      "bytes": 32949338,
+      "sha256": "9a822f5db924df7891a7bb1dd77181aeb6a6ace0db5f12cfc8cb0f0400216e49"
+    },
+    {
+      "path": "re/boot_atmel_fresh.pkl.gz",
+      "bytes": 3269286,
+      "sha256": "80152b5b2286f09b6652aca03542809b5b3cb243119cf5190d2e28cff6042256"
+    },
+    {
+      "path": "re/BOOT_FLAG_AND_TRANSPORT_SELFTEST.md",
+      "bytes": 4005,
+      "sha256": "e9793643acded725cf99af35b39ee2a0a86c848a641a7c3b12568e080164f5f0"
+    },
+    {
+      "path": "re/boot_handoff_decompile.txt",
+      "bytes": 3227,
+      "sha256": "0f56da421fb4d4586227ae490972ba29b26e6992a94fe566a1bf0734e0a94d70"
+    },
+    {
+      "path": "re/boot_handoff_setup_ghidra.txt",
+      "bytes": 1904,
+      "sha256": "014570697c965556cc4e5d82729b97af708279d5758a884f4ff4496f9e129897"
+    },
+    {
+      "path": "re/demux_configured_snapshot.pkl.gz",
+      "bytes": 1078068,
+      "sha256": "785e9c03e3cd20fcf0f824ca62ece329cf16fd8f9d3d517c1da2ab61d92c92d4"
+    },
+    {
+      "path": "re/demux_fresh_04.pkl.gz",
+      "bytes": 2198065,
+      "sha256": "219f01d832bcc8b1fcc0214d781b43256ad0a9f098caaeaaa7ed2f12aba8ca4f"
+    },
+    {
+      "path": "re/demux_nor_03.pkl.gz",
+      "bytes": 2198319,
+      "sha256": "838250569a941c87ebd694b369830db2c163a3bac9be556ec407851d4ad7a53d"
+    },
+    {
+      "path": "re/DEMUX_SELFTEST_PASSED.md",
+      "bytes": 5865,
+      "sha256": "ef9fccd4faeef52b7791bca0c5918427c254a28ef8f2763e20d75f6a79a711dc"
+    },
+    {
+      "path": "re/EMMA_TIMER_BLOCKER.md",
+      "bytes": 3731,
+      "sha256": "c77c838b04b936f6dd1c63a5ffee08c01f9397ec5cc93cbd7d8ecf1a3a9625f2"
+    },
+    {
+      "path": "re/firmware_application_crc.json",
+      "bytes": 441,
+      "sha256": "ee54e00e63ea40fd9e573ec7dfec1512d714f068917b77c74e3d9c34ea82f2d0"
+    },
+    {
+      "path": "re/frontend_microprogram.bin",
+      "bytes": 1024,
+      "sha256": "412837c684da392874a8d21e358d09baf51830e2bd6af915077abf8f18f1c094"
+    },
+    {
+      "path": "re/frontend_microprogram_words.txt",
+      "bytes": 7852,
+      "sha256": "8970021855e1c22d21e622b58481f4014d7cdbf4b42e6bbe8ff7d6b2f67f7336"
+    },
+    {
+      "path": "re/ghidra/PaceAppRAM.gpr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "re/ghidra/PaceAppRAM.rep/idata/00/00000000.prp",
+      "bytes": 507,
+      "sha256": "69530929f4f035120dbb1bba8ba57d3f1e091cc1ceee44e6249d382b4c638401"
+    },
+    {
+      "path": "re/ghidra/PaceAppRAM.rep/idata/00/~00000000.db/db.30.gbf",
+      "bytes": 6471680,
+      "sha256": "a737a919f327aac7403d26fd83e9e54b703ba0f80daf4b8bc0eec5394137de23"
+    },
+    {
+      "path": "re/ghidra/PaceAppRAM.rep/idata/~index.bak",
+      "bytes": 127,
+      "sha256": "b8d29ce4a6639e9eb7c69554daa86ca0f7ffc5f56e6b6aa1dc5b09cb4af2f3d1"
+    },
+    {
+      "path": "re/ghidra/PaceAppRAM.rep/idata/~index.dat",
+      "bytes": 127,
+      "sha256": "b8d29ce4a6639e9eb7c69554daa86ca0f7ffc5f56e6b6aa1dc5b09cb4af2f3d1"
+    },
+    {
+      "path": "re/ghidra/PaceAppRAM.rep/project.prp",
+      "bytes": 157,
+      "sha256": "b082f0373ca4a46905f24e87f4325f5c764d2426d9fda5736ee5f75c8c19c66f"
+    },
+    {
+      "path": "re/ghidra/PaceAppRAM.rep/user/~index.dat",
+      "bytes": 59,
+      "sha256": "0a5034997e47499d758115fa580ad21d96557d2a32c89f2263bcfd3fa8a9a6e5"
+    },
+    {
+      "path": "re/ghidra/PaceAppRAM.rep/versioned/~index.bak",
+      "bytes": 59,
+      "sha256": "0a5034997e47499d758115fa580ad21d96557d2a32c89f2263bcfd3fa8a9a6e5"
+    },
+    {
+      "path": "re/ghidra/PaceAppRAM.rep/versioned/~index.dat",
+      "bytes": 59,
+      "sha256": "0a5034997e47499d758115fa580ad21d96557d2a32c89f2263bcfd3fa8a9a6e5"
+    },
+    {
+      "path": "re/ghidra/PaceU202.gpr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "re/ghidra/PaceU202.rep/idata/00/00000000.prp",
+      "bytes": 486,
+      "sha256": "bb303e5ad96bb690080a03fd5ecbf5939da957c3b505060ce3f9099e72d309ea"
+    },
+    {
+      "path": "re/ghidra/PaceU202.rep/idata/00/~00000000.db/db.78.gbf",
+      "bytes": 5750784,
+      "sha256": "217dc3b03ba323e0980254d859581cb83c61a490ff45f34c94e8f6c4ce3f521d"
+    },
+    {
+      "path": "re/ghidra/PaceU202.rep/idata/~index.bak",
+      "bytes": 106,
+      "sha256": "60b46b8a5e7b2ee59aadcf5cb0f68753efd7bd87fb3c036292cbda3b01029fc7"
+    },
+    {
+      "path": "re/ghidra/PaceU202.rep/idata/~index.dat",
+      "bytes": 106,
+      "sha256": "60b46b8a5e7b2ee59aadcf5cb0f68753efd7bd87fb3c036292cbda3b01029fc7"
+    },
+    {
+      "path": "re/ghidra/PaceU202.rep/project.prp",
+      "bytes": 157,
+      "sha256": "b082f0373ca4a46905f24e87f4325f5c764d2426d9fda5736ee5f75c8c19c66f"
+    },
+    {
+      "path": "re/ghidra/PaceU202.rep/user/~index.dat",
+      "bytes": 59,
+      "sha256": "0a5034997e47499d758115fa580ad21d96557d2a32c89f2263bcfd3fa8a9a6e5"
+    },
+    {
+      "path": "re/ghidra/PaceU202.rep/versioned/~index.bak",
+      "bytes": 59,
+      "sha256": "0a5034997e47499d758115fa580ad21d96557d2a32c89f2263bcfd3fa8a9a6e5"
+    },
+    {
+      "path": "re/ghidra/PaceU202.rep/versioned/~index.dat",
+      "bytes": 59,
+      "sha256": "0a5034997e47499d758115fa580ad21d96557d2a32c89f2263bcfd3fa8a9a6e5"
+    },
+    {
+      "path": "re/handoff_execution.json",
+      "bytes": 335217,
+      "sha256": "35b58b4d1fccbb48312a2943a2f029e0ed6f4d2f101b0d4c2dffa9848cc3a453"
+    },
+    {
+      "path": "re/handoff_execution_portable.pkl.gz",
+      "bytes": 3148374,
+      "sha256": "ae8e7b43982aea6dc39d8218e1c8291b68314c04a2c1ac39a5bbc5fb80ecc71b"
+    },
+    {
+      "path": "re/oracle_cases.json",
+      "bytes": 234673,
+      "sha256": "47263fec7f29f3401baf73cc153d9405e648991f3500b4b259b17286c003f10e"
+    },
+    {
+      "path": "re/original_archives/download_manifest.json",
+      "bytes": 654,
+      "sha256": "882326d85bc8d10eb5e7fca4bd5a24e73240e20e302283138354328f65ff52ad"
+    },
+    {
+      "path": "re/original_archives/L64724_source.json",
+      "bytes": 210,
+      "sha256": "d0439ce862649ec971acc43e4bfa207a9ec826c47395679087ff0506e3631c96"
+    },
+    {
+      "path": "re/original_archives/L64734_datasheet_48p_source.json",
+      "bytes": 209,
+      "sha256": "12adf65f20f36d15cb6c93775a81a679cb1a1b61b82c45c462ac5bc621760724"
+    },
+    {
+      "path": "re/original_archives/L64734_datasheet_52p_source.json",
+      "bytes": 209,
+      "sha256": "d433d9a03a292d0f8a478a539c6a78526efe4d538bfeffc8cefdce7ab6f20aae"
+    },
+    {
+      "path": "re/peripheral_boot_01.pkl.gz",
+      "bytes": 2760135,
+      "sha256": "fe8682cfc421cbec9be91132d6feddb1548e6cd59fb8712fe9a141507c564b0c"
+    },
+    {
+      "path": "re/scripts/DecompileTargets.java",
+      "bytes": 953,
+      "sha256": "7ca59eb4633f8961956a23bc24a87804ffb877cbc51f5f0e363903dd90c57d19"
+    },
+    {
+      "path": "re/scripts/InspectExtended.java",
+      "bytes": 988,
+      "sha256": "f9ca65aa97bddef6485af48bd5ea00d48ab0a4965d69895f1a0f6848378942bc"
+    },
+    {
+      "path": "re/scripts/InspectPoll.java",
+      "bytes": 1006,
+      "sha256": "04a543f61c6e423cd8e789a6b55dd11cb3eac0e644f3188ff47c089bd910a5aa"
+    },
+    {
+      "path": "re/scripts/InspectRange.java",
+      "bytes": 1032,
+      "sha256": "db062d86a23c05950fa8ba6f374fc8e102f4d5d9ed83b63f1def9f9bc7d014de"
+    },
+    {
+      "path": "re/scripts/InspectShift.java",
+      "bytes": 1007,
+      "sha256": "d1036d049f53c4552e3816df0ee952e713b69539c0d27a05b30a9ee8a535f3dd"
+    },
+    {
+      "path": "re/scripts/InspectStrictRead.java",
+      "bytes": 2707,
+      "sha256": "68e2525b2d21f2d2fd3e7092a5fc5b296488fc46f7e96303852562ef54e35783"
+    },
+    {
+      "path": "re/scripts/Mips16Oracle.java",
+      "bytes": 5011,
+      "sha256": "689e02ae6334b28dba426f166f0769416949b579d0dd2122f6339cff2712cf82"
+    },
+    {
+      "path": "re/scripts/PrepareApplicationProject.java",
+      "bytes": 1506,
+      "sha256": "38d134639e730e4fadd640d739c61b161369a2111178635f996655f13d77bbc6"
+    },
+    {
+      "path": "re/serial_ack_candidate.json",
+      "bytes": 2384109,
+      "sha256": "ebe0d9814a89a120fb3c10e1d737d16570ee3093dddde0c62f40340bc1fbe12b"
+    },
+    {
+      "path": "re/serial_ack_wrongseq.json",
+      "bytes": 2384108,
+      "sha256": "552d1623aebda4cd451fa6f7b2a2a05c28927d2b6b56451cd8f68dc6ebb0a3eb"
+    },
+    {
+      "path": "re/serial_completion_extended.json",
+      "bytes": 3749777,
+      "sha256": "47de6f06012d5e4329422c849310c7cd9711b15242648f6888c6a359f5809ef3"
+    },
+    {
+      "path": "re/serial_completion_extended.pkl.gz",
+      "bytes": 2267748,
+      "sha256": "af95dc02e2a0afef54ce2f559527fc69828b3098e8575dd903e584e428f48968"
+    },
+    {
+      "path": "re/serial_completion_fresh_01.json",
+      "bytes": 1945736,
+      "sha256": "3e01c48d5be060a2adaeeb6fadc7053c2b4393932d775f197614a28b16c233c3"
+    },
+    {
+      "path": "re/serial_hisr_ghidra.txt",
+      "bytes": 207,
+      "sha256": "8fd14ae35974469804a9035e55f8e17fb6847a65e522ddb9c14ded7a605824ff"
+    },
+    {
+      "path": "re/serial_isr_ghidra.txt",
+      "bytes": 457,
+      "sha256": "ea44bd2e831b79f7aa41bf640a85ab291c4634e6c79e948bd66ca34f8e6dbd2a"
+    },
+    {
+      "path": "re/serial_message_valid_ghidra.txt",
+      "bytes": 329,
+      "sha256": "9a005db9f845a51a33601faf4d2feaeaabbd210ce6982d50c7896b90dc74852b"
+    },
+    {
+      "path": "re/serial_peer_capture_01.json",
+      "bytes": 2086967,
+      "sha256": "d1c2e6d29997269cb5460dac38b28d3a0ef40fbc7ba2797f4a40388d036d40ab"
+    },
+    {
+      "path": "re/serial_peer_capture_02.json",
+      "bytes": 2215989,
+      "sha256": "51d15b8995bfcb348a25bb22c5f6d10d76a9581e9f4450284c0a68f72713c8de"
+    },
+    {
+      "path": "re/serial_peer_capture_03.json",
+      "bytes": 2409434,
+      "sha256": "3c5b849c920cdab387461c1457c0ebce16b48ee6448f3e85566e824b3b584301"
+    },
+    {
+      "path": "re/serial_reply_router_ghidra.txt",
+      "bytes": 1029,
+      "sha256": "ad9064b5736009efddcea097cb902710bb99c84d89e2286e60d7d5bd99c1dd85"
+    },
+    {
+      "path": "re/serial_rx_task_ghidra.txt",
+      "bytes": 1486,
+      "sha256": "cc201218a5a5d63d68c2618b09c475ccd103fb5cb4fd8e72edb886baa4d11ea4"
+    },
+    {
+      "path": "re/serial_sync_ack_only.json",
+      "bytes": 2565900,
+      "sha256": "9519fd8c7c7ff572091b9b48ebac2f20b3e62374bbad2d167c86d9f89df7840e"
+    },
+    {
+      "path": "re/serial_sync_completion.json",
+      "bytes": 3219189,
+      "sha256": "e99209e9ed315a89ee46e5446fb0817fdaf060befee95be1fe9b6a2677cdfbab"
+    },
+    {
+      "path": "re/serial_task_ghidra.txt",
+      "bytes": 2466,
+      "sha256": "948f85b00063ca5f7948296a9f8d224d2ea1151f24d73308f59e8c839710e473"
+    },
+    {
+      "path": "re/validation_20261108_daytime.json",
+      "bytes": 1394,
+      "sha256": "0029957d43be5b4bf20c466febb993424cdf2bf2564522bf9951e05bbfa04cd2"
+    },
+    {
+      "path": "tools/build_project.py",
+      "bytes": 2953,
+      "sha256": "b0f543b89810287d07dafcf77afad53a334580df0db92c831008b1517f907634"
+    },
+    {
+      "path": "tools/capture_serial_request.py",
+      "bytes": 604,
+      "sha256": "2a1c2a296c58fbe6de6cfa24c21b6f201966c72ce145aabd092fb089690bdd6c"
+    },
+    {
+      "path": "tools/check_firmware_crc.py",
+      "bytes": 764,
+      "sha256": "50e69ab6881bc00f7cef474f8b01b7b686e8d8d026b6dc4d70d784c8a0285ddf"
+    },
+    {
+      "path": "tools/compare_mips16_oracle.py",
+      "bytes": 2743,
+      "sha256": "92c2a1df971d2afa7a39dfc33198adb3d8d671f8a1c9a2de7a97956df10d1c10"
+    },
+    {
+      "path": "tools/extract_application_ram.py",
+      "bytes": 2543,
+      "sha256": "07626becf08622cbb484506c29123f125327da8c9304b09c1cd29f01fe695285"
+    },
+    {
+      "path": "tools/extract_boot_transport_fixture.py",
+      "bytes": 3340,
+      "sha256": "b103d2de056dbd10b2ae4326a6af645d4baf2a07abba9c3807fdf0afcb6f3ac9"
+    },
+    {
+      "path": "tools/make_monitor.py",
+      "bytes": 2665,
+      "sha256": "d5d5e404daf7e943abee9f0ded88a77c8cc67a786fe7b074db08550db5e7c172"
+    },
+    {
+      "path": "tools/make_oracle_cases.py",
+      "bytes": 4411,
+      "sha256": "29197a274381a15f1cfeb698309a705a62656f2077d7c160c288d05502516fb1"
+    },
+    {
+      "path": "tools/make_research_tb.py",
+      "bytes": 1551,
+      "sha256": "5b05a090a3176fe2cc6ab73238df113af298d401caf1652abe7f370751b7d5b6"
+    },
+    {
+      "path": "tools/make_rtl_oracle.py",
+      "bytes": 2034,
+      "sha256": "97ee9ccbfe6503de98e65ba82fa3bcccbe9a48619765115ddac3957fb405a7c2"
+    },
+    {
+      "path": "tools/pace_crc_accel.py",
+      "bytes": 3772,
+      "sha256": "b17156639261d1bb16100198d0de2ba019a455ad2fbcd42ce6c13ab9202e8669"
+    },
+    {
+      "path": "tools/pace_lsi_grouped.py",
+      "bytes": 2880,
+      "sha256": "d11f9f795825b226d38b505f38052e5b3ca49c592c98e87ce75a6f5f1d125807"
+    },
+    {
+      "path": "tools/pace_nor.py",
+      "bytes": 1817,
+      "sha256": "d382058470ddcd269790d07f89e290a0b0ca6560085925396aa98a3baea05365"
+    },
+    {
+      "path": "tools/pace_probe.py",
+      "bytes": 12352,
+      "sha256": "ac22a8939af54fb48443355faf5d86f20679048ffb21ee38f6f17893cbfc9436"
+    },
+    {
+      "path": "tools/pace_probe_application.py",
+      "bytes": 3015,
+      "sha256": "3a2b3586290bf5f863ce05cfc40ff4b8845a4d09ba569b616ccd728254a5cf89"
+    },
+    {
+      "path": "tools/pace_probe_application_i2c.py",
+      "bytes": 7639,
+      "sha256": "a31cbff88303de5e414e39fae7580a41c9f49b652d28846f2c4ae6b82d6ec071"
+    },
+    {
+      "path": "tools/pace_probe_boot_fifo.py",
+      "bytes": 2004,
+      "sha256": "6b243a3697c2650dd3ec2b144f50f51dca06ef90ab03644350a4c1b2909e6ff0"
+    },
+    {
+      "path": "tools/pace_probe_boot_peripheral.py",
+      "bytes": 1809,
+      "sha256": "bb38908740030bf989cf6e73d1ac9f298485406816246dab8bded6e6cbb87a39"
+    },
+    {
+      "path": "tools/pace_probe_console.py",
+      "bytes": 1985,
+      "sha256": "234d7fa932225e62544981bccbf0efb30c9e68c895e09938e69ab94ded93c14f"
+    },
+    {
+      "path": "tools/pace_probe_demux.py",
+      "bytes": 7070,
+      "sha256": "9af42977f794d95a71b2db2ed4cbf258fa523cbe6acd149eb0c9f0d4c89aac29"
+    },
+    {
+      "path": "tools/pace_probe_emma_timer.py",
+      "bytes": 4707,
+      "sha256": "d3cb36eb92f77a3286660afe41c1179312da132c2120352c06b7546056a4c37f"
+    },
+    {
+      "path": "tools/pace_probe_research.py",
+      "bytes": 16273,
+      "sha256": "3503c404f59ffe70e7e53cad1449d38410b32419c621208e740dcd4b5b829e8c"
+    },
+    {
+      "path": "tools/pace_probe_serial_ack.py",
+      "bytes": 3201,
+      "sha256": "e1dc7ef237542b20939aa20c2012f88755ac8feb63b214a9efdc6d7f38d3a6ce"
+    },
+    {
+      "path": "tools/pace_probe_serial_peer.py",
+      "bytes": 3643,
+      "sha256": "577e7d6ca63639f78f7c2283ff8f392f104e721173f3a5d677290c2eac89ded1"
+    },
+    {
+      "path": "tools/pace_probe_timed.py",
+      "bytes": 6625,
+      "sha256": "c8ed9c9ac63ca834302b3afbf1530009b4577876997560def6a4ab4bc34f8b8b"
+    },
+    {
+      "path": "tools/pace_transport.py",
+      "bytes": 1917,
+      "sha256": "02df145bc7f63491ff72234f547d9f42da1e6147a88874e2f47a4ac4f75b0a7d"
+    },
+    {
+      "path": "tools/package_candidate.py",
+      "bytes": 2156,
+      "sha256": "631cbd4d4555b5a7b5f8ac95428320e17282fd2bba9a7b8f9f61f365f2a53bcf"
+    },
+    {
+      "path": "tools/package_release.py",
+      "bytes": 2436,
+      "sha256": "a206c0213bf3afd3d2ac400c5e30639f58c145a8dedf66c1cfe0ddd78199c616"
+    },
+    {
+      "path": "tools/read_mister_scheduler.py",
+      "bytes": 591,
+      "sha256": "2da45433054b8c11c1141379b598973296ef6f0bb76a09166fb3811caaa048e2"
+    },
+    {
+      "path": "tools/resume_demux.py",
+      "bytes": 897,
+      "sha256": "b9bc4d30be9d2bf9eb96ff279e331f6314d2f9ac6da893db8e9072e47bf0dded"
+    },
+    {
+      "path": "tools/run_application_entry.py",
+      "bytes": 4480,
+      "sha256": "ce5fa6b50871a193b381aeb8be85425cce685fb967d2ceb3d1c045355b7a207d"
+    },
+    {
+      "path": "tools/run_boot_peripheral.py",
+      "bytes": 946,
+      "sha256": "439c2eabd880a7d4fe8ef4edf4238f4cc0092541d992048b28751f58962fa8b8"
+    },
+    {
+      "path": "tools/run_console_probe.py",
+      "bytes": 733,
+      "sha256": "77082e6465bd38ddc1fa77da10a957f6301f696a4727d2467efac73f556cd28f"
+    },
+    {
+      "path": "tools/run_demux_probe.py",
+      "bytes": 742,
+      "sha256": "8f68cd33ebc31e3e99d7ad0a565dd1d5d73dbe118453f9d2410803282e9fd399"
+    },
+    {
+      "path": "tools/run_serial_ack.py",
+      "bytes": 1091,
+      "sha256": "74de576eb77c6dcc188a7aaa55b7d3d4b57998cfdd5d26652d0d27a8de0264e9"
+    },
+    {
+      "path": "tools/run_serial_completion_fresh.py",
+      "bytes": 578,
+      "sha256": "52ee348eb5adcce8ac9064f1d4b45861935fa9546a5c92340f768d9ae0770513"
+    },
+    {
+      "path": "tools/snapshot_demux.py",
+      "bytes": 736,
+      "sha256": "67d53eb172338ff6534d31bcfb86f10d40526fb4aee472ee82c28edcd1c35ae0"
+    },
+    {
+      "path": "tools/test_application_command53.py",
+      "bytes": 1102,
+      "sha256": "0d5dd432c50e2cdd0350ded9b065523d3d145b06957565a33a4b1a7f1bf7ae68"
+    },
+    {
+      "path": "tools/test_application_i2c.py",
+      "bytes": 1447,
+      "sha256": "133a2b7bc75e702b2ede36427c2ac4c8740d9feb1c6c625e6dd88d5638cf1760"
+    },
+    {
+      "path": "tools/test_application_idle.py",
+      "bytes": 1032,
+      "sha256": "aa5ba6f10536479f8cbcf9f8f559998932bdef9186f3b4e7cbd9c7c2588c6600"
+    },
+    {
+      "path": "tools/test_boot_fifo.py",
+      "bytes": 466,
+      "sha256": "19fbbaee169a69032006cb0c6a0e871dd9c778ceba6d07450f2ec4e6d6eb1161"
+    },
+    {
+      "path": "tools/test_console.py",
+      "bytes": 760,
+      "sha256": "3e5d1113c0ac1b8a05bfacfedc83fe396af9e3d17052fde61dba036f1fb02e90"
+    },
+    {
+      "path": "tools/test_crc_acceleration.py",
+      "bytes": 2175,
+      "sha256": "1aac6421acbd30fca4ebbac1c879b1c92c2bb3accfe5772df7390a668e662439"
+    },
+    {
+      "path": "tools/test_demux_dma.py",
+      "bytes": 2426,
+      "sha256": "6a91547bade0b66a0d884a21d008ea33e3de5bdab2426a26eae13917c2388153"
+    },
+    {
+      "path": "tools/test_demux_ports.py",
+      "bytes": 839,
+      "sha256": "ac34500ee96e868da26e6ccf580ed7f933a260e1bd7fb2c2f224b7bcd73285ae"
+    },
+    {
+      "path": "tools/test_emma_idle.py",
+      "bytes": 1173,
+      "sha256": "f8cb631a26d52e7f0bb2471a9dcda93105e35eb6052e37dc4161db4d2a32c460"
+    },
+    {
+      "path": "tools/test_emma_timer.py",
+      "bytes": 810,
+      "sha256": "3510fe4aaec8dec7f829f7a1d4462ce2646979e3814bffb1a4062ea4e732bf31"
+    },
+    {
+      "path": "tools/test_front_panel.py",
+      "bytes": 1082,
+      "sha256": "3cdd498ac63837f1bde905cfd6370bb408d22dbecd2a27131a47c660f7070fa2"
+    },
+    {
+      "path": "tools/test_lsi_grouped.py",
+      "bytes": 1703,
+      "sha256": "59fc6ecddb1155a1294262c590323d5c29da726b7616b04db9ea708192242d18"
+    },
+    {
+      "path": "tools/test_nor.py",
+      "bytes": 517,
+      "sha256": "1c855625b83a2cd65662cd970fb1077b4d05c9ebf8100356d58c599038808634"
+    },
+    {
+      "path": "tools/test_probe_pc.py",
+      "bytes": 1059,
+      "sha256": "7c26c27420880b787a804aa9ca2bf799b68b80f4cb6c4e775b5153ed0287cbca"
+    },
+    {
+      "path": "tools/test_research_eret.py",
+      "bytes": 835,
+      "sha256": "2201d345eeb4d69be14c5bbd68ab384f9d9ab82dbd0e16d159481a50c3369970"
+    },
+    {
+      "path": "tools/test_research_idle.py",
+      "bytes": 947,
+      "sha256": "4c472d3a9cb7af9f089d84d44f137a54ffe4c501a52c5695a20f2921eb64ec6b"
+    },
+    {
+      "path": "tools/test_research_mips16.py",
+      "bytes": 1598,
+      "sha256": "34f94e02753f088ae61b6ca4010a99b5757a4f852db9990fb21224fc001516ef"
+    },
+    {
+      "path": "tools/test_research_timer.py",
+      "bytes": 1247,
+      "sha256": "793ff1bed2e6124e7cd8ce88cd6c6556bfb73baa05dedaa61e24bb1d1be6b9bc"
+    },
+    {
+      "path": "tools/test_serial_peer.py",
+      "bytes": 894,
+      "sha256": "e5427ee8bc03e1824d3dcad48275b187710637207130ea3a5515fddccabff9c4"
+    },
+    {
+      "path": "tools/test_serial_reply_decoder.py",
+      "bytes": 828,
+      "sha256": "3ae49c288f6a7092f1759420fa9ee18f2b70c03f2e30e8102730141c0e6bfc42"
+    },
+    {
+      "path": "tools/trace_application_handoff.py",
+      "bytes": 2279,
+      "sha256": "1f6775c695fe773040d80d15c867e955088000747b8afb5a1214980193b19268"
+    },
+    {
+      "path": "tools/trace_boot_flag.py",
+      "bytes": 1128,
+      "sha256": "72d5bbd16ecdebbc8ed8c75bd9ec8eab095a61e10fdcf40213934928e7783f52"
+    },
+    {
+      "path": "tools/upgrade_cpu_v045.py",
+      "bytes": 13421,
+      "sha256": "9efa37226d1e50689d63bdb565d7aa479d3d61b38a4ef793ac1a376dbf4beb29"
+    },
+    {
+      "path": "tools/verify_application_extraction.py",
+      "bytes": 1328,
+      "sha256": "2c444d74e3a20ad9c5f5c3b5a8ba4a720c4f3efd2618c81a60c9a9c4dcdf784b"
+    },
+    {
+      "path": "tools/verify_firmware.py",
+      "bytes": 1161,
+      "sha256": "a508567885f134fa31ba75c9a54d0e7f6cb0c248cd302df9094d9d101babdb85"
+    },
+    {
+      "path": "tools/verify_mister_ddr.py",
+      "bytes": 1204,
+      "sha256": "7710fc39234a4a4a58da51c2fc082540261f93f903f4cb12e7dba38bb151341c"
+    }
+  ]
+}

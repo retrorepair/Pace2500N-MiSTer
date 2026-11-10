@@ -1,0 +1,14 @@
+80029724  addiu sp,-0x10
+80029726  sw ra,0xc(sp)
+80029728  move a1,a0
+8002972a  lw v1,0x38(pc)
+8002972c  lw v1,0x0(v1)
+8002972e  sw v1,0x4(sp)
+80029730  addiu a0,sp,0x4
+80029732  sb a1,0x3(a0)
+80029734  lw a2,0x28(pc)
+80029736  jalr a2
+80029738  _li a1,0x4
+8002973a  lw a0,0xc(sp)
+8002973c  jr a0
+8002973e  _addiu sp,0x10

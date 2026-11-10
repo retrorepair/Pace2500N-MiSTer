@@ -1,0 +1,13 @@
+800296d4  addiu sp,-0x8
+800296d6  sw ra,0x4(sp)
+800296d8  li a0,0x20
+800296da  move a1,zero
+800296dc  lw v0,0x74(pc)
+800296de  jalr v0
+800296e0  _li a2,0x1
+800296e2  lw v0,0x74(pc)
+800296e4  jalr v0
+800296e6  _li a0,0x2
+800296e8  lw a0,0x4(sp)
+800296ea  jr a0
+800296ec  _addiu sp,0x8

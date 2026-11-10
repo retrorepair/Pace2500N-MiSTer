@@ -1,0 +1,129 @@
+U202 file SHA256: 32f6b2e84d0c4c4ec280a72f2d080e4b6fa5e68e8438ef712f34f97f63d38c7f
+DDR flash SHA256: 32f6b2e84d0c4c4ec280a72f2d080e4b6fa5e68e8438ef712f34f97f63d38c7f
+Guest RAM 80008200: 6b0072016102f1e0
+PASS: all 2 MiB of DDR flash match genuine uploaded U202
+{
+  "live_non_atomic_readback": true,
+  "memory_writes": false,
+  "ring_base_may_contain_wrapped_payload": true,
+  "transport_file": "/media/fat/games/Pace2500N_TS/guide_full_day.ts",
+  "bytes": 500080,
+  "transport_ddr_sha256": "fb78a17240da590f2254d189ede5893905a1a942c87e923baeecc5dc254c355f",
+  "rings": [
+    {
+      "channel": 20,
+      "first_table": "00",
+      "first_section_crc_valid": false,
+      "guest_isr_write_pointer": "00000000",
+      "descriptor": [
+        "A07DC000",
+        "A07DEFFF",
+        "A07DC000",
+        "A07DC000",
+        "00000000"
+      ],
+      "descriptor_changed_from_checkpoint": false,
+      "complete_crc_valid_records": 0,
+      "record_samples": []
+    },
+    {
+      "channel": 21,
+      "first_table": "00",
+      "first_section_crc_valid": false,
+      "guest_isr_write_pointer": "00000000",
+      "descriptor": [
+        "A07DF000",
+        "A07E1FFF",
+        "A07DF000",
+        "A07DF000",
+        "00000000"
+      ],
+      "descriptor_changed_from_checkpoint": false,
+      "complete_crc_valid_records": 0,
+      "record_samples": []
+    },
+    {
+      "channel": 22,
+      "first_table": "73",
+      "first_section_crc_valid": false,
+      "guest_isr_write_pointer": "00000000",
+      "descriptor": [
+        "A07E2000",
+        "A07E4FFF",
+        "A07E2000",
+        "A07E2000",
+        "801A5318"
+      ],
+      "descriptor_changed_from_checkpoint": false,
+      "complete_crc_valid_records": 1,
+      "record_samples": [
+        {
+          "offset": "0000",
+          "table": "73",
+          "bytes": 29,
+          "extension": null
+        }
+      ]
+    },
+    {
+      "channel": 23,
+      "first_table": "42",
+      "first_section_crc_valid": false,
+      "guest_isr_write_pointer": "00000000",
+      "descriptor": [
+        "A07E5000",
+        "A07E7FFF",
+        "A07E5000",
+        "A07E5000",
+        "8019A2E4"
+      ],
+      "descriptor_changed_from_checkpoint": false,
+      "complete_crc_valid_records": 1,
+      "record_samples": [
+        {
+          "offset": "0000",
+          "table": "42",
+          "bytes": 109,
+          "extension": "0000"
+        }
+      ]
+    },
+    {
+      "channel": 24,
+      "first_table": "40",
+      "first_section_crc_valid": false,
+      "guest_isr_write_pointer": "00000000",
+      "descriptor": [
+        "A07E8000",
+        "A07EAFFF",
+        "A07E8000",
+        "A07E8000",
+        "80199AD4"
+      ],
+      "descriptor_changed_from_checkpoint": false,
+      "complete_crc_valid_records": 1,
+      "record_samples": [
+        {
+          "offset": "0000",
+          "table": "40",
+          "bytes": 60,
+          "extension": "0020"
+        }
+      ]
+    }
+  ],
+  "firmware_state": {
+    "frontend_state_800fcdc4": 0,
+    "frontend_flag_80105c00": 0,
+    "av_active_byte_80161d3c": 0,
+    "av_selection_80161d40": "FFFFFFFF",
+    "checkpoint_default_80054f84": "00000000",
+    "checkpoint_readiness_80430a28": 1
+  },
+  "decoded_text_locations": {
+    "LOCAL TEST ONE": [],
+    "LOCAL TEST TWO": [],
+    "NEXT TEST ONE": [],
+    "NEXT TEST TWO": []
+  }
+}

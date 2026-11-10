@@ -1,0 +1,100 @@
+
+// 8000c0d8 osd_timing_initialize
+
+void osd_timing_initialize(int *param_1)
+
+{
+  int iVar1;
+  uint *puVar2;
+  code *pcVar3;
+  uint in_zero;
+  code *UNRECOVERED_JUMPTABLE;
+  char cStack_15;
+  
+  iVar1 = iRam8000c3f0;
+  cStack_15 = (char)in_zero;
+  if (*pcRam8000c3f4 == '\0') {
+    cStack_15 = in_zero < (*(uint *)(iRam8000c3f0 + 0x18) & 1);
+    *(uint *)(iRam8000c3f0 + 0x18) = in_zero;
+  }
+  if (param_1 != (int *)0x0) {
+    *piRam8000c3fc = *piRam8000c3f8;
+    if (((*piRam8000c3f8 == 0) || ((*piRam8000c3fc == 1 && (*param_1 == 2)))) ||
+       ((*piRam8000c3fc == 2 && (*param_1 == 1)))) {
+      *puRam8000c400 = 0x80;
+      (*pcRam8000c404)(6);
+      *puRam8000c400 = in_zero;
+    }
+    if (*param_1 == 1) {
+      *(uint *)(iVar1 + 0x20) = *(uint *)(iVar1 + 0x20) | 0x6000;
+      *puRam8000c408 = *puRam8000c408 & uRam8000c40c;
+      *puRam8000c410 = *puRam8000c410 & uRam8000c414;
+      *piRam8000c3f8 = 1;
+    }
+    else {
+      *(uint *)(iVar1 + 0x20) = *(uint *)(iVar1 + 0x20) & uRam8000c418;
+      puVar2 = puRam8000c408;
+      *puRam8000c410 = *puRam8000c410 | 1;
+      *puRam8000c408 = *puVar2 | 0x80;
+      *piRam8000c3f8 = 2;
+    }
+    (*pcRam8000c404)(6);
+    puVar2 = puRam8000c408;
+    *puRam8000c408 = *puRam8000c408 | 0x1000;
+    *puRam8000c408 = *puVar2 & uRam8000c41c;
+    if (param_1[1] == 1) {
+      *(uint *)(iVar1 + 0x28) = *(uint *)(iVar1 + 0x28) | uRam8000c420;
+    }
+    else {
+      *(uint *)(iVar1 + 0x28) = *(uint *)(iVar1 + 0x28) & uRam8000c424;
+    }
+    *pcRam8000c3f4 = '\x01';
+    pcVar3 = pcRam8000c428;
+    *(uint *)(iVar1 + 0x20) = *(uint *)(iVar1 + 0x20) | 0x40;
+    (*pcVar3)();
+    if (cStack_15 == '\x01') {
+      (*pcRam8000c42c)(1);
+      (*pcRam8000c404)(0x65);
+    }
+    (*pcRam8000c430)(1,1,1);
+  }
+                    /* WARNING: Could not recover jumptable at 0x8000c22a. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+
+
+// 8000c344 video_output_mode_set
+
+undefined4 video_output_mode_set(int param_1)
+
+{
+  undefined4 in_zero;
+  uint uVar1;
+  
+  if (*pcRam8000c3f4 == '\0') {
+    in_zero = 1;
+  }
+  else {
+    uVar1 = *puRam8000c454 & uRam8000c458;
+    if (param_1 == 0) {
+      uVar1 = uVar1 | 0x88;
+      (*pcRam8000c45c)(2);
+    }
+    else if (param_1 == 1) {
+      (*pcRam8000c45c)(1);
+    }
+    else if (param_1 == 2) {
+      uVar1 = uVar1 | 0x77;
+      (*pcRam8000c45c)();
+    }
+    *puRam8000c454 = uVar1;
+    *piRam8000c460 = param_1;
+  }
+                    /* WARNING: Treating indirect jump as return */
+  return in_zero;
+}
+
+

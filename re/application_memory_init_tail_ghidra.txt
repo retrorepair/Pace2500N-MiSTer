@@ -1,0 +1,52 @@
+bfc20740  or a2,v1,zero
+bfc20744  lui at,0xbfc2
+bfc20748  addiu at,at,0x5a8
+bfc2074c  jalr at
+bfc20750  _nop
+bfc20754  nop
+bfc20758  slt t9,s0,s1
+bfc2075c  bne t9,zero,0xbfc20664
+bfc20760  _nop
+bfc20764  nop
+bfc20768  lui s0,0x9fc2
+bfc2076c  addiu s0,s0,0xfd8
+bfc20770  lui s1,0x9fc2
+bfc20774  addiu s1,s1,0x11dc
+bfc20778  j 0xbfc207cc
+bfc2077c  _nop
+bfc20784  lw a0,0x0(s0)
+bfc20788  addiu s0,s0,0x4
+bfc2078c  lui t6,0xb000
+bfc20790  slt t9,a0,t6
+bfc20794  beq t9,zero,0xbfc207cc
+bfc20798  _nop
+bfc2079c  nop
+bfc207a0  lw t9,0x0(s0)
+bfc207a4  addiu s0,s0,0x4
+bfc207a8  lw v1,0x0(s0)
+bfc207ac  addiu s0,s0,0x4
+bfc207b0  or a1,t9,zero
+bfc207b4  or a2,v1,zero
+bfc207b8  lui at,0x8000
+bfc207bc  addiu at,at,0xd34
+bfc207c0  jalr at
+bfc207c4  _nop
+bfc207c8  nop
+bfc207cc  slt t7,s0,s1
+bfc207d0  bne t7,zero,0xbfc20784
+bfc207d4  _nop
+bfc207d8  nop
+bfc207dc  lw ra,0xc(sp)
+bfc207e0  lw s0,0x0(sp)
+bfc207e4  lw s1,0x4(sp)
+bfc207e8  lw s8,0x8(sp)
+bfc207ec  lw v1,0x10(sp)
+bfc207f0  lw a0,0x14(sp)
+bfc207f4  lw a1,0x18(sp)
+bfc207f8  lw a2,0x1c(sp)
+bfc207fc  lw t6,0x20(sp)
+bfc20800  lw t9,0x24(sp)
+bfc20804  lw at,0x28(sp)
+bfc20808  addiu sp,sp,0x30
+bfc2080c  jr ra
+bfc20810  _nop

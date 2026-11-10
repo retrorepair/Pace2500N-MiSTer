@@ -1,0 +1,55 @@
+2026-11-08 13:19:23 INFO  (LoggingInitialization) Using log config file: jar:file:/opt/ghidra_12.1.4_PUBLIC/Ghidra/Framework/Generic/lib/Generic.jar!/generic.log4j.xml  
+2026-11-08 13:19:23 INFO  (LoggingInitialization) Using log file: re/application_import.log  
+2026-11-08 13:19:24 DEBUG (GhidraObjectInputFilter) Including serial input filter: FileSystem/data/client.rmi.serial.filter  
+2026-11-08 13:19:24 INFO  (Preferences) Loading user preferences: /root/.config/ghidra/ghidra_12.1.4_PUBLIC/preferences  
+2026-11-08 13:19:24 INFO  (Preferences) Loading previous preferences: /root/.config/ghidra/ghidra_11.4.2_PUBLIC/preferences  
+2026-11-08 13:19:24 INFO  (ClassSearcher) Searching for classes...  
+2026-11-08 13:19:24 INFO  (ClassSearcher) Class search complete (815 ms)  
+2026-11-08 13:19:25 INFO  (DefaultSSLContextInitializer) Initializing SSL Context  
+2026-11-08 13:19:25 INFO  (SecureRandomFactory) Initializing Random Number Generator...  
+2026-11-08 13:19:25 INFO  (SecureRandomFactory) Random Number Generator initialization complete: NativePRNGNonBlocking  
+2026-11-08 13:19:25 INFO  (DefaultTrustManagerFactory) Trust manager disabled, cacerts have not been set  
+2026-11-08 13:19:26 INFO  (AnalyzeHeadless) Headless startup complete (3508 ms)  
+2026-11-08 13:19:26 INFO  (ClassSearcher) Class searcher loaded 93 extension points (46 false positives)  
+2026-11-08 13:19:26 INFO  (HeadlessAnalyzer) HEADLESS Script Paths:
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Base/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FileFormats/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/8051/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/DecompilerDependent/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SwiftDemangler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/PIC/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FunctionID/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Decompiler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/MicrosoftCodeAnalyzer/ghidra_scripts
+    /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/GnuDemangler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SystemEmulation/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BytePatterns/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/Atmel/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/DATA/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/WildcardAssembler/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PDB/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/JVM/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/VersionTracking/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger-rmi-trace/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PyGhidra/ghidra_scripts
+    /opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BSim/ghidra_scripts  
+2026-11-08 13:19:26 INFO  (HeadlessAnalyzer) HEADLESS: execution starts  
+2026-11-08 13:19:26 INFO  (HeadlessAnalyzer) Creating project: /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/ghidra/PaceAppRAM  
+2026-11-08 13:19:27 INFO  (DefaultProject) Creating project: /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/ghidra/PaceAppRAM  
+2026-11-08 13:19:27 INFO  (HeadlessAnalyzer) REPORT: Processing input files:   
+2026-11-08 13:19:27 INFO  (HeadlessAnalyzer)      project: /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/ghidra/PaceAppRAM  
+2026-11-08 13:19:27 INFO  (HeadlessAnalyzer) IMPORTING: file:///mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/application_initialized_segments.bin  
+2026-11-08 13:19:27 INFO  (ProgramLoader) Successfully applied "-loader-baseAddr" to "Base Address" (old: "null", new: "80000000")  
+2026-11-08 13:19:27 INFO  (ProgramLoader) Using Loader: Raw Binary  
+2026-11-08 13:19:27 INFO  (ProgramLoader) Using Language/Compiler: MIPS:BE:32:default:default  
+2026-11-08 13:19:27 INFO  (ProgramLoader) Using Library Search Path: [., /bin, /lib, /lib64, /lib/x86_64-linux-gnu, /lib/aarch64-linux-gnu, /usr/bin, /usr/lib, /usr/X11R6/bin, /usr/X11R6/lib, /usr/java/packages/lib, /usr/lib64]  
+2026-11-08 13:19:27 INFO  (HeadlessAnalyzer) IMPORTING: Loaded 0 additional files  
+2026-11-08 13:19:27 INFO  (HeadlessAnalyzer) REPORT: Execute script: InspectRange.java '80000400' '800004CF' 're/application_ram_entry_ghidra.txt' '0' 'redecode'   
+2026-11-08 13:19:27 INFO  (HeadlessAnalyzer) SCRIPT: /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/scripts/InspectRange.java  
+2026-11-08 13:19:27 INFO  (HeadlessAnalyzer) REPORT: Execute script: InspectRange.java '800291F0' '80029260' 're/application_chip_identity_ghidra.txt' '1' 'redecode'   
+2026-11-08 13:19:27 INFO  (HeadlessAnalyzer) SCRIPT: /mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/re/scripts/InspectRange.java  
+2026-11-08 13:19:28 INFO  (LocalFileSystem) /application_initialized_segments.bin: file created (root)  
+2026-11-08 13:19:28 INFO  (HeadlessAnalyzer) REPORT: Save succeeded for: /application_initialized_segments.bin (PaceAppRAM:/application_initialized_segments.bin)  
+2026-11-08 13:19:28 INFO  (HeadlessAnalyzer) REPORT: Import succeeded  

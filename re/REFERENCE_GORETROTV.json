@@ -1,0 +1,13 @@
+{
+  "url": "https://github.com/ddunford/GoRetroTv",
+  "revision": "fa3a471df9c273f4f62ecbcc6a566f3c6e871dd4",
+  "license": "GPL-2.0",
+  "consulted": [
+    "docs/reference/digibox-emulation.md",
+    "internal/machine/sky_gates.go",
+    "internal/device/blitter/execute.go",
+    "internal/device/osd/compose.go",
+    "firmware/MANIFEST.md"
+  ],
+  "notes": "Same-ROM corroborating RE. Manual handoff and presentation interventions explicitly disclosed. No entire upstream source file copied into our implementation; independent limited model uses published hardware observations with Ghidra and runtime checks."
+}

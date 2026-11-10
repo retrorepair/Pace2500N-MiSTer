@@ -1,0 +1,10 @@
+bfc128f8  lw v1,0x194(pc)
+bfc128fa  lw v0,0x198(pc)
+bfc128fc  sw v1,0x0(v0)
+bfc128fe  lw v0,0x198(pc)
+bfc12900  sw v0,0x0(v1)
+bfc12902  li v0,0x1
+bfc12904  sw v0,0x8(v1)
+bfc12906  move v0,zero
+bfc12908  jr ra
+bfc1290a  _sw v0,0x4(v1)

@@ -1,0 +1,213 @@
+%Warning-PINMISSING: sim/tb_huffman_native.sv:14:79: Instance has missing pin: 'io_req'
+   14 |  pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1)) cpu(
+      |                                                                               ^~~
+                     rtl/pace_firmware_cpu.sv:20:17: ... Location of port declaration
+   20 |     output wire io_req, io_we,
+      |                 ^~~~~~
+                     ... For warning description see https://verilator.org/warn/PINMISSING?v=5.044
+                     ... Use "/* verilator lint_off PINMISSING */" and lint_on around source to disable this message.
+%Warning-PINMISSING: sim/tb_huffman_native.sv:14:79: Instance has missing pin: 'io_we'
+   14 |  pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1)) cpu(
+      |                                                                               ^~~
+                     rtl/pace_firmware_cpu.sv:20:25: ... Location of port declaration
+   20 |     output wire io_req, io_we,
+      |                         ^~~~~
+%Warning-PINMISSING: sim/tb_huffman_native.sv:14:79: Instance has missing pin: 'io_addr'
+   14 |  pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1)) cpu(
+      |                                                                               ^~~
+                     rtl/pace_firmware_cpu.sv:21:24: ... Location of port declaration
+   21 |     output wire [31:0] io_addr, io_wdata,
+      |                        ^~~~~~~
+%Warning-PINMISSING: sim/tb_huffman_native.sv:14:79: Instance has missing pin: 'io_wdata'
+   14 |  pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1)) cpu(
+      |                                                                               ^~~
+                     rtl/pace_firmware_cpu.sv:21:33: ... Location of port declaration
+   21 |     output wire [31:0] io_addr, io_wdata,
+      |                                 ^~~~~~~~
+%Warning-PINMISSING: sim/tb_huffman_native.sv:14:79: Instance has missing pin: 'io_size'
+   14 |  pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1)) cpu(
+      |                                                                               ^~~
+                     rtl/pace_firmware_cpu.sv:22:23: ... Location of port declaration
+   22 |     output wire [1:0] io_size,
+      |                       ^~~~~~~
+%Warning-PINMISSING: sim/tb_huffman_native.sv:14:79: Instance has missing pin: 'instruction'
+   14 |  pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1)) cpu(
+      |                                                                               ^~~
+                     rtl/pace_firmware_cpu.sv:35:24: ... Location of port declaration
+   35 |     output reg  [31:0] instruction = 0,
+      |                        ^~~~~~~~~~~
+%Warning-PINMISSING: sim/tb_huffman_native.sv:14:79: Instance has missing pin: 'ram_writes'
+   14 |  pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1)) cpu(
+      |                                                                               ^~~
+                     rtl/pace_firmware_cpu.sv:37:24: ... Location of port declaration
+   37 |     output reg  [31:0] ram_writes = 0,
+      |                        ^~~~~~~~~~
+%Warning-PINMISSING: sim/tb_huffman_native.sv:14:79: Instance has missing pin: 'last_ram_address'
+   14 |  pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1)) cpu(
+      |                                                                               ^~~
+                     rtl/pace_firmware_cpu.sv:38:24: ... Location of port declaration
+   38 |     output reg  [31:0] last_ram_address = 0,
+      |                        ^~~~~~~~~~~~~~~~
+%Warning-PINMISSING: sim/tb_huffman_native.sv:14:79: Instance has missing pin: 'last_mmio_address'
+   14 |  pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1)) cpu(
+      |                                                                               ^~~
+                     rtl/pace_firmware_cpu.sv:39:24: ... Location of port declaration
+   39 |     output reg  [31:0] last_mmio_address = 0,
+      |                        ^~~~~~~~~~~~~~~~~
+%Warning-PINMISSING: sim/tb_huffman_native.sv:14:79: Instance has missing pin: 'last_mmio_value'
+   14 |  pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1)) cpu(
+      |                                                                               ^~~
+                     rtl/pace_firmware_cpu.sv:40:24: ... Location of port declaration
+   40 |     output reg  [31:0] last_mmio_value = 0,
+      |                        ^~~~~~~~~~~~~~~
+%Warning-PINMISSING: sim/tb_huffman_native.sv:14:79: Instance has missing pin: 'last_mmio_read'
+   14 |  pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1)) cpu(
+      |                                                                               ^~~
+                     rtl/pace_firmware_cpu.sv:41:24: ... Location of port declaration
+   41 |     output reg  [31:0] last_mmio_read = 0,
+      |                        ^~~~~~~~~~~~~~
+%Warning-PINMISSING: sim/tb_huffman_native.sv:14:79: Instance has missing pin: 'mmio_writes'
+   14 |  pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1)) cpu(
+      |                                                                               ^~~
+                     rtl/pace_firmware_cpu.sv:42:24: ... Location of port declaration
+   42 |     output reg  [31:0] mmio_writes = 0,
+      |                        ^~~~~~~~~~~
+%Warning-PINMISSING: sim/tb_huffman_native.sv:14:79: Instance has missing pin: 'guessed_reads'
+   14 |  pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1)) cpu(
+      |                                                                               ^~~
+                     rtl/pace_firmware_cpu.sv:43:24: ... Location of port declaration
+   43 |     output reg  [31:0] guessed_reads = 0,
+      |                        ^~~~~~~~~~~~~
+%Warning-PINMISSING: sim/tb_huffman_native.sv:14:79: Instance has missing pin: 'mips16'
+   14 |  pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1)) cpu(
+      |                                                                               ^~~
+                     rtl/pace_firmware_cpu.sv:45:24: ... Location of port declaration
+   45 |     output reg         mips16 = 0,
+      |                        ^~~~~~
+%Warning-PINMISSING: sim/tb_huffman_native.sv:14:79: Instance has missing pin: 'reached_mips16'
+   14 |  pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1)) cpu(
+      |                                                                               ^~~
+                     rtl/pace_firmware_cpu.sv:46:24: ... Location of port declaration
+   46 |     output reg         reached_mips16 = 0,
+      |                        ^~~~~~~~~~~~~~
+%Warning-PINMISSING: sim/tb_huffman_native.sv:14:79: Instance has missing pin: 'interrupt_count'
+   14 |  pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1)) cpu(
+      |                                                                               ^~~
+                     rtl/pace_firmware_cpu.sv:47:24: ... Location of port declaration
+   47 |     output reg  [31:0] interrupt_count = 0
+      |                        ^~~~~~~~~~~~~~~
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:117:106: Operator COND expects 29 bits on the Conditional True, but Conditional True's REPLICATE generates 26 bits.
+                                                      : ... note: In instance 'tb_huffman_native.cpu'
+  117 |     assign mem_addr = bus_is_rom ? (DDR_ROM + (EXTERNAL_MMIO && (bus_virtual&32'h1fc00000)==32'h1f800000 ? {7'd0,bus_virtual[21:3]} : {8'd0,bus_virtual[20:3]})) :
+      |                                                                                                          ^
+                      ... For warning description see https://verilator.org/warn/WIDTHEXPAND?v=5.044
+                      ... Use "/* verilator lint_off WIDTHEXPAND */" and lint_on around source to disable this message.
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:117:106: Operator COND expects 29 bits on the Conditional False, but Conditional False's REPLICATE generates 26 bits.
+                                                      : ... note: In instance 'tb_huffman_native.cpu'
+  117 |     assign mem_addr = bus_is_rom ? (DDR_ROM + (EXTERNAL_MMIO && (bus_virtual&32'h1fc00000)==32'h1f800000 ? {7'd0,bus_virtual[21:3]} : {8'd0,bus_virtual[20:3]})) :
+      |                                                                                                          ^
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:118:45: Operator ADD expects 29 bits on the RHS, but RHS's REPLICATE generates 26 bits.
+                                                     : ... note: In instance 'tb_huffman_native.cpu'
+  118 |                                    (DDR_RAM + {5'd0,bus_virtual[23:3]});
+      |                                             ^
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:126:62: Operator SUB expects 32 or 4 bits on the RHS, but RHS's VARREF 'merge_offset' generates 2 bits.
+                                                     : ... note: In instance 'tb_huffman_native.cpu'
+  126 |                       merge_store==2 ? (({32'd0,bswap} >> ((3-merge_offset)*8)) << (bus_virtual[2:0]*8)) :
+      |                                                              ^
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:139:77: Operator SUB expects 32 or 4 bits on the RHS, but RHS's VARREF 'merge_offset' generates 2 bits.
+                                                     : ... note: In instance 'tb_huffman_native.cpu'
+  139 |         ((loaded_word<<(merge_offset*8)) | (merge_old & (32'hffffffff >> ((4-merge_offset)*8)))) :
+      |                                                                             ^
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:140:27: Operator SUB expects 32 or 4 bits on the RHS, but RHS's VARREF 'merge_offset' generates 2 bits.
+                                                     : ... note: In instance 'tb_huffman_native.cpu'
+  140 |         ((loaded_word>>((3-merge_offset)*8)) | (merge_old & (32'hffffffff << ((merge_offset+1)*8))));
+      |                           ^
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:140:92: Operator ADD expects 32 or 4 bits on the LHS, but LHS's VARREF 'merge_offset' generates 2 bits.
+                                                     : ... note: In instance 'tb_huffman_native.cpu'
+  140 |         ((loaded_word>>((3-merge_offset)*8)) | (merge_old & (32'hffffffff << ((merge_offset+1)*8))));
+      |                                                                                            ^
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:168:33: Operator SUB expects 32 or 4 bits on the RHS, but RHS's VARREF 'addr' generates 2 bits.
+                                                     : ... note: In instance 'tb_huffman_native.cpu'
+  168 |             shifted = raw >> ((3-addr)*8);
+      |                                 ^
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:172:41: Operator SUB expects 32 or 4 bits on the RHS, but RHS's REPLICATE generates 2 bits.
+                                                     : ... note: In instance 'tb_huffman_native.cpu'
+  172 |                     shifted = raw >> ((2-{addr[1],1'b0})*8);
+      |                                         ^
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:434:52: Operator ASSIGNDLY expects 32 bits on the Assign RHS, but Assign RHS's LTS generates 1 bits.
+                                                     : ... note: In instance 'tb_huffman_native.cpu'
+  434 |                           42:begin if(rd!=0)gpr[rd]<=($signed(a)<$signed(b));retire(seq32,0,0,0);end
+      |                                                    ^~
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:435:52: Operator ASSIGNDLY expects 32 bits on the Assign RHS, but Assign RHS's LT generates 1 bits.
+                                                     : ... note: In instance 'tb_huffman_native.cpu'
+  435 |                           43:begin if(rd!=0)gpr[rd]<=(a<b);retire(seq32,0,0,0);end
+      |                                                    ^~
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:451:48: Operator ASSIGNDLY expects 32 bits on the Assign RHS, but Assign RHS's LTS generates 1 bits.
+                                                     : ... note: In instance 'tb_huffman_native.cpu'
+  451 |                       10:begin if(rt!=0)gpr[rt]<=($signed(a)<$signed(imm_se));retire(seq32,0,0,0);end
+      |                                                ^~
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:452:48: Operator ASSIGNDLY expects 32 bits on the Assign RHS, but Assign RHS's LT generates 1 bits.
+                                                     : ... note: In instance 'tb_huffman_native.cpu'
+  452 |                       11:begin if(rt!=0)gpr[rt]<=(a<imm_se);retire(seq32,0,0,0);end
+      |                                                ^~
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:535:41: Operator ASSIGNDLY expects 32 bits on the Assign RHS, but Assign RHS's LTS generates 1 bits.
+                                                     : ... note: In instance 'tb_huffman_native.cpu'
+  535 |                         10:begin gpr[24]<=($signed(rxv)<$signed(m16_uimm));retire(seq16,0,0,1);end
+      |                                         ^~
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:536:41: Operator ASSIGNDLY expects 32 bits on the Assign RHS, but Assign RHS's LT generates 1 bits.
+                                                     : ... note: In instance 'tb_huffman_native.cpu'
+  536 |                         11:begin gpr[24]<=(rxv<m16_uimm);retire(seq16,0,0,1);end
+      |                                         ^~
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:582:44: Operator ASSIGNDLY expects 32 bits on the Assign RHS, but Assign RHS's LTS generates 1 bits.
+                                                     : ... note: In instance 'tb_huffman_native.cpu'
+  582 |                             2:begin gpr[24]<=($signed(rxv)<$signed(ryv));retire(seq16,0,0,1);end
+      |                                            ^~
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:583:44: Operator ASSIGNDLY expects 32 bits on the Assign RHS, but Assign RHS's LT generates 1 bits.
+                                                     : ... note: In instance 'tb_huffman_native.cpu'
+  583 |                             3:begin gpr[24]<=(rxv<ryv);retire(seq16,0,0,1);end
+      |                                            ^~
+%Warning-WIDTHTRUNC: sim/tb_huffman_native.sv:26:50: Bit extraction of array[2097151:0] requires 21 bit index, not 29 bits.
+                                                   : ... note: In instance 'tb_huffman_native'
+   26 |     for(lane=0;lane<8;lane=lane+1)if(be[lane])ram[address-29'h06000000][lane*8+:8]<=data[lane*8+:8];
+      |                                                  ^
+                     ... For warning description see https://verilator.org/warn/WIDTHTRUNC?v=5.044
+                     ... Use "/* verilator lint_off WIDTHTRUNC */" and lint_on around source to disable this message.
+%Warning-WIDTHTRUNC: sim/tb_huffman_native.sv:27:32: Bit extraction of array[2097151:0] requires 21 bit index, not 29 bits.
+                                                   : ... note: In instance 'tb_huffman_native'
+   27 |    end else begin returned<=ram[address-29'h06000000];pending<=1;end
+      |                                ^
+%Warning-WIDTHEXPAND: sim/tb_huffman_native.sv:36:45: Operator ADD expects 32 bits on the LHS, but LHS's CONST '24'h200000' generates 24 bits.
+                                                    : ... note: In instance 'tb_huffman_native'
+   36 |   for(i=0;i<1024;i=i+1)begin ram[(24'h200000+i)/8][(i%8)*8+:8]=encoded[i];ram[(24'h210000+i)/8][(i%8)*8+:8]=8'hee;end
+      |                                             ^
+%Warning-WIDTHEXPAND: sim/tb_huffman_native.sv:36:90: Operator ADD expects 32 bits on the LHS, but LHS's CONST '24'h210000' generates 24 bits.
+                                                    : ... note: In instance 'tb_huffman_native'
+   36 |   for(i=0;i<1024;i=i+1)begin ram[(24'h200000+i)/8][(i%8)*8+:8]=encoded[i];ram[(24'h210000+i)/8][(i%8)*8+:8]=8'hee;end
+      |                                                                                          ^
+%Warning-WIDTHTRUNC: sim/tb_huffman_native.sv:42:55: Operator ASSIGN expects 7 bits on the Assign RHS, but Assign RHS's VARREF 'i' generates 32 bits.
+                                                   : ... note: In instance 'tb_huffman_native'
+   42 |    for(i=0;i<69;i=i+1)begin restore_wr=1;restore_index=i;restore_data=words[i];@(negedge clk);end
+      |                                                       ^
+%Warning-WIDTHEXPAND: sim/tb_huffman_native.sv:51:23: Operator ADD expects 32 bits on the LHS, but LHS's CONST '24'h210000' generates 24 bits.
+                                                    : ... note: In instance 'tb_huffman_native'
+   51 |     if(ram[(24'h210000+n*256+i)/8][(i%8)*8+:8]!=expected[n*256+i])$fatal(1,"native text mismatch case %d byte %d",n,i);
+      |                       ^
+make: Entering directory '/mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/sim/huffman_obj'
+ccache g++ -Os  -I.  -MMD -I/root/verilator/include -I/root/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVL_TIME_CONTEXT   -fcoroutines -c -o verilated.o /root/verilator/include/verilated.cpp
+ccache g++ -Os  -I.  -MMD -I/root/verilator/include -I/root/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVL_TIME_CONTEXT   -fcoroutines -c -o verilated_timing.o /root/verilator/include/verilated_timing.cpp
+ccache g++ -Os  -I.  -MMD -I/root/verilator/include -I/root/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVL_TIME_CONTEXT   -fcoroutines -c -o verilated_threads.o /root/verilator/include/verilated_threads.cpp
+ccache g++ -Os  -I.  -MMD -I/root/verilator/include -I/root/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVL_TIME_CONTEXT   -fcoroutines -x c++-header Vtb_huffman_native__pch.h -o Vtb_huffman_native__pch.h.fast.gch
+ccache g++ -Os  -I.  -MMD -I/root/verilator/include -I/root/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVL_TIME_CONTEXT   -fcoroutines -include Vtb_huffman_native__pch.h.fast -c -o Vtb_huffman_native.o Vtb_huffman_native.cpp
+ccache g++ -Os  -I.  -MMD -I/root/verilator/include -I/root/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVL_TIME_CONTEXT   -fcoroutines -include Vtb_huffman_native__pch.h.fast -c -o Vtb_huffman_native___024root__0.o Vtb_huffman_native___024root__0.cpp
+ccache g++ -Os  -I.  -MMD -I/root/verilator/include -I/root/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVL_TIME_CONTEXT   -fcoroutines -include Vtb_huffman_native__pch.h.fast -c -o Vtb_huffman_native___024root__1.o Vtb_huffman_native___024root__1.cpp
+ccache g++ -Os  -I.  -MMD -I/root/verilator/include -I/root/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVL_TIME_CONTEXT   -fcoroutines -include Vtb_huffman_native__pch.h.fast -c -o Vtb_huffman_native__main.o Vtb_huffman_native__main.cpp
+ccache g++   -I.  -MMD -I/root/verilator/include -I/root/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVL_TIME_CONTEXT   -fcoroutines -x c++-header Vtb_huffman_native__pch.h -o Vtb_huffman_native__pch.h.slow.gch
+ccache g++   -I.  -MMD -I/root/verilator/include -I/root/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVL_TIME_CONTEXT   -fcoroutines -include Vtb_huffman_native__pch.h.slow -c -o Vtb_huffman_native___024root__Slow.o Vtb_huffman_native___024root__Slow.cpp
+ccache g++   -I.  -MMD -I/root/verilator/include -I/root/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVL_TIME_CONTEXT   -fcoroutines -include Vtb_huffman_native__pch.h.slow -c -o Vtb_huffman_native___024root__0__Slow.o Vtb_huffman_native___024root__0__Slow.cpp
+ccache g++   -I.  -MMD -I/root/verilator/include -I/root/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVL_TIME_CONTEXT   -fcoroutines -include Vtb_huffman_native__pch.h.slow -c -o Vtb_huffman_native__Syms__Slow.o Vtb_huffman_native__Syms__Slow.cpp
+g++    verilated.o verilated_timing.o verilated_threads.o Vtb_huffman_native__ALL.a    -pthread -lpthread -latomic   -o Vtb_huffman_native
+rm Vtb_huffman_native__ALL.verilator_deplist.tmp
+make: Leaving directory '/mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/sim/huffman_obj'
+- V e r i l a t i o n   R e p o r t: Verilator 5.044 2026-01-01 rev v5.044
+- Verilator: Built from 0.115 MB sources in 5 modules, into 1.385 MB in 7 C++ files needing 0.003 MB
+- Verilator: Walltime 15.989 s (elab=0.021, cvt=0.244, bld=15.633); cpu 0.000 s on 1 threads

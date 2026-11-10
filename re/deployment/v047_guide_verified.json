@@ -1,0 +1,39 @@
+{
+  "utc": "2026-11-08T21:29:09.656889+00:00",
+  "variant": "v047 FPGA Guide checkpoint resume",
+  "rbf_sha256": "771f2fa034d85039df97e2cdd7d32d93ebb0e228de986f967dd1b905d9dfb659",
+  "rbf_remote": "/media/fat/_Other/Pace2500N_GUIDE.rbf",
+  "mgl_remote": "/media/fat/_Other/Pace2500N_Guide.mgl",
+  "timing_minimum_reported_slack_ns": 0.218,
+  "core_setup_slack_ns": 1.279,
+  "fpga_execution": true,
+  "arm_software_cpu": false,
+  "protected_loader_cold_boot_solved": false,
+  "checkpoint_host_ram_interventions": [
+    "80054F84 FFFFFFFF->00000000",
+    "80430A28 00000000->00000001"
+  ],
+  "pixel_check": {
+    "compared": 368640,
+    "maximum_allowed_colour_rounding_error": 2,
+    "mismatched_pixels": 0
+  },
+  "live_navigation": {
+    "keys": [
+      "Down",
+      "Up"
+    ],
+    "keyboard_events": 4,
+    "remote_frames": 2,
+    "graphics_completions": 4,
+    "graphics_acks": 4,
+    "halt_code": 0
+  },
+  "native_frame_index_sha256": "74695ee3962f14a3eea468e1703b70e121034a2020e4dffa948f05f09f375423",
+  "evidence": [
+    "v047_guide_d_initial.log",
+    "v047_guide_d_navigation.log",
+    "v047_guide_fixed.png",
+    "v047_live_ram.bin"
+  ]
+}

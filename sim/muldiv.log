@@ -1,0 +1,13 @@
+# vsim -c tb_muldiv -l sim/muldiv.log -do "onbreak {quit -code 1}; run -all; quit -code 0" 
+# Start time: 23:58:14 on Nov 07,2026
+# Loading sv_std.std
+# Loading sim/work.tb_muldiv
+# Loading sim/work.pace_muldiv
+# onbreak {quit -code 1}
+#  Warning: onbreak command for use within macro
+#  run -all
+# PASS: 2028 arithmetic cases and reset
+# ** Note: $finish    : sim/tb_muldiv.sv(37)
+#    Time: 688990 ns  Iteration: 1  Instance: /tb_muldiv
+# End time: 23:58:15 on Nov 07,2026, Elapsed time: 0:00:01
+# Errors: 0, Warnings: 0

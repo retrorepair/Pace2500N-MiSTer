@@ -1,0 +1,35 @@
+{
+  "step": 0,
+  "source": "guest RAM display list/field buffers/CLUT",
+  "protected_loader_handoff_observed": false,
+  "hardware_capture": false,
+  "host_firmware_patches": [
+    {
+      "step": 143268918,
+      "address": "80054F84",
+      "space": "RAM",
+      "old": "FFFFFFFF",
+      "new": "00000000",
+      "purpose": "Change AV selection native default return"
+    },
+    {
+      "step": 184000000,
+      "address": "80430A28",
+      "space": "RAM application object",
+      "old": "00000000",
+      "new": "00000001",
+      "purpose": "Host-forced presentation readiness; NOT a peripheral response"
+    }
+  ],
+  "root": "01583FE8",
+  "descriptor": "00583FE8",
+  "width": 720,
+  "height": 576,
+  "depth": 8,
+  "even": "00584048",
+  "odd": "005B6A58",
+  "clut": "005E9468",
+  "distinct_indices": 34,
+  "index_sha256": "81b993714db9af029e3904172d3d4f2c706ae5c5284f031d952e5c4a581d2c8f",
+  "png_sha256": "e0c11f4fd28319a876dc668579d91408676a671bbd852a7ac2246647384ddcdd"
+}

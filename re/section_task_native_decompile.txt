@@ -1,0 +1,143 @@
+
+// 80004520 firmware_section_task
+
+void firmware_section_task(void)
+
+{
+  int iVar1;
+  uint *puVar2;
+  uint *puVar3;
+  undefined4 in_zero;
+  uint uVar4;
+  char cVar6;
+  int iVar5;
+  byte bVar7;
+  code *UNRECOVERED_JUMPTABLE;
+  
+  iVar1 = iRam80004628;
+  do {
+    do {
+      if (*pcRam800049e8 == *pcRam800049ec) {
+                    /* WARNING: Could not recover jumptable at 0x80004948. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+        (*UNRECOVERED_JUMPTABLE)();
+        return;
+      }
+      bVar7 = *pbRam80004630;
+      *pbRam80004630 = bVar7 + 1;
+      *pbRam80004634 = *(byte *)(iRam800045bc + (uint)bVar7);
+      bVar7 = (byte)in_zero;
+      if (199 < *pbRam80004630) {
+        *pbRam80004630 = bVar7;
+      }
+      *piRam8000463c = *(int *)(iRam800045b0 + (uint)*pbRam80004634 * 4) + iRam80004638;
+    } while (*piRam8000463c == *(int *)(iVar1 + (uint)*pbRam80004634 * 0x14 + 0xc));
+    *pbRam80004640 = bVar7;
+    if ((*puRam80004644 & 1 << (*pbRam80004634 & 0x1f)) != 0) {
+      if ((*puRam80004648 & 1 << (*pbRam80004634 & 0x1f)) == 0) {
+        *puRam8000499c = *(uint *)(iVar1 + (uint)*pbRam80004998 * 0x14 + 0xc);
+        *puRam800049a0 = *puRam8000499c;
+        if ((int)*puRam800049a4 < (int)*puRam8000499c) {
+          *pbRam800049a8 = 1;
+        }
+        else {
+          *pbRam800049a8 = bVar7;
+        }
+        do {
+          do {
+            if (*puRam800049a0 == *puRam800049a4) goto LAB_80004716;
+            uVar4 = (*pcRam800049ac)(*pbRam80004998,*puRam800049a0);
+            puVar2 = puRam800049b0;
+            *puRam800049b0 = uVar4;
+            puVar3 = puRam800049b0;
+            *puRam800049b0 = (*puVar2 & 0xfff) + 4;
+            *puRam800049a0 = *puRam800049a0 + *puVar3;
+            if ((*puRam800049a4 < *puRam800049a0) && (*pbRam800049a8 == 0)) {
+              *pcRam80004994 = '\x01';
+              goto LAB_80004716;
+            }
+          } while (*puRam800049a0 <= *(uint *)(iVar1 + (uint)*pbRam80004998 * 0x14 + 4));
+          *puRam800049a0 = *puRam800049a0 - 0x3000;
+          *pbRam800049a8 = (byte)in_zero;
+        } while (*puRam800049a0 <= *puRam800049a4);
+        *pcRam80004994 = '\x01';
+LAB_80004716:
+        if (*pcRam80004994 == '\0') {
+          if ((int)*puRam800049a4 < (int)*puRam8000499c) {
+            *pbRam800049a8 = 1;
+          }
+          else {
+            *pbRam800049a8 = (byte)in_zero;
+          }
+          while (*puRam8000499c != *puRam800049a4) {
+            uVar4 = (*pcRam800049ac)(*pbRam80004998,*puRam8000499c);
+            puVar2 = puRam800049b0;
+            *puRam800049b0 = uVar4;
+            if ((*puVar2 & 0x8000) == 0) {
+              *pbRam800049b4 = 1;
+            }
+            else {
+              *pbRam800049b4 = (byte)in_zero;
+            }
+            puVar2 = puRam800049b0;
+            *puRam800049b0 = (*puRam800049b0 & 0xfff) + 3;
+            *piRam800049b8 = *puRam8000499c + *puVar2;
+            if (((int)*puRam800049a4 < *piRam800049b8 + 1) && (*pbRam800049a8 == 0)) {
+              *pcRam80004994 = '\x01';
+              break;
+            }
+            if (*(int *)(iVar1 + (uint)*pbRam80004998 * 0x14 + 4) < *piRam800049b8) {
+              *piRam800049b8 = *piRam800049b8 + -0x3000;
+              *pbRam800049a8 = (byte)in_zero;
+              if ((int)*puRam800049a4 < *piRam800049b8 + 1) {
+                *pcRam80004994 = '\x01';
+                break;
+              }
+            }
+            *puRam800049b0 = *puRam800049b0 + 1;
+            *pbRam800049bc = *(byte *)*piRam800049b8 & 0x80;
+            if ((*pbRam800049bc == 0) || (*pbRam800049b4 != 0)) {
+              *pcRam800049c0 = '\x01';
+              if (*(int *)(iRam800049c4 + (uint)*pbRam80004998 * 0x24 + 0xc) != 0) {
+                cVar6 = (*pcRam800049c8)(*pbRam80004998,*puRam8000499c,*puRam800049b0,uRam800049cc);
+                *pcRam800049c0 = cVar6;
+              }
+              if ((*pcRam800049c0 == '\x01') &&
+                 (iVar5 = (*pcRam800049d0)(*pbRam80004998,*puRam800049b0,*puRam8000499c), iVar5 != 0
+                 )) {
+                *pcRam80004994 = '\x01';
+                break;
+              }
+            }
+            if ((*puRam800049d4 & 1 << (*pbRam80004998 & 0x1f)) == 0) {
+              *pcRam80004994 = '\x01';
+              break;
+            }
+            *puRam8000499c = *piRam800049b8 + 1;
+            if (*(int *)(iVar1 + (uint)*pbRam80004998 * 0x14 + 4) < (int)*puRam8000499c) {
+              *puRam8000499c = *puRam8000499c - 0x3000;
+              *pbRam800049a8 = (byte)in_zero;
+            }
+          }
+        }
+      }
+      else {
+        *pcRam80004994 = '\x01';
+      }
+    }
+    if (*pcRam80004994 != '\0') {
+      *puRam8000499c = *puRam800049a4;
+    }
+    *(uint *)(iVar1 + (uint)*pbRam80004998 * 0x14 + 0xc) = *puRam8000499c;
+    *puRam800049d8 = *puRam8000499c + 0x2fe0;
+    if (*(uint *)(iVar1 + (uint)*pbRam80004998 * 0x14 + 4) < *puRam800049d8) {
+      *puRam800049d8 = *puRam800049d8 - 0x3000;
+    }
+    puVar2 = puRam800049dc;
+    *puRam800049d8 = *puRam800049d8 - iRam800049e0;
+    *puVar2 = *puVar2 & ~(1 << (*pbRam80004998 & 0x1f));
+    (*pcRam800049e4)(*pbRam80004998 * '\x04' + '\x02',*puRam800049d8);
+  } while( true );
+}
+
+

@@ -1,0 +1,5 @@
+PASS: 720 samples/line 1:1 guest pixels, 864-sample lines, async 54/50 MHz, no new underruns; checked      622080
+- sim/tb_guide_video601.sv:82: Verilog $finish
+- S i m u l a t i o n   R e p o r t: Verilator 5.044 2026-01-01
+- Verilator: $finish at 100ms; walltime 5.488 s; speed 18.550 ms/s
+- Verilator: cpu 5.391 s on 1 threads; alloced 0 MB

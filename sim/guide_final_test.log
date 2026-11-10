@@ -1,0 +1,5 @@
+PASS native firmware PC 800d3ae8 RET  300000000 sections        461 ring reads       11440 acks         461
+- sim/tb_guide_transport.sv:124: Verilog $finish
+- S i m u l a t i o n   R e p o r t: Verilator 5.044 2026-01-01
+- Verilator: $finish at 8s; walltime 706.934 s; speed 11.925 ms/s
+- Verilator: cpu 699.953 s on 1 threads; alloced 0 MB

@@ -1,0 +1,9 @@
+Original decoder passed case           0,          1 encoded bytes,        201 retired
+Original decoder passed case           1,         11 encoded bytes,       2536 retired
+Original decoder passed case           2,         22 encoded bytes,       4813 retired
+Original decoder passed case           3,         42 encoded bytes,       9333 retired
+PASS native firmware Huffman decoder: empty, leading/trailing spaces, phrases, punctuation, long text
+- sim/tb_huffman_native.sv:56: Verilog $finish
+- S i m u l a t i o n   R e p o r t: Verilator 5.044 2026-01-01
+- Verilator: $finish at 1ms; walltime 0.931 s; speed 1.555 ms/s
+- Verilator: cpu 0.906 s on 1 threads; alloced 0 MB

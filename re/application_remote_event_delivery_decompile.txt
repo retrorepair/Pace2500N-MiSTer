@@ -1,0 +1,74 @@
+
+// 8006ea04 remote_event_delivery
+
+void remote_event_delivery(int param_1,undefined4 param_2,short param_3)
+
+{
+  undefined4 in_zero;
+  undefined2 uVar1;
+  undefined4 *puVar2;
+  int iVar3;
+  code *pcVar4;
+  undefined4 uVar5;
+  code *UNRECOVERED_JUMPTABLE;
+  
+  puVar2 = (undefined4 *)(*pcRam8006ea84)(param_2);
+  if (puVar2 == (undefined4 *)0x0) {
+    (*pcRam8006ea70)(0x48a0);
+  }
+  if (param_1 == 0) {
+    if (*(short *)(puVar2 + 2) == 0) goto LAB_8006eb06;
+    (*pcRam8006eaec)(*puVar2);
+    uVar1 = (undefined2)in_zero;
+    (*pcRam8006ed8c)(8,puVar2);
+LAB_8006eaf6:
+    *(undefined2 *)(puVar2 + 2) = uVar1;
+  }
+  else {
+    if (param_1 == 1) {
+      if (param_3 == *(short *)(puVar2 + 2)) goto LAB_8006eb06;
+      if (*(short *)(puVar2 + 2) != 0) {
+        (*pcRam8006eae0)(in_zero,param_2,*(undefined2 *)(puVar2 + 2));
+      }
+      uVar1 = (undefined2)in_zero;
+      *(short *)(puVar2 + 2) = param_3;
+      iVar3 = (*pcRam8006eae4)(7,puVar2);
+      if (iVar3 != 0) goto LAB_8006eaf6;
+      uVar5 = *puVar2;
+      pcVar4 = pcRam8006eae8;
+    }
+    else {
+      uVar5 = 0x4801;
+      pcVar4 = pcRam8006ed90;
+    }
+    (*pcVar4)(uVar5);
+  }
+LAB_8006eb06:
+                    /* WARNING: Could not recover jumptable at 0x8006eb0c. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+
+
+// 8002a634 remote_event_notify
+
+void remote_event_notify(int param_1)
+
+{
+  code *UNRECOVERED_JUMPTABLE;
+  
+  if (param_1 == 1) {
+    (*pcRam8002a654)(1,1);
+  }
+  else {
+    (*pcRam8002a654)(1);
+  }
+                    /* WARNING: Could not recover jumptable at 0x8002a650. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+

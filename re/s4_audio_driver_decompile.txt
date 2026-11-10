@@ -1,0 +1,469 @@
+
+// ===== 80001c40 is inside function 80001c10 body [[80001c10, 80001c4d]]
+
+void FUN_80001c10(void)
+
+{
+  uint in_zero;
+  code *UNRECOVERED_JUMPTABLE;
+  
+  do {
+    if (((*puRam80001ce0 & 0x4000) != 0) || ((*puRam80001ce0 & uRam80001cc4) != 0)) break;
+    (*pcRam80001ce4)(1);
+    in_zero = in_zero + 1;
+  } while (in_zero < 100);
+                    /* WARNING: Could not recover jumptable at 0x80001c4a. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+
+
+// ===== 800019bc is inside function 800019bc body [[800019bc, 800019cd]]
+
+void FUN_800019bc(void)
+
+{
+  (*pcRam80001c98)(uRam80001c88);
+                    /* WARNING: Treating indirect jump as return */
+  return;
+}
+
+
+
+// ===== 800019d0 is inside function 800019d0 body [[800019d0, 800019e3]]
+
+void FUN_800019d0(void)
+
+{
+  (*pcRam80001c9c)(*puRam80001c70);
+                    /* WARNING: Treating indirect jump as return */
+  return;
+}
+
+
+
+// ===== 80001a68 is inside function 80001a28 body [[80001a28, 80001a65]]
+
+undefined4 FUN_80001a28(void)
+
+{
+  undefined4 in_zero;
+  
+  if (*pcRam80001cb0 == '\0') {
+    in_zero = 5;
+  }
+  else {
+    if (*pcRam80001ca0 == '\x01') {
+      (*pcRam80001cb4)(6);
+    }
+    else {
+      (*pcRam80001cb4)(9);
+    }
+    *puRam80001cac = *puRam80001cac & uRam80001cb8;
+    *pcRam80001cb0 = (char)in_zero;
+  }
+                    /* WARNING: Treating indirect jump as return */
+  return in_zero;
+}
+
+
+
+// ===== 8000223c is inside function 8000223c body [[8000223c, 80002263]]
+
+void FUN_8000223c(int param_1,uint param_2)
+
+{
+  int iVar1;
+  code *UNRECOVERED_JUMPTABLE;
+  
+  iVar1 = (param_2 >> 4) + 1;
+  while (iVar1 != 0) {
+    (*pcRam800022d0)(param_1);
+    param_1 = param_1 + 0x10;
+    iVar1 = iVar1 + -1;
+  }
+                    /* WARNING: Could not recover jumptable at 0x80002260. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+
+
+// ===== 80005d30 is inside function 80005d30 body [[80005d30, 80005d95]]
+
+void FUN_80005d30(uint param_1)
+
+{
+  int iVar1;
+  undefined4 in_zero;
+  uint uVar2;
+  code *UNRECOVERED_JUMPTABLE;
+  
+  iVar1 = iRam80005fb0;
+  if ((*(char *)(iRam80005fb0 + 4) != '\0') && (*(char *)(iRam80005fb0 + 0x244 + param_1) != '\0'))
+  {
+    uVar2 = (*pcRam80005fb4)();
+    (*pcRam80005fac)(uRam80005fb8 & uVar2);
+    *(char *)(iVar1 + 0x244 + param_1) = (char)in_zero;
+    *puRam80005fbc = *puRam80005fbc & ~(1 << (param_1 & 0x1f));
+    if (param_1 == 0) {
+      *puRam80005fc0 = in_zero;
+    }
+    (*pcRam80005fac)(uVar2);
+  }
+                    /* WARNING: Could not recover jumptable at 0x80005d92. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+
+
+// ===== 80005d98 is inside function 80005d98 body [[80005d98, 80005dfb]]
+
+void dma_channel_disable(uint param_1)
+
+{
+  int iVar1;
+  uint uVar2;
+  code *UNRECOVERED_JUMPTABLE;
+  
+  iVar1 = iRam80005fb0;
+  if ((*(char *)(iRam80005fb0 + 4) != '\0') && (*(char *)(iRam80005fb0 + 0x244 + param_1) != '\x01')
+     ) {
+    uVar2 = (*pcRam80005fb4)();
+    (*pcRam80005fac)(uRam80005fb8 & uVar2);
+    *(undefined1 *)(iVar1 + 0x244 + param_1) = 1;
+    *puRam80005fbc = *puRam80005fbc | 1 << (param_1 & 0x1f);
+    if (param_1 == 0) {
+      *puRam80005fc0 = 1;
+    }
+    (*pcRam80005fac)(uVar2);
+  }
+                    /* WARNING: Could not recover jumptable at 0x80005df8. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+
+
+// ===== 80005900 is inside function 80005900 body [[80005900, 80005c0b] [80005c6c, 80005cc7]]
+
+void FUN_80005900(uint param_1,uint param_2,uint param_3,int param_4)
+
+{
+  undefined4 *puVar1;
+  undefined4 in_zero;
+  uint uVar2;
+  uint uVar3;
+  undefined4 in_t0;
+  undefined4 in_t1;
+  ushort in_t2;
+  undefined4 in_t3;
+  code *UNRECOVERED_JUMPTABLE;
+  
+  puVar1 = puRam80005c10;
+  if (param_4 != 0) {
+    uVar2 = (*pcRam80005c28)();
+    (*pcRam80005c30)(uRam80005c2c & uVar2);
+    if (*(char *)(iRam80005c34 + param_1) == '\x01') {
+      (*pcRam80005c30)(uVar2);
+    }
+    else {
+      *(undefined1 *)(iRam80005c38 + param_1) = 1;
+      (*pcRam80005c30)(uVar2);
+      (*pcRam80005c14)(iRam80005c3c + param_1 * 0x28,in_zero);
+      uVar2 = (*pcRam80005c28)();
+      (*pcRam80005c30)(uRam80005c2c & uVar2);
+      uVar3 = iRam80005c40 + param_1 * 0x28;
+      param_2 = param_2 & uRam80005c44;
+      param_3 = param_3 & uRam80005c44;
+      if (param_2 != 0) {
+        *(uint *)(uVar3 + 0xc) = param_2;
+        *(uint *)(uVar3 + 0x20) = param_2 + param_4 + -1;
+      }
+      *(undefined4 *)(uVar3 + 0x18) = in_t0;
+      *(undefined4 *)(uVar3 + 0x1c) = in_t1;
+      if ((param_3 != 0) && (*(uint *)(uVar3 + 0x10) = param_3, *(int *)(uVar3 + 0x20) == 0)) {
+        *(uint *)(uVar3 + 0x20) = param_3 + param_4 + -1;
+      }
+      *(undefined4 *)(iRam80005c48 + param_1 * 4) = in_t3;
+      if (in_t2 == 0) {
+        *(undefined4 *)(uVar3 + 0x14) = 0x400;
+      }
+      else {
+        *(uint *)(uVar3 + 0x14) = in_t2 & 0x3fff;
+      }
+      if (param_1 < 6) {
+        if ((int)(param_1 - 3) < 0) {
+          if ((int)(param_1 - 1) < 1) {
+            if (param_1 == 1) {
+              *(uint *)(uVar3 + 0x14) = *(uint *)(uVar3 + 0x14) | uRam80005c54;
+              puVar1[0x14] = uRam80005c44 & uVar3;
+              (*pcRam80005c50)(uVar3,0x28);
+              puVar1[0x88] = 1;
+              puVar1[4] = puVar1[4] | 2;
+            }
+            else {
+              *(uint *)(uVar3 + 0x14) = *(uint *)(uVar3 + 0x14) | uRam80005c4c;
+              puVar1[0x10] = uRam80005c44 & uVar3;
+              (*pcRam80005c50)(uVar3,0x28);
+              puVar1[0x88] = 1;
+              puVar1[4] = puVar1[4] | 1;
+              *puVar1 = 1;
+            }
+          }
+          else {
+            *(uint *)(uVar3 + 0x14) = *(uint *)(uVar3 + 0x14) | uRam80005c58;
+            puVar1[0x18] = uRam80005c44 & uVar3;
+            (*pcRam80005c50)(uVar3,0x28);
+            puVar1[0x88] = 1;
+            puVar1[4] = puVar1[4] | 4;
+          }
+        }
+        else if ((int)(param_1 - 4) < 0) {
+          *(uint *)(uVar3 + 0x14) = *(uint *)(uVar3 + 0x14) | uRam80005c5c;
+          puVar1[0x1c] = uRam80005c44 & uVar3;
+          (*pcRam80005c50)(uVar3,0x28);
+          puVar1[0x88] = 1;
+          puVar1[4] = puVar1[4] | 8;
+        }
+        else if (param_1 == 4) {
+          *(uint *)(uVar3 + 0x14) = *(uint *)(uVar3 + 0x14) | uRam80005c60;
+          puVar1[0x20] = uRam80005c44 & uVar3;
+          (*pcRam80005c50)(uVar3,0x28);
+          puVar1[0x88] = 1;
+          puVar1[4] = puVar1[4] | 0x10;
+        }
+        else {
+          *(uint *)(uVar3 + 0x14) = *(uint *)(uVar3 + 0x14) | uRam80005c64;
+          puVar1[0x24] = uRam80005c44 & uVar3;
+          (*pcRam80005c50)(uVar3,0x28);
+          puVar1[0x88] = 1;
+          puVar1[4] = puVar1[4] | 0x20;
+        }
+      }
+      else if (param_1 < 9) {
+        if ((int)(param_1 - 7) < 0) {
+          *(uint *)(uVar3 + 0x14) = *(uint *)(uVar3 + 0x14) | uRam80005c64;
+          puVar1[0x28] = uRam80005c44 & uVar3;
+          (*pcRam80005c50)(uVar3,0x28);
+          puVar1[0x88] = 1;
+          puVar1[4] = puVar1[4] | 0x40;
+        }
+        else if (param_1 == 7) {
+          *(uint *)(uVar3 + 0x14) = *(uint *)(uVar3 + 0x14) | uRam80005c68;
+          puVar1[0x2c] = uRam80005c44 & uVar3;
+          (*pcRam80005c50)(uVar3,0x28);
+          puVar1[0x88] = 1;
+          puVar1[4] = puVar1[4] | 0x80;
+        }
+        else {
+          *(uint *)(uVar3 + 0x14) = *(uint *)(uVar3 + 0x14) | uRam80005c64;
+          puVar1[0x30] = uRam80005c44 & uVar3;
+          (*pcRam80005c50)(uVar3,0x28);
+          puVar1[0x88] = 1;
+          puVar1[4] = puVar1[4] | 0x100;
+        }
+      }
+      else if (param_1 < 10) {
+        *(uint *)(uVar3 + 0x14) = *(uint *)(uVar3 + 0x14) | uRam80005c64;
+        puVar1[0x34] = uRam80005c44 & uVar3;
+        (*pcRam80005c50)(uVar3,0x28);
+        puVar1[0x88] = 1;
+        puVar1[4] = puVar1[4] | 0x200;
+      }
+      else if (param_1 == 10) {
+        *(uint *)(uVar3 + 0x14) = *(uint *)(uVar3 + 0x14) | uRam80005c64;
+        puVar1[0x38] = uRam80005c44 & uVar3;
+        (*pcRam80005c50)(uVar3,0x28);
+        puVar1[0x88] = 1;
+        puVar1[4] = puVar1[4] | 0x400;
+      }
+      else if (param_1 < 0xc) {
+        *(uint *)(uVar3 + 0x14) = *(uint *)(uVar3 + 0x14) | uRam80005c68;
+        puVar1[0x3c] = uRam80005fa0 & uVar3;
+        (*pcRam80005fa4)(uVar3,0x28);
+        puVar1[0x88] = 1;
+        puVar1[4] = puVar1[4] | 0x800;
+      }
+      else if (param_1 == 0xc) {
+        *(uint *)(uVar3 + 0x14) = *(uint *)(uVar3 + 0x14) | uRam80005fa8;
+        puVar1[0x40] = uRam80005fa0 & uVar3;
+        (*pcRam80005fa4)(uVar3,0x28);
+        puVar1[0x88] = 1;
+        puVar1[4] = puVar1[4] | 0x1000;
+      }
+      (*pcRam80005fac)(uVar2);
+    }
+  }
+                    /* WARNING: Could not recover jumptable at 0x80005cc4. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+
+
+// ===== 80024164 is inside function 80024164 body [[80024164, 800241a9]]
+
+undefined4 FUN_80024164(undefined4 param_1,undefined4 param_2,undefined4 *param_3)
+
+{
+  undefined4 in_zero;
+  int iVar1;
+  undefined4 uVar2;
+  
+  iVar1 = (*pcRam800243ac)(*puRam800243b4,0x28);
+  if (iVar1 == 0) {
+    uVar2 = *param_3;
+    iVar1 = (*pcRam800243d4)(uVar2,param_1,param_2,0xb);
+    if (iVar1 != 0) {
+      (*pcRam800243d8)(uVar2);
+      in_zero = 1;
+    }
+  }
+  else {
+    in_zero = 7;
+  }
+                    /* WARNING: Treating indirect jump as return */
+  return in_zero;
+}
+
+
+
+// ===== 80024300 is inside function 80024300 body [[80024300, 80024375] [80024420, 80024427]]
+
+undefined4 FUN_80024300(int param_1,undefined4 param_2,undefined4 *param_3)
+
+{
+  undefined4 in_zero;
+  int iVar1;
+  undefined4 uStack_1c;
+  
+  if (*pcRam8002437c == '\0') {
+    in_zero = 4;
+  }
+  else {
+    iVar1 = (*pcRam80024404)(param_1,param_3,param_2);
+    if (iVar1 != 0) {
+      (*pcRam80024408)(uRam8002440c);
+      (*pcRam80024408)(uRam80024410,param_1,*param_3,param_2);
+      if (param_1 == *piRam80024380) {
+        (*pcRam80024408)(uRam80024414);
+      }
+      else if (param_1 == *piRam80024398) {
+        (*pcRam80024408)(uRam80024418);
+      }
+      else {
+        (*pcRam80024408)(uRam8002441c);
+      }
+      (*pcRam800243f0)(100);
+      uStack_1c = 7;
+      in_zero = uStack_1c;
+    }
+  }
+                    /* WARNING: Treating indirect jump as return */
+  return in_zero;
+}
+
+
+
+// ===== 80024428 is inside function 80024428 body [[80024428, 80024453]]
+
+void FUN_80024428(int param_1)
+
+{
+  code *UNRECOVERED_JUMPTABLE;
+  
+  if ((*pcRam80024750 != '\0') && (param_1 != 0)) {
+    (*pcRam80024754)();
+  }
+                    /* WARNING: Could not recover jumptable at 0x80024450. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+
+
+// ===== 80024210 is inside function 80024210 body [[80024210, 80024235]]
+
+undefined4 FUN_80024210(void)
+
+{
+  undefined4 in_zero;
+  int iVar1;
+  
+  iVar1 = (*pcRam800243e8)();
+  if (iVar1 == iRam800243e0) {
+    in_zero = 6;
+  }
+  else if (iVar1 != 0) {
+    in_zero = 1;
+  }
+                    /* WARNING: Treating indirect jump as return */
+  return in_zero;
+}
+
+
+
+// ===== 800241e8 is inside function 800241e8 body [[800241e8, 8002420d]]
+
+undefined4 FUN_800241e8(void)
+
+{
+  undefined4 in_zero;
+  int iVar1;
+  
+  iVar1 = (*pcRam800243e4)();
+  if (iVar1 == iRam800243e0) {
+    in_zero = 6;
+  }
+  else if (iVar1 != 0) {
+    in_zero = 1;
+  }
+                    /* WARNING: Treating indirect jump as return */
+  return in_zero;
+}
+
+
+
+// ===== 80024238 is inside function 80024238 body [[80024238, 8002425d]]
+
+undefined4 FUN_80024238(void)
+
+{
+  undefined4 in_zero;
+  int iVar1;
+  
+  iVar1 = (*pcRam800243ec)();
+  if (iVar1 == iRam800243e0) {
+    in_zero = 6;
+  }
+  else if (iVar1 != 0) {
+    in_zero = 1;
+  }
+                    /* WARNING: Treating indirect jump as return */
+  return in_zero;
+}
+
+
+
+// ===== 80024260 is inside function 80024260 body [[80024260, 80024271]]
+
+undefined4 FUN_80024260(void)
+
+{
+  undefined4 in_zero;
+  
+  (*pcRam800243f0)();
+                    /* WARNING: Treating indirect jump as return */
+  return in_zero;
+}
+
+

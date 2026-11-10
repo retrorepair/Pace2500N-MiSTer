@@ -1,0 +1,6 @@
+bfc06614  lbu v1,0x3(a0)
+bfc06616  lw v0,0x14(pc)
+bfc06618  sb v1,0x0(v0)
+bfc0661a  lbu v1,0x4(a0)
+bfc0661c  jr ra
+bfc0661e  _sb v1,0x1(v0)

@@ -1,0 +1,65 @@
+
+// 800086fc graphics_01ac_build
+
+void graphics_01ac_build(int param_1,ushort *param_2,byte param_3)
+
+{
+  uint in_zero;
+  uint uVar1;
+  int iVar2;
+  uint uVar3;
+  code *UNRECOVERED_JUMPTABLE;
+  uint uStack_48;
+  uint uStack_44;
+  uint uStack_40;
+  uint uStack_3c;
+  uint uStack_28;
+  uint uStack_24;
+  uint uStack_18;
+  undefined4 uStack_14;
+  uint uStack_10;
+  uint uStack_c;
+  
+  if ((((param_1 != 0) &&
+       (uVar1 = in_zero,
+       iVar2 = (*pcRam80008ad0)(*(undefined4 *)(iRam8000872c + (uint)*(byte *)(param_1 + 0x3c) * 4),
+                                param_1), iVar2 != 0)) &&
+      ((int)(short)*param_2 < (int)(uint)*(ushort *)(param_1 + 10))) &&
+     ((((int)(short)param_2[2] < (int)(uint)*(ushort *)(param_1 + 8) && (-1 < (short)param_2[3])) &&
+      (-1 < (short)param_2[1])))) {
+    if (*(ushort *)(param_1 + 10) < param_2[1]) {
+      param_2[1] = *(ushort *)(param_1 + 10);
+    }
+    if (*(ushort *)(param_1 + 8) < param_2[3]) {
+      param_2[3] = *(ushort *)(param_1 + 8);
+    }
+    uVar3 = *(uint *)(param_1 + 0x10) & uRam80008ad4;
+    if (*pcRam80008ad8 == '\0') {
+      param_2[2] = param_2[2] >> 1;
+      param_2[3] = param_2[3] >> 1;
+      uStack_48 = in_zero;
+    }
+    else {
+      uStack_48 = uRam80008adc;
+      uStack_3c = *(uint *)(param_1 + 0x14) & uRam80008ae0;
+      uStack_24 = *(uint *)(param_1 + 0x14) & uRam80008ae0;
+    }
+    if (param_2[3] == param_2[2]) {
+      param_2[3] = param_2[2] + 1;
+    }
+    uStack_44 = uRam80008ae4 | uVar3 >> 7 | uStack_48;
+    uStack_40 = *(uint *)(param_1 + 0x10) & uRam80008ae0;
+    uStack_28 = *(uint *)(param_1 + 0x10) & uRam80008ae0;
+    uStack_18 = (uint)*(ushort *)(param_1 + 10);
+    uStack_14 = CONCAT22(param_2[2],*param_2);
+    uStack_10 = ((uint)param_2[3] - (uint)param_2[2]) * 0x10000 | (uint)param_2[1] - (uint)*param_2;
+    uStack_c = (uint)param_3 | (uint)param_3 << 0x10;
+    (*pcRam80008ae8)(&uStack_44,uVar1,1);
+  }
+                    /* WARNING: Could not recover jumptable at 0x80008850. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+

@@ -1,0 +1,12 @@
+bfc0366c  addiu sp,-0x8
+bfc0366e  sw ra,0x4(sp)
+bfc03670  jal 0xbfc06554
+bfc03674  _addiu s0,0x0
+bfc03676  cmpi v0,0x8
+bfc03678  btnez 0xbfc0367e
+bfc0367a  li v0,0x1
+bfc0367c  b 0xbfc03680
+bfc0367e  move v0,zero
+bfc03680  lw a0,0x4(sp)
+bfc03682  jr a0
+bfc03684  _addiu sp,0x8

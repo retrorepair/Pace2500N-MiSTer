@@ -1,0 +1,10 @@
+bfc05a00  addiu sp,-0x8
+bfc05a02  sw ra,0x4(sp)
+bfc05a04  jal 0xbfc059fc
+bfc05a08  _addiu s0,0x0
+bfc05a0a  lw a0,0x4(sp)
+bfc05a0c  addiu sp,0x8
+bfc05a0e  li v1,0x1
+bfc05a10  lw v0,0x18(pc)
+bfc05a12  jr a0
+bfc05a14  _sb v1,0x0(v0)

@@ -1,0 +1,16 @@
+800267f8  addiu sp,-0x8
+800267fa  sw ra,0x4(sp)
+800267fc  lw a1,0x300(pc)
+800267fe  jalr a1
+80026800  _li a0,0x22
+80026802  move v1,v0
+80026804  li a1,0x1
+80026806  and v1,a1
+80026808  xor v1,a1
+8002680a  sltiu v1,0x1
+8002680c  move v0,t8
+8002680e  sll v0,v0,0x18
+80026812  srl v0,v0,0x18
+80026816  lw a0,0x4(sp)
+80026818  jr a0
+8002681a  _addiu sp,0x8

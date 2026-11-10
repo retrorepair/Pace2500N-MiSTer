@@ -1,0 +1,221 @@
+
+// ===== 800f2d10 is inside function 800f2c6c body [[800f2c6c, 800f2cbf] [800f2d70, 800f2d91]]
+
+undefined4 FUN_800f2c6c(undefined4 param_1)
+
+{
+  undefined4 in_zero;
+  undefined1 uVar1;
+  
+  do {
+  } while (*pcRam800f2d48 == '\x01');
+  if (*piRam800f2d4c != 0) {
+    if (*piRam800f2d50 != 4) {
+      return 2;
+    }
+    func_0x80024260(1);
+  }
+  *puRam800f2d54 = param_1;
+  *puRam800f2d58 = 1;
+  uVar1 = (undefined1)in_zero;
+  *puRam800f2d5c = uVar1;
+  *puRam800f2d60 = uVar1;
+  *puRam800f2d64 = in_zero;
+  *puRam800f2d68 = uVar1;
+  *puRam800f2d6c = 1;
+  *puRam800f3060 = in_zero;
+  func_0x800f354c();
+  func_0x800f32f8();
+  return in_zero;
+}
+
+
+
+// ===== 800f2d9e is inside function 800f2d9c body [[800f2d9c, 800f2e45]]
+
+undefined4 FUN_800f2d9c(void)
+
+{
+  undefined4 in_zero;
+  uint uVar1;
+  
+  if (*pcRam800f3064 == '\x01') {
+    in_zero = 2;
+  }
+  else {
+    uVar1 = func_0x80000b90();
+    func_0x80000ba0(uVar1 & uRam800f3068);
+    func_0x80000ba0(uVar1);
+    if (*piRam800f306c == 2) {
+      *puRam800f3070 = in_zero;
+      *puRam800f3074 = in_zero;
+      *puRam800f3078 = 1;
+    }
+    else if (*piRam800f307c == 1) {
+      *puRam800f3080 = in_zero;
+      *puRam800f3084 = in_zero;
+      *puRam800f3088 = 1;
+    }
+    else if (*piRam800f308c == 0) {
+      *puRam800f3090 = in_zero;
+      *puRam800f3094 = 1;
+    }
+    else {
+      *puRam800f3098 = in_zero;
+      *puRam800f309c = in_zero;
+      *puRam800f30a0 = in_zero;
+    }
+    func_0x80000ba0(uVar1);
+    func_0x800f3558();
+  }
+  return in_zero;
+}
+
+
+
+// 800f2dc0 in already printed function 800f2d9c
+
+// 800f2e00 in already printed function 800f2d9c
+
+// 800f2e40 in already printed function 800f2d9c
+
+// ===== 800f3148 is inside function 800f3148 body [[800f3148, 800f31e5]]
+
+void FUN_800f3148(void)
+
+{
+  char *pcVar1;
+  
+  *pcRam800f345c = (char)*(undefined4 *)*puRam800f3458;
+  if (((*pcRam800f3460 == '\x01') && (*pcRam800f345c == '`')) && (*pcRam800f3464 == '\x01')) {
+    if (*pcRam800f3468 == '\x01') {
+      func_0x800f3508();
+      func_0x800f3524();
+    }
+  }
+  else {
+    pcVar1 = (char *)*puRam800f346c;
+    *puRam800f3470 = pcVar1 + 1;
+    *pcVar1 = *pcRam800f345c;
+    *pcRam800f3478 = *pcRam800f3474 + -1;
+    if (*pcRam800f347c == '\0') {
+      *puRam800f3480 = 1;
+      func_0x800f3558();
+      func_0x800f3248();
+    }
+    else if (*pcRam800f3484 == '\x01') {
+      func_0x800f3508();
+      func_0x800f3524();
+    }
+  }
+  return;
+}
+
+
+
+// ===== 800f31e8 is inside function 800f31e8 body [[800f31e8, 800f3247]]
+
+void FUN_800f31e8(void)
+
+{
+  uint *puVar1;
+  char cVar3;
+  byte *pbVar2;
+  
+  cVar3 = '\n';
+  if (*pcRam800f3488 == '\0') {
+    *puRam800f348c = 1;
+    func_0x800f354c();
+  }
+  else {
+    for (; ((*(uint *)(*piRam800f3458 + 4) & 1) != 1 && (cVar3 != '\0')); cVar3 = cVar3 + -1) {
+    }
+    *pcRam800f3494 = *pcRam800f3490 + -1;
+    puVar1 = (uint *)*piRam800f3458;
+    pbVar2 = (byte *)*puRam800f3498;
+    *puRam800f349c = pbVar2 + 1;
+    *puVar1 = (uint)*pbVar2;
+  }
+  return;
+}
+
+
+
+// ===== 800f3248 is inside function 800f3248 body [[800f3248, 800f325d]]
+
+void FUN_800f3248(void)
+
+{
+  func_0x800d42b0(uRam800f34a0);
+  return;
+}
+
+
+
+// ===== 800f354c is inside function 800f3398 body [[800f3398, 800f3457] [800f3500, 800f3507]]
+
+void FUN_800f3398(void)
+
+{
+  uint in_zero;
+  undefined1 uVar1;
+  uint uVar2;
+  
+  func_0x80024260(1);
+  if ((*(uint *)(*piRam800f3458 + 4) & 0x10) == 0) {
+    func_0x800f2868(1);
+    func_0x80024260(1);
+    if ((*(uint *)(*piRam800f3458 + 4) & 0x10) == 0) {
+      uVar2 = 1;
+    }
+    else {
+      uVar2 = 5;
+    }
+  }
+  else {
+    func_0x800f2868(1);
+    for (uVar2 = in_zero; uVar2 < 0xff; uVar2 = uVar2 + 1 & 0xff) {
+    }
+    func_0x800f2868(in_zero);
+    uVar2 = in_zero;
+  }
+  if (uVar2 == 0) {
+    *puRam800f34e4 = 4;
+    *puRam800f34e8 = 1;
+    *(undefined4 *)(*piRam800f3458 + 0x70) = 6;
+  }
+  if (uVar2 == 1) {
+    *puRam800f34ec = 5;
+    *puRam800f34f0 = in_zero;
+    *(undefined4 *)(*piRam800f3458 + 0x70) = 6;
+  }
+  if (uVar2 == 5) {
+    *puRam800f34f4 = 6;
+    *puRam800f34f8 = in_zero;
+  }
+  func_0x800f3558();
+  uVar1 = (undefined1)in_zero;
+  func_0x800e82ac(uVar2);
+  *puRam800f34fc = uVar1;
+  return;
+}
+
+
+
+// 800f3564 in already printed function 800f3398
+
+// ===== 800f32f8 is inside function 800f32f8 body [[800f32f8, 800f3325]]
+
+void FUN_800f32f8(void)
+
+{
+  func_0x800e7ab4();
+  func_0x800f3508();
+  if (*pcRam800f34c8 == '\x01') {
+    func_0x800f3524();
+  }
+  func_0x800e7ac8();
+  return;
+}
+
+

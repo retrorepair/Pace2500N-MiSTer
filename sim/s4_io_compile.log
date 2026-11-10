@@ -1,0 +1,301 @@
+%Warning-PINMISSING: sim/tb_guide_transport.sv:37:90: Instance has missing pin: 'instruction'
+   37 |  pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1),.ICACHE(1)) cpu(
+      |                                                                                          ^~~
+                     rtl/pace_firmware_cpu.sv:40:24: ... Location of port declaration
+   40 |     output reg  [31:0] instruction = 0,
+      |                        ^~~~~~~~~~~
+                     ... For warning description see https://verilator.org/warn/PINMISSING?v=5.044
+                     ... Use "/* verilator lint_off PINMISSING */" and lint_on around source to disable this message.
+%Warning-PINMISSING: sim/tb_guide_transport.sv:37:90: Instance has missing pin: 'ram_writes'
+   37 |  pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1),.ICACHE(1)) cpu(
+      |                                                                                          ^~~
+                     rtl/pace_firmware_cpu.sv:42:24: ... Location of port declaration
+   42 |     output reg  [31:0] ram_writes = 0,
+      |                        ^~~~~~~~~~
+%Warning-PINMISSING: sim/tb_guide_transport.sv:37:90: Instance has missing pin: 'last_ram_address'
+   37 |  pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1),.ICACHE(1)) cpu(
+      |                                                                                          ^~~
+                     rtl/pace_firmware_cpu.sv:43:24: ... Location of port declaration
+   43 |     output reg  [31:0] last_ram_address = 0,
+      |                        ^~~~~~~~~~~~~~~~
+%Warning-PINMISSING: sim/tb_guide_transport.sv:37:90: Instance has missing pin: 'last_mmio_address'
+   37 |  pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1),.ICACHE(1)) cpu(
+      |                                                                                          ^~~
+                     rtl/pace_firmware_cpu.sv:44:24: ... Location of port declaration
+   44 |     output reg  [31:0] last_mmio_address = 0,
+      |                        ^~~~~~~~~~~~~~~~~
+%Warning-PINMISSING: sim/tb_guide_transport.sv:37:90: Instance has missing pin: 'last_mmio_value'
+   37 |  pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1),.ICACHE(1)) cpu(
+      |                                                                                          ^~~
+                     rtl/pace_firmware_cpu.sv:45:24: ... Location of port declaration
+   45 |     output reg  [31:0] last_mmio_value = 0,
+      |                        ^~~~~~~~~~~~~~~
+%Warning-PINMISSING: sim/tb_guide_transport.sv:37:90: Instance has missing pin: 'last_mmio_read'
+   37 |  pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1),.ICACHE(1)) cpu(
+      |                                                                                          ^~~
+                     rtl/pace_firmware_cpu.sv:46:24: ... Location of port declaration
+   46 |     output reg  [31:0] last_mmio_read = 0,
+      |                        ^~~~~~~~~~~~~~
+%Warning-PINMISSING: sim/tb_guide_transport.sv:37:90: Instance has missing pin: 'mmio_writes'
+   37 |  pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1),.ICACHE(1)) cpu(
+      |                                                                                          ^~~
+                     rtl/pace_firmware_cpu.sv:47:24: ... Location of port declaration
+   47 |     output reg  [31:0] mmio_writes = 0,
+      |                        ^~~~~~~~~~~
+%Warning-PINMISSING: sim/tb_guide_transport.sv:37:90: Instance has missing pin: 'guessed_reads'
+   37 |  pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1),.ICACHE(1)) cpu(
+      |                                                                                          ^~~
+                     rtl/pace_firmware_cpu.sv:48:24: ... Location of port declaration
+   48 |     output reg  [31:0] guessed_reads = 0,
+      |                        ^~~~~~~~~~~~~
+%Warning-PINMISSING: sim/tb_guide_transport.sv:37:90: Instance has missing pin: 'mips16'
+   37 |  pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1),.ICACHE(1)) cpu(
+      |                                                                                          ^~~
+                     rtl/pace_firmware_cpu.sv:50:24: ... Location of port declaration
+   50 |     output reg         mips16 = 0,
+      |                        ^~~~~~
+%Warning-PINMISSING: sim/tb_guide_transport.sv:37:90: Instance has missing pin: 'reached_mips16'
+   37 |  pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1),.ICACHE(1)) cpu(
+      |                                                                                          ^~~
+                     rtl/pace_firmware_cpu.sv:51:24: ... Location of port declaration
+   51 |     output reg         reached_mips16 = 0,
+      |                        ^~~~~~~~~~~~~~
+%Warning-PINMISSING: sim/tb_guide_transport.sv:37:90: Instance has missing pin: 'interrupt_count'
+   37 |  pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1),.ICACHE(1)) cpu(
+      |                                                                                          ^~~
+                     rtl/pace_firmware_cpu.sv:52:24: ... Location of port declaration
+   52 |     output reg  [31:0] interrupt_count = 0
+      |                        ^~~~~~~~~~~~~~~
+%Warning-PINMISSING: sim/tb_guide_transport.sv:43:25: Instance has missing pin: 'serial_frames'
+   43 |  pace_guide_peripherals devices(.clk(clk),.reset(reset),.hold(hold),.retired(retired),
+      |                         ^~~~~~~
+                     rtl/pace_guide_peripherals.sv:20:20: ... Location of port declaration
+   20 |  output reg [31:0] serial_frames=0,key_frames=0,timer_acks=0,gpu_acks=0,
+      |                    ^~~~~~~~~~~~~
+%Warning-PINMISSING: sim/tb_guide_transport.sv:43:25: Instance has missing pin: 'key_frames'
+   43 |  pace_guide_peripherals devices(.clk(clk),.reset(reset),.hold(hold),.retired(retired),
+      |                         ^~~~~~~
+                     rtl/pace_guide_peripherals.sv:20:36: ... Location of port declaration
+   20 |  output reg [31:0] serial_frames=0,key_frames=0,timer_acks=0,gpu_acks=0,
+      |                                    ^~~~~~~~~~
+%Warning-PINMISSING: sim/tb_guide_transport.sv:43:25: Instance has missing pin: 'timer_acks'
+   43 |  pace_guide_peripherals devices(.clk(clk),.reset(reset),.hold(hold),.retired(retired),
+      |                         ^~~~~~~
+                     rtl/pace_guide_peripherals.sv:20:49: ... Location of port declaration
+   20 |  output reg [31:0] serial_frames=0,key_frames=0,timer_acks=0,gpu_acks=0,
+      |                                                 ^~~~~~~~~~
+%Warning-PINMISSING: sim/tb_guide_transport.sv:43:25: Instance has missing pin: 'gpu_acks'
+   43 |  pace_guide_peripherals devices(.clk(clk),.reset(reset),.hold(hold),.retired(retired),
+      |                         ^~~~~~~
+                     rtl/pace_guide_peripherals.sv:20:62: ... Location of port declaration
+   20 |  output reg [31:0] serial_frames=0,key_frames=0,timer_acks=0,gpu_acks=0,
+      |                                                              ^~~~~~~~
+%Warning-PINMISSING: sim/tb_guide_transport.sv:43:25: Instance has missing pin: 'last_key'
+   43 |  pace_guide_peripherals devices(.clk(clk),.reset(reset),.hold(hold),.retired(retired),
+      |                         ^~~~~~~
+                     rtl/pace_guide_peripherals.sv:21:19: ... Location of port declaration
+   21 |  output reg [7:0] last_key=0
+      |                   ^~~~~~~~
+%Warning-PINMISSING: sim/tb_guide_transport.sv:47:21: Instance has missing pin: 'busy'
+   47 |  pace_guide_blitter gpu(.clk(clk),.reset(reset),.hold(hold),.start(gpu_start),.descriptor(gpu_descriptor),
+      |                     ^~~
+                     rtl/pace_guide_blitter.sv:8:14: ... Location of port declaration
+    8 |  output wire busy,
+      |              ^~~~
+%Warning-PINMISSING: sim/tb_guide_transport.sv:47:21: Instance has missing pin: 'last_opcode'
+   47 |  pace_guide_blitter gpu(.clk(clk),.reset(reset),.hold(hold),.start(gpu_start),.descriptor(gpu_descriptor),
+      |                     ^~~
+                     rtl/pace_guide_blitter.sv:10:34: ... Location of port declaration
+   10 |  output reg [31:0] completions=0,last_opcode=0,
+      |                                  ^~~~~~~~~~~
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:146:72: Bit extraction of var[19:0] requires 5 bit index, not 1 bits.
+                                                     : ... note: In instance 'tb_guide_transport.cpu'
+  146 |     wire icache_hit=icache_tag_q[19:2]==mem_addr[28:11] && icache_tag_q[mem_addr[0]];
+      |                                                                        ^
+                      ... For warning description see https://verilator.org/warn/WIDTHEXPAND?v=5.044
+                      ... Use "/* verilator lint_off WIDTHEXPAND */" and lint_on around source to disable this message.
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:159:106: Operator COND expects 29 bits on the Conditional True, but Conditional True's REPLICATE generates 26 bits.
+                                                      : ... note: In instance 'tb_guide_transport.cpu'
+  159 |     assign mem_addr = bus_is_rom ? (DDR_ROM + (EXTERNAL_MMIO && (bus_virtual&32'h1fc00000)==32'h1f800000 ? {7'd0,bus_virtual[21:3]} : {8'd0,bus_virtual[20:3]})) :
+      |                                                                                                          ^
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:159:106: Operator COND expects 29 bits on the Conditional False, but Conditional False's REPLICATE generates 26 bits.
+                                                      : ... note: In instance 'tb_guide_transport.cpu'
+  159 |     assign mem_addr = bus_is_rom ? (DDR_ROM + (EXTERNAL_MMIO && (bus_virtual&32'h1fc00000)==32'h1f800000 ? {7'd0,bus_virtual[21:3]} : {8'd0,bus_virtual[20:3]})) :
+      |                                                                                                          ^
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:160:45: Operator ADD expects 29 bits on the RHS, but RHS's REPLICATE generates 26 bits.
+                                                     : ... note: In instance 'tb_guide_transport.cpu'
+  160 |                                    (DDR_RAM + {5'd0,bus_virtual[23:3]});
+      |                                             ^
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:168:62: Operator SUB expects 32 or 4 bits on the RHS, but RHS's VARREF 'merge_offset' generates 2 bits.
+                                                     : ... note: In instance 'tb_guide_transport.cpu'
+  168 |                       merge_store==2 ? (({32'd0,bswap} >> ((3-merge_offset)*8)) << (bus_virtual[2:0]*8)) :
+      |                                                              ^
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:181:77: Operator SUB expects 32 or 4 bits on the RHS, but RHS's VARREF 'merge_offset' generates 2 bits.
+                                                     : ... note: In instance 'tb_guide_transport.cpu'
+  181 |         ((loaded_word<<(merge_offset*8)) | (merge_old & (32'hffffffff >> ((4-merge_offset)*8)))) :
+      |                                                                             ^
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:182:27: Operator SUB expects 32 or 4 bits on the RHS, but RHS's VARREF 'merge_offset' generates 2 bits.
+                                                     : ... note: In instance 'tb_guide_transport.cpu'
+  182 |         ((loaded_word>>((3-merge_offset)*8)) | (merge_old & (32'hffffffff << ((merge_offset+1)*8))));
+      |                           ^
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:182:92: Operator ADD expects 32 or 4 bits on the LHS, but LHS's VARREF 'merge_offset' generates 2 bits.
+                                                     : ... note: In instance 'tb_guide_transport.cpu'
+  182 |         ((loaded_word>>((3-merge_offset)*8)) | (merge_old & (32'hffffffff << ((merge_offset+1)*8))));
+      |                                                                                            ^
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:210:33: Operator SUB expects 32 or 4 bits on the RHS, but RHS's VARREF 'addr' generates 2 bits.
+                                                     : ... note: In instance 'tb_guide_transport.cpu'
+  210 |             shifted = raw >> ((3-addr)*8);
+      |                                 ^
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:214:41: Operator SUB expects 32 or 4 bits on the RHS, but RHS's REPLICATE generates 2 bits.
+                                                     : ... note: In instance 'tb_guide_transport.cpu'
+  214 |                     shifted = raw >> ((2-{addr[1],1'b0})*8);
+      |                                         ^
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:478:52: Operator ASSIGNDLY expects 32 bits on the Assign RHS, but Assign RHS's LTS generates 1 bits.
+                                                     : ... note: In instance 'tb_guide_transport.cpu'
+  478 |                           42:begin if(rd!=0)gpr[rd]<=($signed(a)<$signed(b));retire(seq32,0,0,0);end
+      |                                                    ^~
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:479:52: Operator ASSIGNDLY expects 32 bits on the Assign RHS, but Assign RHS's LT generates 1 bits.
+                                                     : ... note: In instance 'tb_guide_transport.cpu'
+  479 |                           43:begin if(rd!=0)gpr[rd]<=(a<b);retire(seq32,0,0,0);end
+      |                                                    ^~
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:495:48: Operator ASSIGNDLY expects 32 bits on the Assign RHS, but Assign RHS's LTS generates 1 bits.
+                                                     : ... note: In instance 'tb_guide_transport.cpu'
+  495 |                       10:begin if(rt!=0)gpr[rt]<=($signed(a)<$signed(imm_se));retire(seq32,0,0,0);end
+      |                                                ^~
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:496:48: Operator ASSIGNDLY expects 32 bits on the Assign RHS, but Assign RHS's LT generates 1 bits.
+                                                     : ... note: In instance 'tb_guide_transport.cpu'
+  496 |                       11:begin if(rt!=0)gpr[rt]<=(a<imm_se);retire(seq32,0,0,0);end
+      |                                                ^~
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:590:41: Operator ASSIGNDLY expects 32 bits on the Assign RHS, but Assign RHS's LTS generates 1 bits.
+                                                     : ... note: In instance 'tb_guide_transport.cpu'
+  590 |                         10:begin gpr[24]<=($signed(rxv)<$signed(m16_uimm));retire(seq16,0,0,1);end
+      |                                         ^~
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:591:41: Operator ASSIGNDLY expects 32 bits on the Assign RHS, but Assign RHS's LT generates 1 bits.
+                                                     : ... note: In instance 'tb_guide_transport.cpu'
+  591 |                         11:begin gpr[24]<=(rxv<m16_uimm);retire(seq16,0,0,1);end
+      |                                         ^~
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:637:44: Operator ASSIGNDLY expects 32 bits on the Assign RHS, but Assign RHS's LTS generates 1 bits.
+                                                     : ... note: In instance 'tb_guide_transport.cpu'
+  637 |                             2:begin gpr[24]<=($signed(rxv)<$signed(ryv));retire(seq16,0,0,1);end
+      |                                            ^~
+%Warning-WIDTHEXPAND: rtl/pace_firmware_cpu.sv:638:44: Operator ASSIGNDLY expects 32 bits on the Assign RHS, but Assign RHS's LT generates 1 bits.
+                                                     : ... note: In instance 'tb_guide_transport.cpu'
+  638 |                             3:begin gpr[24]<=(rxv<ryv);retire(seq16,0,0,1);end
+      |                                            ^~
+%Warning-WIDTHEXPAND: rtl/pace_guide_blitter.sv:36:48: Operator ADD expects 32 bits on the RHS, but RHS's VARREF 'column' generates 11 bits.
+                                                     : ... note: In instance 'tb_guide_transport.gpu'
+   36 |  wire [31:0] src_offset={8'd0,source}+row*width+column;
+      |                                                ^
+%Warning-WIDTHEXPAND: rtl/pace_guide_blitter.sv:37:55: Operator ADD expects 32 bits on the LHS, but LHS's VARREF 'y' generates 11 bits.
+                                                     : ... note: In instance 'tb_guide_transport.gpu'
+   37 |  wire [31:0] dest_offset=fill16 ? ({8'd0,base_even}+(y+row)*stride+(x+column)*2) :
+      |                                                       ^
+%Warning-WIDTHEXPAND: rtl/pace_guide_blitter.sv:37:55: Operator ADD expects 32 bits on the RHS, but RHS's VARREF 'row' generates 11 bits.
+                                                     : ... note: In instance 'tb_guide_transport.gpu'
+   37 |  wire [31:0] dest_offset=fill16 ? ({8'd0,base_even}+(y+row)*stride+(x+column)*2) :
+      |                                                       ^
+%Warning-WIDTHEXPAND: rtl/pace_guide_blitter.sv:37:70: Operator ADD expects 32 bits on the LHS, but LHS's VARREF 'x' generates 11 bits.
+                                                     : ... note: In instance 'tb_guide_transport.gpu'
+   37 |  wire [31:0] dest_offset=fill16 ? ({8'd0,base_even}+(y+row)*stride+(x+column)*2) :
+      |                                                                      ^
+%Warning-WIDTHEXPAND: rtl/pace_guide_blitter.sv:37:70: Operator ADD expects 32 bits on the RHS, but RHS's VARREF 'column' generates 11 bits.
+                                                     : ... note: In instance 'tb_guide_transport.gpu'
+   37 |  wire [31:0] dest_offset=fill16 ? ({8'd0,base_even}+(y+row)*stride+(x+column)*2) :
+      |                                                                      ^
+%Warning-WIDTHEXPAND: rtl/pace_guide_blitter.sv:38:73: Operator SHIFTR expects 32 bits on the LHS, but LHS's VARREF 'frame_line' generates 12 bits.
+                                                     : ... note: In instance 'tb_guide_transport.gpu'
+   38 |                   ({8'd0,(frame_line[0]?base_odd:base_even)}+(frame_line>>1)*stride+x+column);
+      |                                                                         ^~
+%Warning-WIDTHEXPAND: rtl/pace_guide_blitter.sv:38:84: Operator ADD expects 32 bits on the RHS, but RHS's VARREF 'x' generates 11 bits.
+                                                     : ... note: In instance 'tb_guide_transport.gpu'
+   38 |                   ({8'd0,(frame_line[0]?base_odd:base_even)}+(frame_line>>1)*stride+x+column);
+      |                                                                                    ^
+%Warning-WIDTHEXPAND: rtl/pace_guide_blitter.sv:38:86: Operator ADD expects 32 bits on the RHS, but RHS's VARREF 'column' generates 11 bits.
+                                                     : ... note: In instance 'tb_guide_transport.gpu'
+   38 |                   ({8'd0,(frame_line[0]?base_odd:base_even)}+(frame_line>>1)*stride+x+column);
+      |                                                                                      ^
+%Warning-WIDTHEXPAND: rtl/pace_guide_blitter.sv:56:49: Operator ADD expects 32 bits on the LHS, but LHS's CONST '29'h6000000' generates 29 bits.
+                                                     : ... note: In instance 'tb_guide_transport.gpu'
+   56 |      mem_req<=1;mem_we<=0;mem_addr<=29'h06000000+((read_base+{25'd0,word_index,2'b00})>>3);mem_be<=8'hff;
+      |                                                 ^
+%Warning-WIDTHTRUNC: rtl/pace_guide_blitter.sv:56:35: Operator ASSIGNDLY expects 29 bits on the Assign RHS, but Assign RHS's ADD generates 32 bits.
+                                                    : ... note: In instance 'tb_guide_transport.gpu'
+   56 |      mem_req<=1;mem_we<=0;mem_addr<=29'h06000000+((read_base+{25'd0,word_index,2'b00})>>3);mem_be<=8'hff;
+      |                                   ^~
+                     ... For warning description see https://verilator.org/warn/WIDTHTRUNC?v=5.044
+                     ... Use "/* verilator lint_off WIDTHTRUNC */" and lint_on around source to disable this message.
+%Warning-WIDTHTRUNC: rtl/pace_guide_blitter.sv:60:28: Bit extraction of array[14:0] requires 4 bit index, not 5 bits.
+                                                    : ... note: In instance 'tb_guide_transport.gpu'
+   60 |      if(command_phase)words[word_index]<=be_word(mem_rdata,read_address[2]);
+      |                            ^
+%Warning-WIDTHTRUNC: rtl/pace_guide_blitter.sv:61:15: Bit extraction of array[9:0] requires 4 bit index, not 5 bits.
+                                                    : ... note: In instance 'tb_guide_transport.gpu'
+   61 |      else desc[word_index]<=be_word(mem_rdata,read_address[2]);
+      |               ^
+%Warning-WIDTHTRUNC: rtl/pace_guide_peripherals.sv:39:21: Operator ASSIGNW expects 8 bits on the Assign RHS, but Assign RHS's SHIFTR generates 48 bits.
+                                                        : ... note: In instance 'tb_guide_transport.devices'
+   39 |  wire [7:0] wire_raw=wire_body >> ((5-wire_pos)*8);
+      |                     ^
+%Warning-WIDTHTRUNC: rtl/pace_guide_peripherals.sv:164:51: Operator ASSIGNDLY expects 8 bits on the Assign RHS, but Assign RHS's FUNCREF 'regval' generates 32 bits.
+                                                         : ... note: In instance 'tb_guide_transport.devices'
+  164 |        if(tx_count<16)begin tx_body[tx_count[3:0]]<=regval(32'hb2009010);tx_count<=tx_count+1'b1;end
+      |                                                   ^~
+%Warning-WIDTHTRUNC: rtl/pace_guide_peripherals.sv:169:51: Operator ASSIGNDLY expects 8 bits on the Assign RHS, but Assign RHS's FUNCREF 'regval' generates 32 bits.
+                                                         : ... note: In instance 'tb_guide_transport.devices'
+  169 |        if(tx_count<16)begin tx_body[tx_count[3:0]]<=regval(32'hb2009010);tx_count<=tx_count+1'b1;end
+      |                                                   ^~
+%Warning-WIDTHEXPAND: rtl/pace_guide_peripherals.sv:173:33: Operator NEQ expects 32 or 9 bits on the LHS, but LHS's VARREF 'tx_count' generates 5 bits.
+                                                          : ... note: In instance 'tb_guide_transport.devices'
+  173 |        if(tx_count<3 || tx_count!={1'b0,tx_body[0]}+1)model_halt<=8'he2;
+      |                                 ^~
+%Warning-WIDTHEXPAND: sim/tb_guide_transport.sv:71:63: Operator ADD expects 32 bits on the LHS, but LHS's VARREF 'a' generates 24 bits.
+                                                     : ... note: In instance 'tb_guide_transport'
+   71 |     for(b=0;b<4;b=b+1)guest_word=(guest_word<<8)|{24'd0,ram[(a+b)/8][((a+b)%8)*8+:8]};
+      |                                                               ^
+%Warning-WIDTHEXPAND: sim/tb_guide_transport.sv:71:73: Operator ADD expects 32 bits on the LHS, but LHS's VARREF 'a' generates 24 bits.
+                                                     : ... note: In instance 'tb_guide_transport'
+   71 |     for(b=0;b<4;b=b+1)guest_word=(guest_word<<8)|{24'd0,ram[(a+b)/8][((a+b)%8)*8+:8]};
+      |                                                                         ^
+%Warning-WIDTHTRUNC: sim/tb_guide_transport.sv:124:66: Bit extraction of array[62509:0] requires 16 bit index, not 29 bits.
+                                                     : ... note: In instance 'tb_guide_transport'
+  124 |     if(bus_write)$fatal(1,"transport ROM write");returned<=ts_rom[bus_addr-29'h06600000];
+      |                                                                  ^
+%Warning-WIDTHTRUNC: sim/tb_guide_transport.sv:127:20: Bit extraction of array[524287:0] requires 19 bit index, not 29 bits.
+                                                     : ... note: In instance 'tb_guide_transport'
+  127 |     returned<=flash[bus_addr-29'h06400000];
+      |                    ^
+%Warning-WIDTHTRUNC: sim/tb_guide_transport.sv:130:55: Bit extraction of array[2097151:0] requires 21 bit index, not 29 bits.
+                                                     : ... note: In instance 'tb_guide_transport'
+  130 |      for(lane=0;lane<8;lane=lane+1)if(bus_be[lane])ram[bus_addr-29'h06000000][lane*8+:8]<=bus_data[lane*8+:8];
+      |                                                       ^
+%Warning-WIDTHTRUNC: sim/tb_guide_transport.sv:131:27: Bit extraction of array[2097151:0] requires 21 bit index, not 29 bits.
+                                                     : ... note: In instance 'tb_guide_transport'
+  131 |     end else returned<=ram[bus_addr-29'h06000000];
+      |                           ^
+%Warning-WIDTHTRUNC: sim/tb_guide_transport.sv:136:102: Bit extraction of array[2097151:0] requires 21 bit index, not 29 bits.
+                                                      : ... note: In instance 'tb_guide_transport'
+  136 |     $fdisplay(trace,"CHANNEL_STATUS RET %d PC %h BE %h DATA %h OLD %h",retired,pc,bus_be,bus_data,ram[bus_addr-29'h06000000]);
+      |                                                                                                      ^
+%Warning-WIDTHTRUNC: sim/tb_guide_transport.sv:179:54: Operator ASSIGN expects 7 bits on the Assign RHS, but Assign RHS's VARREF 'i' generates 32 bits.
+                                                     : ... note: In instance 'tb_guide_transport'
+  179 |   for(i=0;i<69;i=i+1)begin restore_wr=1;restore_index=i;restore_data=state_words[i];@(negedge clk);end
+      |                                                      ^
+make: Entering directory '/mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/sim/obj_s4_io'
+ccache g++ -Os  -I.  -MMD -I/root/verilator/include -I/root/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVL_TIME_CONTEXT   -fcoroutines -c -o verilated.o /root/verilator/include/verilated.cpp
+ccache g++ -Os  -I.  -MMD -I/root/verilator/include -I/root/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVL_TIME_CONTEXT   -fcoroutines -c -o verilated_timing.o /root/verilator/include/verilated_timing.cpp
+ccache g++ -Os  -I.  -MMD -I/root/verilator/include -I/root/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVL_TIME_CONTEXT   -fcoroutines -c -o verilated_threads.o /root/verilator/include/verilated_threads.cpp
+ccache g++ -Os  -I.  -MMD -I/root/verilator/include -I/root/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVL_TIME_CONTEXT   -fcoroutines -x c++-header Vtb_guide_transport__pch.h -o Vtb_guide_transport__pch.h.fast.gch
+ccache g++   -I.  -MMD -I/root/verilator/include -I/root/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVL_TIME_CONTEXT   -fcoroutines -x c++-header Vtb_guide_transport__pch.h -o Vtb_guide_transport__pch.h.slow.gch
+ccache g++   -I.  -MMD -I/root/verilator/include -I/root/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVL_TIME_CONTEXT   -fcoroutines -include Vtb_guide_transport__pch.h.slow -c -o Vtb_guide_transport___024root__Slow.o Vtb_guide_transport___024root__Slow.cpp
+ccache g++   -I.  -MMD -I/root/verilator/include -I/root/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVL_TIME_CONTEXT   -fcoroutines -include Vtb_guide_transport__pch.h.slow -c -o Vtb_guide_transport___024root__0__Slow.o Vtb_guide_transport___024root__0__Slow.cpp
+ccache g++   -I.  -MMD -I/root/verilator/include -I/root/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVL_TIME_CONTEXT   -fcoroutines -include Vtb_guide_transport__pch.h.slow -c -o Vtb_guide_transport__Syms__Slow.o Vtb_guide_transport__Syms__Slow.cpp
+ccache g++ -Os  -I.  -MMD -I/root/verilator/include -I/root/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVL_TIME_CONTEXT   -fcoroutines -include Vtb_guide_transport__pch.h.fast -c -o Vtb_guide_transport.o Vtb_guide_transport.cpp
+ccache g++ -Os  -I.  -MMD -I/root/verilator/include -I/root/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVL_TIME_CONTEXT   -fcoroutines -include Vtb_guide_transport__pch.h.fast -c -o Vtb_guide_transport___024root__0.o Vtb_guide_transport___024root__0.cpp
+ccache g++ -Os  -I.  -MMD -I/root/verilator/include -I/root/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVL_TIME_CONTEXT   -fcoroutines -include Vtb_guide_transport__pch.h.fast -c -o Vtb_guide_transport___024root__1.o Vtb_guide_transport___024root__1.cpp
+ccache g++ -Os  -I.  -MMD -I/root/verilator/include -I/root/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVL_TIME_CONTEXT   -fcoroutines -include Vtb_guide_transport__pch.h.fast -c -o Vtb_guide_transport__main.o Vtb_guide_transport__main.cpp
+g++    verilated.o verilated_timing.o verilated_threads.o Vtb_guide_transport__ALL.a    -pthread -lpthread -latomic   -o Vtb_guide_transport
+rm Vtb_guide_transport__ALL.verilator_deplist.tmp
+make: Leaving directory '/mnt/c/Users/joelw/Downloads/Pace2500N_RealFirmwareBoot_v042_with_handoff/Pace2500N/sim/obj_s4_io'
+- V e r i l a t i o n   R e p o r t: Verilator 5.044 2026-01-01 rev v5.044
+- Verilator: Built from 0.650 MB sources in 10 modules, into 2.188 MB in 7 C++ files needing 0.005 MB
+- Verilator: Walltime 7.459 s (elab=0.021, cvt=0.314, bld=7.018); cpu 0.000 s on 8 threads

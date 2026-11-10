@@ -1,0 +1,6 @@
+.
+----------------------------------------------------------------------
+Ran 1 test in 1.481s
+
+OK
+Validated 620212 TS bytes: MPEG2 720x576, MP2 48kHz, PAT/PMT/PCR IDs, full decode

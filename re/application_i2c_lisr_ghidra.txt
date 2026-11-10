@@ -1,0 +1,10 @@
+80006da0  addiu sp,-0x8
+80006da2  sw ra,0x4(sp)
+80006da4  lw a1,0x130(pc)
+80006da6  move a0,zero
+80006da8  lw v0,0x148(pc)
+80006daa  jalr v0
+80006dac  _lw a2,0x134(pc)
+80006dae  lw a0,0x4(sp)
+80006db0  jr a0
+80006db2  _addiu sp,0x8

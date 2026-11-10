@@ -1,0 +1,8 @@
+8007faf8  addiu sp,-0x8
+8007fafa  sw ra,0x4(sp)
+8007fafc  lw v1,0x328(pc)
+8007fafe  jalr v1
+8007fb00  _move a3,zero
+8007fb02  lw a0,0x4(sp)
+8007fb04  jr a0
+8007fb06  _addiu sp,0x8

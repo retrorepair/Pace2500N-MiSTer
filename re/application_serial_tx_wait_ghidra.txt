@@ -1,0 +1,14 @@
+8002d4a0  addu v1,v1,a3
+8002d4a2  sw v1,0x0(s0)
+8002d4a4  addu a0,a0,a1
+8002d4a6  addiu a1,a2,0x4
+8002d4a8  lw v0,0x8c(pc)
+8002d4aa  jalr v0
+8002d4ac  _lw a2,0x0(s0)
+8002d4ae  move v0,zero
+8002d4b0  b 0x8002d4b4
+8002d4b4  lw a0,0xc(sp)
+8002d4b6  lw s0,0x0(sp)
+8002d4b8  lw s1,0x4(sp)
+8002d4ba  jr a0
+8002d4bc  _addiu sp,0x10

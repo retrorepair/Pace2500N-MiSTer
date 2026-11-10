@@ -1,0 +1,8 @@
+8007eeb8  addiu sp,-0x8
+8007eeba  sw ra,0x4(sp)
+8007eebc  lw v0,0x80(pc)
+8007eebe  jalr v0
+8007eec0  _addiu s0,0x0
+8007eec2  lw a0,0x4(sp)
+8007eec4  jr a0
+8007eec6  _addiu sp,0x8

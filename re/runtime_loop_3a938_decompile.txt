@@ -1,0 +1,14 @@
+
+// 8003a928 runtime_nonreturning_loop
+
+void runtime_nonreturning_loop(void)
+
+{
+  (*pcRam8003a9dc)(0x32);
+  (*pcRam8003a9e0)();
+  do {
+                    /* WARNING: Do nothing block with infinite loop */
+  } while( true );
+}
+
+

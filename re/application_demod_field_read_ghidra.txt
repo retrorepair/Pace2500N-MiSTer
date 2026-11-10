@@ -1,0 +1,11 @@
+80025274  addiu sp,-0x10
+80025276  sw ra,0xc(sp)
+80025278  addiu a1,sp,0x7
+8002527c  lw v1,0x218(pc)
+8002527e  jalr v1
+80025280  _li a2,0x1
+80025282  addiu v1,sp,0x7
+80025286  lbu v0,0x0(v1)
+80025288  lw a0,0xc(sp)
+8002528a  jr a0
+8002528c  _addiu sp,0x10

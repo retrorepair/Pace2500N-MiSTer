@@ -1,0 +1,46 @@
+keyboard_key,ps2_set2_extended_hex,sky_raw_hex,remote_button
+F1,005,CC,TV Guide
+F2,006,7D,Box Office
+F3,004,7E,Services
+F4,00C,F5,Interactive
+F5,003,80,Sky / return to TV
+F6,00B,CB,Information
+F7,083,81,Help
+F8,00A,3C,Text
+F9,001,0C,Standby
+F10,009,84,TV
+Up,175,58,Up
+Down,172,59,Down
+Left,16B,5A,Left
+Right,174,5B,Right
+Enter,05A,5C,Select
+Keypad Enter,15A,5C,Select
+Escape,076,83,Back Up
+Backspace,066,83,Back Up
+Page Up,17D,20,Channel +
+Page Down,17A,21,Channel -
+R,02D,6D,Red
+G,034,6E,Green
+Y,035,6F,Yellow
+B,032,70,Blue
+I,043,CB,Information
+H,033,81,Help
+T,02C,3C,Text
+S,01B,80,Sky / return to TV
+P,04D,0C,Standby
+Space,029,3E,Play
+J,03B,24,Pause
+K,042,3F,Stop
+C,021,40,Record
+[,054,3D,Rewind
+],05B,28,Fast Forward
+0,045,00,0
+1,016,01,1
+2,01E,02,2
+3,026,03,3
+4,025,04,4
+5,02E,05,5
+6,036,06,6
+7,03D,07,7
+8,03E,08,8
+9,046,09,9

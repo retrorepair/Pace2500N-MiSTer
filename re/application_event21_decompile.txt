@@ -1,0 +1,34 @@
+
+// 80029df0 peripheral_event21
+
+void peripheral_event21(int param_1)
+
+{
+  *puRam80029e04 = *(undefined1 *)(param_1 + 3);
+  return;
+}
+
+
+
+// 80029dc0 peripheral_reply18
+
+void peripheral_reply18(int param_1)
+
+{
+  code *UNRECOVERED_JUMPTABLE;
+  
+  *puRam80029e20 = *(byte *)(param_1 + 3) & 3;
+  if (*puRam80029e20 == 0) {
+    (*pcRam80029e28)(2);
+  }
+  else {
+    (*pcRam80029e2c)(2);
+    (*pcRam80029e30)(1);
+  }
+                    /* WARNING: Could not recover jumptable at 0x80029dea. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+

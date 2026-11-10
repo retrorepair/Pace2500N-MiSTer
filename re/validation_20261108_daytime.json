@@ -1,0 +1,53 @@
+{
+  "checks": [
+    {
+      "command": "python tools/test_serial_peer.py",
+      "result": "PASS"
+    },
+    {
+      "command": "python tools/test_front_panel.py",
+      "result": "PASS"
+    },
+    {
+      "command": "python tools/test_console.py",
+      "result": "PASS"
+    },
+    {
+      "command": "python tools/test_crc_acceleration.py",
+      "result": "PASS"
+    },
+    {
+      "command": "python tools/verify_application_extraction.py",
+      "result": "PASS"
+    },
+    {
+      "command": "python tools/test_application_command53.py",
+      "result": "PASS"
+    },
+    {
+      "command": "python tools/test_application_idle.py",
+      "result": "PASS"
+    },
+    {
+      "command": "python tools/test_application_i2c.py",
+      "result": "PASS"
+    },
+    {
+      "command": "python tools/test_demux_ports.py",
+      "result": "PASS"
+    },
+    {
+      "command": "python tools/test_demux_dma.py",
+      "result": "PASS"
+    },
+    {
+      "command": "python tools/test_lsi_grouped.py",
+      "result": "PASS"
+    }
+  ],
+  "notes": [
+    "Results observed during this continuation. The final LSI test was rerun after correcting its expected source offset to800FC9B4.",
+    "Portable handoff pickle round-trip and genuine firmware hashes also verified.",
+    "No new RTL build or hardware deployment during this continuation."
+  ]
+}

@@ -1,0 +1,107 @@
+{
+  "live_non_atomic_readback": true,
+  "memory_writes": false,
+  "circular_crc_scan_performed": false,
+  "ring_base_may_contain_wrapped_payload": true,
+  "transport_file": "/media/fat/games/Pace2500N_TS/guide_sparse.ts",
+  "bytes": 1000160,
+  "transport_ddr_sha256": "d0c4e0a77efe23be4c84bd3a072be4497ba8bc7c2add8f8a816349e540b91188",
+  "rings": [
+    {
+      "channel": 20,
+      "first_table": "03",
+      "first_section_crc_valid": false,
+      "guest_isr_write_pointer": "0003D104",
+      "descriptor": [
+        "A07DC000",
+        "A07DEFFF",
+        "A07DC000",
+        "A07DD104",
+        "801AFC70"
+      ],
+      "descriptor_changed_from_checkpoint": true,
+      "complete_crc_valid_records": null,
+      "record_samples": []
+    },
+    {
+      "channel": 21,
+      "first_table": "00",
+      "first_section_crc_valid": false,
+      "guest_isr_write_pointer": "0003FA38",
+      "descriptor": [
+        "A07DF000",
+        "A07E1FFF",
+        "A07DF000",
+        "A07DFA38",
+        "801AB853"
+      ],
+      "descriptor_changed_from_checkpoint": true,
+      "complete_crc_valid_records": null,
+      "record_samples": []
+    },
+    {
+      "channel": 22,
+      "first_table": "73",
+      "first_section_crc_valid": true,
+      "guest_isr_write_pointer": "0004201E",
+      "descriptor": [
+        "A07E2000",
+        "A07E4FFF",
+        "A07E2000",
+        "A07E201E",
+        "801A5335"
+      ],
+      "descriptor_changed_from_checkpoint": true,
+      "complete_crc_valid_records": null,
+      "record_samples": []
+    },
+    {
+      "channel": 23,
+      "first_table": "7E",
+      "first_section_crc_valid": false,
+      "guest_isr_write_pointer": "00045E7A",
+      "descriptor": [
+        "A07E5000",
+        "A07E7FFF",
+        "A07E5000",
+        "A07E5E7A",
+        "8019A415"
+      ],
+      "descriptor_changed_from_checkpoint": true,
+      "complete_crc_valid_records": null,
+      "record_samples": []
+    },
+    {
+      "channel": 24,
+      "first_table": "40",
+      "first_section_crc_valid": true,
+      "guest_isr_write_pointer": "000494BB",
+      "descriptor": [
+        "A07E8000",
+        "A07EAFFF",
+        "A07E8000",
+        "A07E94BB",
+        "80199B4C"
+      ],
+      "descriptor_changed_from_checkpoint": true,
+      "complete_crc_valid_records": null,
+      "record_samples": []
+    }
+  ],
+  "firmware_state": {
+    "frontend_state_800fcdc4": 0,
+    "frontend_flag_80105c00": 1,
+    "av_active_byte_80161d3c": 0,
+    "av_selection_80161d40": "FFFFFFFF",
+    "checkpoint_default_80054f84": "00000000",
+    "checkpoint_readiness_80430a28": 1
+  },
+  "decoded_text_locations": {
+    "LOCAL TEST ONE": [],
+    "LOCAL TEST TWO": [],
+    "NEXT TEST ONE": [],
+    "NEXT TEST TWO": []
+  }
+}
+PACE PC=800692C0 IR=E75DEF00 RET=246BAA87 RAM=01C66A4C WA=000007DB WD=00020001 RD=005C0001 HALT=00000000 M16=00000001 FLASH=00000001 IRQ=00013EC7 GUESS=0001C732 POL=00000001
+PACE PC=800692A8 IR=73FFF0E0 RET=248DBE3A RAM=01C984B4 WA=000007EC WD=00020001 RD=005C0001 HALT=00000000 M16=00000001 FLASH=00000001 IRQ=00013F88 GUESS=0001C9CB POL=00000001

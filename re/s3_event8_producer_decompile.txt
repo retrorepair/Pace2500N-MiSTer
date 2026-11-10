@@ -1,0 +1,136 @@
+
+// 80051d26 not inside a defined function; previous function 8003a928 runtime_nonreturning_loop body [[8003a928, 8003a93f]]
+// instruction: null
+
+// 8007fab2 not inside a defined function; previous function 8007eeb8 runtime_abort_trampoline body [[8007eeb8, 8007eec7]]
+// instruction: null
+
+// 8007fb08 is inside 8007fb08 runtime_send_message_impl body [[8007fb08, 8007fbe9]]
+// refs to entry:
+
+void runtime_send_message_impl(int param_1,uint param_2,undefined4 param_3,int param_4)
+
+{
+  code *pcVar1;
+  int in_zero;
+  undefined1 uVar2;
+  int *piVar3;
+  uint uVar4;
+  int iVar5;
+  int *piVar6;
+  code *UNRECOVERED_JUMPTABLE;
+  
+  if (param_1 == 0) {
+    (*pcRam8007fe2c)(0x2005);
+  }
+  piVar3 = (int *)(*pcRam8007fe30)(param_1);
+  if (piVar3 == (int *)0x0) {
+    (*pcRam8007fe2c)(0x2006);
+  }
+  if ((param_2 == 0) || (*(ushort *)(piVar3 + 2) < param_2)) {
+    (*pcRam8007fe2c)(0x2000);
+  }
+  if ((param_4 != 0) && (*(short *)(piVar3 + 2) != 0xc)) {
+    (*pcRam8007fe2c)(0x2002);
+  }
+  uVar4 = (*pcRam8007fe34)();
+  (*pcRam8007fe3c)(uVar4 & uRam8007fe38);
+  pcVar1 = pcRam8007fe3c;
+  piVar6 = (int *)*piRam8007fe40;
+  if (piVar6 == (int *)0x0) {
+    (*pcRam8007fe3c)();
+    *puRam8007fe44 = 0x6a;
+  }
+  else {
+    *piRam8007fe40 = *piVar6;
+    (*pcVar1)(uVar4);
+    piVar6[2] = param_4;
+    (*pcRam8007fe4c)(piVar6 + 3,param_3,param_2);
+    pcVar1 = pcRam8007fe34;
+    piVar6[1] = in_zero;
+    uVar4 = (*pcVar1)();
+    uVar2 = (undefined1)in_zero;
+    (*pcRam8007fe3c)(uVar4 & uRam8007fe38);
+    iVar5 = *piVar3;
+    *piVar6 = iVar5;
+    if (iVar5 == 0) {
+      piVar3[1] = (int)piVar6;
+    }
+    else {
+      *(int **)(iVar5 + 4) = piVar6;
+    }
+    pcVar1 = pcRam8007fe3c;
+    *piVar3 = (int)piVar6;
+    (*pcVar1)(uVar4);
+    if (*(char *)((int)piVar3 + 10) != '\0') {
+      *(undefined1 *)((int)piVar3 + 10) = uVar2;
+      (*pcRam8007fe50)(param_1);
+    }
+  }
+                    /* WARNING: Could not recover jumptable at 0x8007fbe6. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+
+
+// 8003a928 is inside 8003a928 runtime_nonreturning_loop body [[8003a928, 8003a93f]]
+// refs to entry:
+
+void runtime_nonreturning_loop(void)
+
+{
+  (*pcRam8003a9dc)(0x32);
+  (*pcRam8003a9e0)();
+  do {
+                    /* WARNING: Do nothing block with infinite loop */
+  } while( true );
+}
+
+
+
+// 8003a938 in already printed 8003a928
+
+// 8001ecf8 is inside 8001ecf8 runtime_fault_handler body [[8001ecf8, 8001edb9]]
+// refs to entry:
+
+void runtime_fault_handler(undefined4 param_1)
+
+{
+  undefined4 in_zero;
+  int iVar1;
+  undefined4 unaff_retaddr;
+  undefined1 auStack_3b [3];
+  undefined1 auStack_38 [20];
+  undefined1 *puStack_24;
+  undefined1 auStack_14 [16];
+  
+  (*pcRam8001eed4)(0x65);
+  (*pcRam8001eed8)(in_zero);
+  (*pcRam8001eedc)(in_zero,uRam8001eee0);
+  (*pcRam8001eee4)(in_zero,param_1);
+  (*pcRam8001eedc)(in_zero,uRam8001eee8);
+  iVar1 = (*pcRam8001eeec)();
+  (*pcRam8001eee4)(in_zero,iVar1);
+  (*pcRam8001eedc)(in_zero,uRam8001eef0);
+  (*pcRam8001eee4)(in_zero,*(undefined4 *)(iVar1 + 0x5c));
+  (*pcRam8001eedc)(in_zero,uRam8001eef4);
+  (*pcRam8001eee4)(in_zero,unaff_retaddr);
+  (*pcRam8001eedc)(in_zero,uRam8001eef8);
+  puStack_24 = auStack_14;
+  iVar1 = (*pcRam8001eefc)(iVar1,puStack_24,auStack_3b,auStack_38);
+  if (iVar1 == 0) {
+    (*pcRam8001eedc)(in_zero,puStack_24);
+    (*pcRam8001eedc)(in_zero,uRam8001ef04);
+  }
+  else {
+    (*pcRam8001eedc)(in_zero,uRam8001ef00);
+  }
+  (*pcRam8001ef08)();
+  do {
+    (*pcRam8001eed4)(10);
+  } while( true );
+}
+
+

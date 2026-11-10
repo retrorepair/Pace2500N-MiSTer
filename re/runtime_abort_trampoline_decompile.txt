@@ -1,0 +1,12 @@
+
+// 8007eeb8 runtime_abort_trampoline
+
+void runtime_abort_trampoline(void)
+
+{
+  (*pcRam8007ef3c)();
+                    /* WARNING: Treating indirect jump as return */
+  return;
+}
+
+

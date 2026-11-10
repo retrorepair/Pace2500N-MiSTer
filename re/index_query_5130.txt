@@ -1,0 +1,14 @@
+800c5130  addiu sp,-0x10
+800c5132  sw ra,0xc(sp)
+800c5134  sw s0,0x0(sp)
+800c5136  move s0,a0
+800c5138  b 0x800c5142
+800c513a  move a0,s0
+800c513c  lw v0,0x94(pc)
+800c513e  jalr v0
+800c5140  _lw s0,0x4(s0)
+800c5142  bnez s0,0x800c513a
+800c5144  lw a0,0xc(sp)
+800c5146  lw s0,0x0(sp)
+800c5148  jr a0
+800c514a  _addiu sp,0x10

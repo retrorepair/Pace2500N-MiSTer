@@ -1,0 +1,5 @@
+80029df0  lbu v1,0x3(a0)
+80029df2  lw v0,0x14(pc)
+80029df4  sb v1,0x0(v0)
+80029df6  jr ra
+80029df8  _addiu s0,0x0

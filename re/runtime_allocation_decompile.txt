@@ -1,0 +1,50 @@
+
+// 800a62e0 runtime_alloc_or_abort
+
+void runtime_alloc_or_abort(undefined4 param_1)
+
+{
+  int in_zero;
+  int iVar1;
+  
+  iVar1 = (*pcRam800a642c)(*piRam800a6428,0x14,param_1);
+  if (iVar1 != 0) {
+    iVar1 = (*pcRam800a6430)();
+    if (iVar1 == *piRam800a6428) {
+      (*pcRam800a6434)(0x4c11);
+    }
+    do {
+      (*pcRam800a6438)(100);
+      iVar1 = (*pcRam800a642c)(*piRam800a6428,0x14,param_1);
+      if ((iVar1 != 0) && (in_zero = in_zero + 1, 1 < in_zero)) {
+        (*pcRam800a6434)(0x4c11);
+      }
+    } while (iVar1 != 0);
+  }
+                    /* WARNING: Treating indirect jump as return */
+  return;
+}
+
+
+
+// 800a6348 runtime_alloc_wrapper
+
+void runtime_alloc_wrapper(undefined4 param_1,undefined2 param_2,undefined4 *param_3)
+
+{
+  undefined1 auStack_1c [4];
+  undefined4 uStack_18;
+  undefined4 uStack_14;
+  undefined2 uStack_10;
+  undefined4 *puStack_c;
+  
+  uStack_18 = *param_3;
+  uStack_14 = param_1;
+  uStack_10 = param_2;
+  puStack_c = param_3;
+  (*pcRam800a643c)(auStack_1c);
+                    /* WARNING: Treating indirect jump as return */
+  return;
+}
+
+

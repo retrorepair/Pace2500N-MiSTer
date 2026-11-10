@@ -1,0 +1,21 @@
+{
+  "bytes": 500080,
+  "packets": 2660,
+  "tables": {
+    "0014:73": 20,
+    "0010:40": 20,
+    "0011:42": 20,
+    "0011:4A": 20,
+    "0000:00": 20,
+    "1000:02": 20,
+    "1001:02": 20
+  },
+  "sha256": "51756ae05ef1af52c6b100783771fc11d014e5d2469303e6973f8cd9fc6dffcf",
+  "kind": "synthetic SI-only diagnostic",
+  "utc": "2002-09-01T12:00:00+00:00",
+  "bitrate": 1000000,
+  "clock": "fixed, GMT descriptor",
+  "firmware_execution": "FPGA",
+  "opentv_titles": false,
+  "media": false
+}

@@ -1,0 +1,8 @@
+bfc06ea0  addiu sp,-0x8
+bfc06ea2  sw ra,0x4(sp)
+bfc06ea4  lw a0,0x8c(pc)
+bfc06ea6  jal 0xbfc0d38c
+bfc06eaa  _addiu s0,0x0
+bfc06eac  lw a0,0x4(sp)
+bfc06eae  jr a0
+bfc06eb0  _addiu sp,0x8

@@ -1,0 +1,10 @@
+8002a0a0  _addiu a0,sp,0x78
+8002a0a2  b 0x8002a024
+8002a0a4  addiu v0,sp,0x78
+8002a0a6  lbu v1,0x0(v0)
+8002a0a8  cmpi v1,0x21
+8002a0aa  btnez 0x8002a024
+8002a0ac  lw v0,0x1ac(pc)
+8002a0ae  jalr v0
+8002a0b0  _addiu a0,sp,0x78
+8002a0b2  b 0x8002a024

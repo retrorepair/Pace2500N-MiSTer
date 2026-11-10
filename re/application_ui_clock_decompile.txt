@@ -1,0 +1,12 @@
+
+// 8007ab80 ui_read_time
+
+void ui_read_time(undefined4 param_1)
+
+{
+  (*pcRam8007ae40)(param_1,uRam8007ae3c,0x20);
+                    /* WARNING: Treating indirect jump as return */
+  return;
+}
+
+

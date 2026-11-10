@@ -1,0 +1,758 @@
+[
+  {
+    "id": "op34_offset0_delay0",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "88430000",
+    "steps": 1,
+    "cpu_steps": 1,
+    "regs": {
+      "v0": "80003004",
+      "v1": "ec278306"
+    },
+    "memory": {
+      "80003000": "d2f93bf8427df69a8148ecec102f0ca2"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "op34_offset0_delay1",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "1000000488430000",
+    "steps": 1,
+    "cpu_steps": 2,
+    "regs": {
+      "v0": "80003004",
+      "v1": "d4ec51d9"
+    },
+    "memory": {
+      "80003000": "f20f82c98aba072696a491f216c2c02a"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "op34_offset1_delay0",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "88430000",
+    "steps": 1,
+    "cpu_steps": 1,
+    "regs": {
+      "v0": "80003005",
+      "v1": "b2255ba1"
+    },
+    "memory": {
+      "80003000": "5f052c0641631bbc878ae0b9d218b439"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "op34_offset1_delay1",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "1000000488430000",
+    "steps": 1,
+    "cpu_steps": 2,
+    "regs": {
+      "v0": "80003005",
+      "v1": "9016fd79"
+    },
+    "memory": {
+      "80003000": "e23b0c7a0830b57d68ec452d8bcddaf8"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "op34_offset2_delay0",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "88430000",
+    "steps": 1,
+    "cpu_steps": 1,
+    "regs": {
+      "v0": "80003006",
+      "v1": "90718fac"
+    },
+    "memory": {
+      "80003000": "2a836f906cf0176cafceb7714f1983a6"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "op34_offset2_delay1",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "1000000488430000",
+    "steps": 1,
+    "cpu_steps": 2,
+    "regs": {
+      "v0": "80003006",
+      "v1": "5bf50e54"
+    },
+    "memory": {
+      "80003000": "364f864b6b6522583d8f0c074cdc7e10"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "op34_offset3_delay0",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "88430000",
+    "steps": 1,
+    "cpu_steps": 1,
+    "regs": {
+      "v0": "80003007",
+      "v1": "28ee240c"
+    },
+    "memory": {
+      "80003000": "5836d4c5b9228c38de59ec742395cc78"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "op34_offset3_delay1",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "1000000488430000",
+    "steps": 1,
+    "cpu_steps": 2,
+    "regs": {
+      "v0": "80003007",
+      "v1": "8a8f877d"
+    },
+    "memory": {
+      "80003000": "542090bd4a66d31b715848e7c0a0663f"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "op38_offset0_delay0",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "98430000",
+    "steps": 1,
+    "cpu_steps": 1,
+    "regs": {
+      "v0": "80003004",
+      "v1": "6011df8b"
+    },
+    "memory": {
+      "80003000": "0d78c359fe05ac84578d9fd05e1c0653"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "op38_offset0_delay1",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "1000000498430000",
+    "steps": 1,
+    "cpu_steps": 2,
+    "regs": {
+      "v0": "80003004",
+      "v1": "b4ae4b94"
+    },
+    "memory": {
+      "80003000": "f011c000faa90b92508fccf738cc3067"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "op38_offset1_delay0",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "98430000",
+    "steps": 1,
+    "cpu_steps": 1,
+    "regs": {
+      "v0": "80003005",
+      "v1": "ff699051"
+    },
+    "memory": {
+      "80003000": "f25c46f6e02463643e3f8e2f706b109d"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "op38_offset1_delay1",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "1000000498430000",
+    "steps": 1,
+    "cpu_steps": 2,
+    "regs": {
+      "v0": "80003005",
+      "v1": "4615bedb"
+    },
+    "memory": {
+      "80003000": "f7103547abce0f1688cc04018a9e0214"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "op38_offset2_delay0",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "98430000",
+    "steps": 1,
+    "cpu_steps": 1,
+    "regs": {
+      "v0": "80003006",
+      "v1": "a0b3fbb6"
+    },
+    "memory": {
+      "80003000": "b818e204c96dbe4537d52ad871dc833c"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "op38_offset2_delay1",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "1000000498430000",
+    "steps": 1,
+    "cpu_steps": 2,
+    "regs": {
+      "v0": "80003006",
+      "v1": "d0a9f33c"
+    },
+    "memory": {
+      "80003000": "282c26679fe945daaa1d2d7886e63d68"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "op38_offset3_delay0",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "98430000",
+    "steps": 1,
+    "cpu_steps": 1,
+    "regs": {
+      "v0": "80003007",
+      "v1": "d5a5de27"
+    },
+    "memory": {
+      "80003000": "c0cd1078afa0b9396e4719b282a552f0"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "op38_offset3_delay1",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "1000000498430000",
+    "steps": 1,
+    "cpu_steps": 2,
+    "regs": {
+      "v0": "80003007",
+      "v1": "886d14df"
+    },
+    "memory": {
+      "80003000": "30cf960e6575295210eee49fdbdaeafb"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "op42_offset0_delay0",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "a8430000",
+    "steps": 1,
+    "cpu_steps": 1,
+    "regs": {
+      "v0": "80003004",
+      "v1": "70ba7020"
+    },
+    "memory": {
+      "80003000": "ea7e3219abc732e0599839ba588a1dd2"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "op42_offset0_delay1",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "10000004a8430000",
+    "steps": 1,
+    "cpu_steps": 2,
+    "regs": {
+      "v0": "80003004",
+      "v1": "aaff4b99"
+    },
+    "memory": {
+      "80003000": "b6a532abc9b4abb1bbbd8401f5a9ce31"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "op42_offset1_delay0",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "a8430000",
+    "steps": 1,
+    "cpu_steps": 1,
+    "regs": {
+      "v0": "80003005",
+      "v1": "ed7c6c91"
+    },
+    "memory": {
+      "80003000": "1b389372d4dad0e6926b586453ca7909"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "op42_offset1_delay1",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "10000004a8430000",
+    "steps": 1,
+    "cpu_steps": 2,
+    "regs": {
+      "v0": "80003005",
+      "v1": "ccfc0b73"
+    },
+    "memory": {
+      "80003000": "15e3b46a8accca4116197bd031a43eea"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "op42_offset2_delay0",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "a8430000",
+    "steps": 1,
+    "cpu_steps": 1,
+    "regs": {
+      "v0": "80003006",
+      "v1": "d06dba8f"
+    },
+    "memory": {
+      "80003000": "09a234fb4c6d58e380f0043d4a5fd694"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "op42_offset2_delay1",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "10000004a8430000",
+    "steps": 1,
+    "cpu_steps": 2,
+    "regs": {
+      "v0": "80003006",
+      "v1": "f998e7b8"
+    },
+    "memory": {
+      "80003000": "4e0362c5c535ca751dac7656c4263fa3"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "op42_offset3_delay0",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "a8430000",
+    "steps": 1,
+    "cpu_steps": 1,
+    "regs": {
+      "v0": "80003007",
+      "v1": "c73ebeca"
+    },
+    "memory": {
+      "80003000": "cb827cd8123a67b6c383ef2540773385"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "op42_offset3_delay1",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "10000004a8430000",
+    "steps": 1,
+    "cpu_steps": 2,
+    "regs": {
+      "v0": "80003007",
+      "v1": "2817f9e7"
+    },
+    "memory": {
+      "80003000": "32148bacdaffc8f0dd45cffce981fc09"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "op46_offset0_delay0",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "b8430000",
+    "steps": 1,
+    "cpu_steps": 1,
+    "regs": {
+      "v0": "80003004",
+      "v1": "5b496d31"
+    },
+    "memory": {
+      "80003000": "6778e55742743e2d13624d9c80f5554d"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "op46_offset0_delay1",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "10000004b8430000",
+    "steps": 1,
+    "cpu_steps": 2,
+    "regs": {
+      "v0": "80003004",
+      "v1": "249f0274"
+    },
+    "memory": {
+      "80003000": "09b6a87f957ce4d61b218ce2c19543e7"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "op46_offset1_delay0",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "b8430000",
+    "steps": 1,
+    "cpu_steps": 1,
+    "regs": {
+      "v0": "80003005",
+      "v1": "62c69c60"
+    },
+    "memory": {
+      "80003000": "39703d00645d79acc9fce7df034de317"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "op46_offset1_delay1",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "10000004b8430000",
+    "steps": 1,
+    "cpu_steps": 2,
+    "regs": {
+      "v0": "80003005",
+      "v1": "dbd15b59"
+    },
+    "memory": {
+      "80003000": "5e98df76877f295695512f873203483d"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "op46_offset2_delay0",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "b8430000",
+    "steps": 1,
+    "cpu_steps": 1,
+    "regs": {
+      "v0": "80003006",
+      "v1": "c06dc593"
+    },
+    "memory": {
+      "80003000": "7e9d203beb228bc6198923c475c9b8a9"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "op46_offset2_delay1",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "10000004b8430000",
+    "steps": 1,
+    "cpu_steps": 2,
+    "regs": {
+      "v0": "80003006",
+      "v1": "2687463a"
+    },
+    "memory": {
+      "80003000": "d19da0535c7fb387ef24af39b979a0f3"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "op46_offset3_delay0",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "b8430000",
+    "steps": 1,
+    "cpu_steps": 1,
+    "regs": {
+      "v0": "80003007",
+      "v1": "f5b68628"
+    },
+    "memory": {
+      "80003000": "d810d3e236951b78f809e0491fcc9397"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "op46_offset3_delay1",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "10000004b8430000",
+    "steps": 1,
+    "cpu_steps": 2,
+    "regs": {
+      "v0": "80003007",
+      "v1": "79f46cc0"
+    },
+    "memory": {
+      "80003000": "3867724a62d6355513749d68801c2031"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "paired_store_load_0",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "a8430000b84300038844000098440003",
+    "steps": 4,
+    "regs": {
+      "v0": "80003004",
+      "v1": "12345678",
+      "a0": "deadbeef"
+    },
+    "memory": {
+      "80003000": "a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "paired_store_load_1",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "a8430000b84300038844000098440003",
+    "steps": 4,
+    "regs": {
+      "v0": "80003005",
+      "v1": "12345678",
+      "a0": "deadbeef"
+    },
+    "memory": {
+      "80003000": "a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "paired_store_load_2",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "a8430000b84300038844000098440003",
+    "steps": 4,
+    "regs": {
+      "v0": "80003006",
+      "v1": "12345678",
+      "a0": "deadbeef"
+    },
+    "memory": {
+      "80003000": "a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  },
+  {
+    "id": "paired_store_load_3",
+    "isa_mode": 0,
+    "pc": "80002000",
+    "code": "a8430000b84300038844000098440003",
+    "steps": 4,
+    "regs": {
+      "v0": "80003007",
+      "v1": "12345678",
+      "a0": "deadbeef"
+    },
+    "memory": {
+      "80003000": "a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5"
+    },
+    "read_ranges": [
+      {
+        "address": "80003000",
+        "length": 16
+      }
+    ]
+  }
+]

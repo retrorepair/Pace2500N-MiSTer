@@ -1,0 +1,34 @@
+bfc0dd80  nop
+bfc0dd84  lui at,0x8001
+bfc0dd88  lw t0,-0x7c80(at)
+bfc0dd8c  or v0,zero,zero
+bfc0dd90  beq t0,zero,0xbfc0de00
+bfc0dd94  _nop
+bfc0dd98  lw t1,0x24(t0)
+bfc0dd9c  lw t2,0x28(t0)
+bfc0dda0  sltu at,sp,t1
+bfc0dda4  bne at,zero,0xbfc0ddbc
+bfc0dda8  _nop
+bfc0ddac  lw t3,0x34(t0)
+bfc0ddb0  sltu at,t2,sp
+bfc0ddb4  beq at,zero,0xbfc0ddcc
+bfc0ddb8  _nop
+bfc0ddbc  addiu sp,sp,-0x4
+bfc0ddc0  sw ra,0x0(sp)
+bfc0ddc4  jalx 0xbfc0f474
+bfc0ddc8  _li a0,0x3
+bfc0ddcc  subu v0,sp,t1
+bfc0ddd0  li t4,0x80
+bfc0ddd4  sltu at,t4,v0
+bfc0ddd8  bne at,zero,0xbfc0ddf0
+bfc0dddc  _nop
+bfc0dde0  addiu sp,sp,-0x4
+bfc0dde4  sw ra,0x0(sp)
+bfc0dde8  jalx 0xbfc0f474
+bfc0ddec  _li a0,0x3
+bfc0ddf0  sltu at,v0,t3
+bfc0ddf4  beq at,zero,0xbfc0de00
+bfc0ddf8  _nop
+bfc0ddfc  sw v0,0x34(t0)
+bfc0de00  jr ra
+bfc0de04  _nop

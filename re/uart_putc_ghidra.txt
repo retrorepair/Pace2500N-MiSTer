@@ -1,0 +1,10 @@
+bfc028ec  sll a0,a0,0x18
+bfc028f0  srl a0,a0,0x18
+bfc028f4  lw v1,0x78(pc)
+bfc028f6  lw v1,0x0(v1)
+bfc028f8  li v0,0x40
+bfc028fa  and v1,v0
+bfc028fc  beqz v1,0xbfc028f4
+bfc028fe  lw v1,0x64(pc)
+bfc02900  jr ra
+bfc02902  _sw a0,0x0(v1)

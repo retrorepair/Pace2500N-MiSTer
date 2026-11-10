@@ -1,0 +1,16 @@
+bfc0b38c  lw v1,0x118(pc)
+bfc0b38e  sll a0,a0,0x18
+bfc0b392  srl v0,a0,0x18
+bfc0b396  li a1,0x4000
+bfc0b39a  or v0,a1
+bfc0b39c  sw v0,0x124(v1)
+bfc0b3a0  lw v0,0x124(v1)
+bfc0b3a4  li a0,0x4000
+bfc0b3a8  and v0,a0
+bfc0b3aa  cmpi v0,0x4000
+bfc0b3ae  bteqz 0xbfc0b3a0
+bfc0b3b0  lw v0,0x128(v1)
+bfc0b3b4  sll v0,v0,0xb
+bfc0b3b8  srl v0,v0,0xb
+bfc0b3bc  jr ra
+bfc0b3be  _addiu s0,0x0

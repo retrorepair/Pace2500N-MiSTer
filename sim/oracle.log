@@ -1,0 +1,33 @@
+# vsim -c tb_oracle -l sim/oracle.log -do "onbreak {quit -code 1}; run -all; quit -code 0" 
+# Start time: 23:58:10 on Nov 07,2026
+# Loading sv_std.std
+# Loading sim/work.tb_oracle
+# Loading sim/work.pace_firmware_cpu
+# Loading sim/work.pace_bootrom
+# Loading sim/work.pace_muldiv
+# ** Warning: (vsim-3017) sim/tb_oracle.sv(9): [TFMPC] - Too few port connections. Expected 26, found 12.
+#    Time: 0 ps  Iteration: 0  Instance: /tb_oracle/DUT File: rtl/pace_firmware_cpu.sv
+# ** Warning: (vsim-3722) sim/tb_oracle.sv(9): [TFMPC] - Missing connection for port 'pc'.
+# ** Warning: (vsim-3722) sim/tb_oracle.sv(9): [TFMPC] - Missing connection for port 'instruction'.
+# ** Warning: (vsim-3722) sim/tb_oracle.sv(9): [TFMPC] - Missing connection for port 'retired'.
+# ** Warning: (vsim-3722) sim/tb_oracle.sv(9): [TFMPC] - Missing connection for port 'ram_writes'.
+# ** Warning: (vsim-3722) sim/tb_oracle.sv(9): [TFMPC] - Missing connection for port 'last_ram_address'.
+# ** Warning: (vsim-3722) sim/tb_oracle.sv(9): [TFMPC] - Missing connection for port 'last_mmio_address'.
+# ** Warning: (vsim-3722) sim/tb_oracle.sv(9): [TFMPC] - Missing connection for port 'last_mmio_value'.
+# ** Warning: (vsim-3722) sim/tb_oracle.sv(9): [TFMPC] - Missing connection for port 'last_mmio_read'.
+# ** Warning: (vsim-3722) sim/tb_oracle.sv(9): [TFMPC] - Missing connection for port 'mmio_writes'.
+# ** Warning: (vsim-3722) sim/tb_oracle.sv(9): [TFMPC] - Missing connection for port 'guessed_reads'.
+# ** Warning: (vsim-3722) sim/tb_oracle.sv(9): [TFMPC] - Missing connection for port 'halt_code'.
+# ** Warning: (vsim-3722) sim/tb_oracle.sv(9): [TFMPC] - Missing connection for port 'mips16'.
+# ** Warning: (vsim-3722) sim/tb_oracle.sv(9): [TFMPC] - Missing connection for port 'reached_mips16'.
+# ** Warning: (vsim-3722) sim/tb_oracle.sv(9): [TFMPC] - Missing connection for port 'interrupt_count'.
+# ** Warning: Design size of 42178 statements exceeds ModelSim-Intel FPGA Starter Edition recommended capacity.
+# Expect performance to be adversely affected.
+# onbreak {quit -code 1}
+#  Warning: onbreak command for use within macro
+#  run -all
+# PASS: 260 independent Ghidra oracle cases in RTL with DDR stalls
+# ** Note: $finish    : sim/tb_oracle.sv(57)
+#    Time: 29290 ns  Iteration: 1  Instance: /tb_oracle
+# End time: 23:58:11 on Nov 07,2026, Elapsed time: 0:00:01
+# Errors: 0, Warnings: 16

@@ -1,0 +1,5 @@
+PASS native firmware PC 800d35dc RET  310000000 sections        601 ring reads       17581 acks         601
+- sim/tb_guide_transport.sv:131: Verilog $finish
+- S i m u l a t i o n   R e p o r t: Verilator 5.044 2026-01-01
+- Verilator: $finish at 9s; walltime 849.319 s; speed 11.154 ms/s
+- Verilator: cpu 824.703 s on 1 threads; alloced 0 MB

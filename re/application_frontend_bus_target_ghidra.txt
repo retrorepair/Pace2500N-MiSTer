@@ -1,0 +1,14 @@
+80028e80  addiu sp,-0x8
+80028e82  sw ra,0x4(sp)
+80028e84  sll a1,a1,0x10
+80028e88  srl a1,a1,0x10
+80028e8c  lw v1,0x1a8(pc)
+80028e8e  jalr v1
+80028e90  _move a0,zero
+80028e92  bnez v0,0x80028e98
+80028e94  move v0,zero
+80028e96  b 0x80028e9a
+80028e98  li v0,0x1
+80028e9a  lw a0,0x4(sp)
+80028e9c  jr a0
+80028e9e  _addiu sp,0x8

@@ -1,0 +1,12 @@
+bfc06300  addiu a0,sp,0x4
+bfc06302  jal 0xbfc05904
+bfc06306  _move a1,a2
+bfc06308  move s0,v0
+bfc0630a  lw a0,0x114(pc)
+bfc0630c  jal 0xbfc0c1fc
+bfc06310  _lw a1,0x124(pc)
+bfc06312  move v0,s0
+bfc06314  lw a0,0xc(sp)
+bfc06316  lw s0,0x0(sp)
+bfc06318  jr a0
+bfc0631a  _addiu sp,0x10

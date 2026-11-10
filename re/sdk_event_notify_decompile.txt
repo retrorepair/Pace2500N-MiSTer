@@ -1,0 +1,37 @@
+
+// 8007e6d8 sdk_event_notify
+
+void sdk_event_notify(int param_1,undefined2 param_2,undefined4 param_3)
+
+{
+  code *pcVar1;
+  int *piVar2;
+  code *UNRECOVERED_JUMPTABLE;
+  undefined2 uStack_14;
+  undefined2 uStack_12;
+  undefined4 uStack_10;
+  int iStack_c;
+  
+  if ((0 < param_1) && (param_1 <= *piRam8007e960)) {
+    for (piVar2 = (int *)*puRam8007e954; (piVar2 != (int *)0x0 && (*piVar2 != param_1));
+        piVar2 = (int *)piVar2[8]) {
+    }
+    if (piVar2 != (int *)0x0) {
+      uStack_14 = 0x8000;
+      pcVar1 = pcRam8007e96c;
+      if (*(char *)(piVar2 + 2) != '\0') {
+        pcVar1 = pcRam8007e968;
+      }
+      uStack_12 = param_2;
+      uStack_10 = param_3;
+      iStack_c = param_1;
+      (*pcVar1)(&uStack_14);
+    }
+  }
+                    /* WARNING: Could not recover jumptable at 0x8007e736. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+

@@ -1,0 +1,33 @@
+
+// 80054268 av_submit_f4_command
+
+void av_submit_f4_command(void)
+
+{
+  undefined4 in_zero;
+  char cVar1;
+  code *UNRECOVERED_JUMPTABLE;
+  undefined1 auStack_2c [33];
+  undefined1 uStack_b;
+  
+  cVar1 = (char)in_zero;
+  if (*pcRam80054510 == '\0') {
+    if (*pcRam80054524 != '\0') {
+      uStack_b = 0xf4;
+      *pcRam80054524 = cVar1;
+      (*pcRam8005453c)(*puRam80054538,0x24,auStack_2c);
+    }
+  }
+  else {
+    *pcRam80054510 = cVar1;
+    *pcRam8005452c = cVar1;
+    *puRam80054514 = in_zero;
+    (*pcRam80054534)(*puRam80054530);
+  }
+                    /* WARNING: Could not recover jumptable at 0x800542b0. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*UNRECOVERED_JUMPTABLE)();
+  return;
+}
+
+

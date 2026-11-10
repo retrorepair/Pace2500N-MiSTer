@@ -1,0 +1,111 @@
+Original FLASH_U202.bin, base BFC00000, MIPS big endian, ISA_MODE=1 (MIPS16e).
+This is static disassembly, not an identification of NEC registers.
+bfc01e18  lw v1,0x70(pc)
+bfc01e1a  lw v1,0x0(v1)
+bfc01e1c  lhu v1,0x2(v1)
+bfc01e1e  li a0,0x1
+bfc01e20  srl v1,v1,0x5
+bfc01e22  and v1,a0
+bfc01e24  sltiu v1,0x1
+bfc01e26  btnez 0xbfc01e2e
+bfc01e28  cmpi v1,0x1
+bfc01e2a  bteqz 0xbfc01e32
+bfc01e2c  b 0xbfc01e34
+bfc01e2e  li v0,0x51
+bfc01e30  b 0xbfc01e34
+bfc01e32  li v0,0x36
+bfc01e34  jr ra
+bfc01e36  _addiu s0,0x0
+
+MIPS32 caller around JALX:
+bfc00570  sw t6,0x50(v1)
+bfc00574  ori t9,zero,0x200
+bfc00578  jalx 0xbfc01e18
+bfc0057c  _sw t9,0x600(s0)
+bfc00580  addiu v1,v0,-0x36
+bfc00584  beq v1,zero,0xbfc005a0
+bfc00588  _addiu s0,s0,0x600
+bfc0058c  addiu v1,v1,-0x1b
+bfc00590  beql v1,zero,0xbfc005b0
+bfc00594  _lui t7,0x23
+bfc00598  j 0xbfc005b8
+bfc0059c  _sw zero,0x10(s0)
+bfc005a0  lui t8,0x1a
+bfc005a4  ori t8,t8,0x1a1a
+bfc005a8  j 0xbfc005b8
+bfc005ac  _sw t8,0x10(s0)
+bfc005b0  ori t7,t7,0x2323
+bfc005b4  sw t7,0x10(s0)
+bfc005b8  lui v1,0xb000
+bfc005bc  ori v1,v1,0x4000
+bfc005c0  ori t6,zero,0x0
+bfc005c4  ori t9,zero,0x7
+bfc005c8  sw t9,0x20(s0)
+bfc005cc  ori t8,zero,0x200
+bfc005d0  sw t8,0x0(s0)
+bfc005d4  sw t6,0x0(v1)
+bfc005d8  lui t6,0x238
+bfc005dc  ori t6,t6,0x8fe
+bfc005e0  lui v1,0xb000
+bfc005e4  ori v1,v1,0x4100
+bfc005e8  sw t6,0x4(v1)
+bfc005ec  lui t6,0xfe35
+bfc005f0  ori t6,t6,0xffe
+bfc005f4  sw t6,0xc(v1)
+bfc005f8  lui t6,0xfc30
+bfc005fc  ori t6,t6,0x17fd
+bfc00600  sw t6,0x14(v1)
+bfc00604  lui t6,0xfc28
+bfc00608  ori t6,t6,0x20fc
+bfc0060c  sw t6,0x1c(v1)
+bfc00610  lui t6,0xfc20
+bfc00614  ori t6,t6,0x28fc
+bfc00618  sw t6,0x24(v1)
+bfc0061c  lui t6,0xfd17
+bfc00620  ori t6,t6,0x30fc
+bfc00624  sw t6,0x2c(v1)
+bfc00628  lui t8,0x438
+bfc0062c  ori t8,t8,0x400
+bfc00630  sw t8,0x0(v1)
+bfc00634  lui t8,0x37
+bfc00638  ori t8,t8,0xbfe
+bfc0063c  sw t8,0x8(v1)
+bfc00640  lui t8,0xfd33
+bfc00644  ori t8,t8,0x13fd
+bfc00648  sw t8,0x10(v1)
+bfc0064c  lui t8,0xfc2c
+bfc00650  ori t8,t8,0x1bfd
+bfc00654  sw t8,0x18(v1)
+bfc00658  lui t8,0xfc24
+bfc0065c  ori t8,t8,0x24fc
+bfc00660  sw t8,0x20(v1)
+bfc00664  lui t8,0xfd1b
+bfc00668  ori t8,t8,0x2cfc
+bfc0066c  sw t8,0x28(v1)
+bfc00670  lui t8,0xfd13
+bfc00674  lui t6,0xfe0f
+bfc00678  ori t6,t6,0x35fe
+bfc0067c  sw t6,0x34(v1)
+bfc00680  lui t6,0xfe08
+
+DECOMPILATION (approximate types/register semantics):
+
+/* WARNING: Unknown calling convention -- yet parameter storage is locked */
+
+uint boot_read_unknown_nec_register(void)
+
+{
+  ushort uVar1;
+  uint in_v0;
+  
+  uVar1 = *(ushort *)(*piRambfc01e88 + 2) >> 5;
+  if ((uVar1 & 1) == 0) {
+    in_v0 = 0x51;
+  }
+  else if ((uVar1 & 1) == 1) {
+    in_v0 = 0x36;
+  }
+  return in_v0;
+}
+
+

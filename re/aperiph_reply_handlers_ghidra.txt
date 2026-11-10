@@ -1,0 +1,14 @@
+bfc05d5c  addiu sp,-0x10
+bfc05d5e  sw ra,0xc(sp)
+bfc05d60  move a3,a0
+bfc05d62  addiu a0,sp,0x4
+bfc05d64  lw a1,0x14c(pc)
+bfc05d66  jal 0xbfc1aaa4
+bfc05d6a  _li a2,0x4
+bfc05d6c  addiu a0,sp,0x4
+bfc05d6e  sb a3,0x3(a0)
+bfc05d70  jal 0xbfc05904
+bfc05d74  _move a1,a2
+bfc05d76  lw a0,0xc(sp)
+bfc05d78  jr a0
+bfc05d7a  _addiu sp,0x10

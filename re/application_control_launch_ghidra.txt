@@ -1,0 +1,6 @@
+80036f90  lw a1,0x0(v1)
+80036f92  b 0x80036fb0
+80036fb0  lw a0,0xc(sp)
+80036fb2  lw s0,0x0(sp)
+80036fb4  jr a0
+80036fb6  _addiu sp,0x10

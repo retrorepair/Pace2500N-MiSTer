@@ -1,0 +1,69 @@
+
+// 8002bce0 external_port_setup
+
+undefined4 external_port_setup(uint param_1,undefined1 param_2)
+
+{
+  undefined1 *puVar1;
+  
+  puVar1 = puRam8002beb0;
+  (*pcRam8002beb4)(6);
+  puVar1[6] = 0x10;
+  puVar1[3] = (char)(param_1 & 0xffff);
+  puVar1[2] = (char)((param_1 & 0xffff) >> 8);
+  puVar1[1] = 0xf;
+  *puVar1 = param_2;
+  do {
+  } while ((puVar1[6] & 0x20) != 0);
+  (*pcRam8002beb8)(6);
+                    /* WARNING: Treating indirect jump as return */
+  return 1;
+}
+
+
+
+// 8002b6a4 external_port_init
+
+uint external_port_init(void)
+
+{
+  uint in_zero;
+  uint uVar1;
+  int iVar2;
+  uint uVar3;
+  char cStack_a;
+  undefined1 uStack_9;
+  
+  uStack_9 = (undefined1)in_zero;
+  *pbRam8002b888 = 6;
+  uVar1 = in_zero;
+  iVar2 = (*pcRam8002b88c)(0x8232,*pbRam8002b888);
+  uVar3 = 0;
+  if (iVar2 != 0) {
+    (*pcRam8002b894)(6,&cStack_a);
+    uVar3 = in_zero;
+    while (cStack_a != '\x01') {
+      (*pcRam8002b898)(2);
+      uVar3 = uVar3 + 1;
+      if (0x32 < (int)uVar3) {
+        return uVar1;
+      }
+      (*pcRam8002b894)(6,&cStack_a);
+    }
+    uStack_9 = (*pcRam8002b890)();
+    while (uVar3 = (*pcRam8002b890)(), (uVar3 & 0x1f) != 2) {
+      if (10000 < in_zero) {
+        *pbRam8002b888 = *pbRam8002b888 & 0xfb;
+        (*pcRam8002b88c)(0x8232,*pbRam8002b888);
+        return uVar1;
+      }
+      in_zero = in_zero + 1 & 0xffff;
+    }
+    *pbRam8002b888 = *pbRam8002b888 & 0xfb;
+    uVar3 = (*pcRam8002b88c)(0x8232,*pbRam8002b888);
+  }
+                    /* WARNING: Treating indirect jump as return */
+  return uVar3;
+}
+
+
