@@ -101,6 +101,23 @@ hold +0.246 ns. After `load_core Pace2500N_V052.mgl` at 13:41:15 UTC the MiSTer
 stopped answering on the network (ping: host unreachable). v052 has the same
 DDR/arbiter logic as v051, which loaded and ran normally. Cause not yet known.
 
+Hang follow-up: v052 hung the MiSTer within ~2 s of `load_core` twice (SD log
+stops before any telemetry); its RBF on the SD card matched the build hash.
+v051 loaded normally as a control. v053 (same RTC/TOT logic as v052 plus the
+burst blitter) loads and runs normally, so the fault followed that single
+v052 bitstream, not the logic. Cause still unexplained; watch for repeats.
+
+**Current hardware: v053**, `_Other/Pace2500N_V053.rbf` + `Pace2500N_V053.mgl`,
+SHA256 63026f78...b452f0. Timing: core +2.392, video +5.379, HDMI +0.052,
+hold +0.246 ns; 71% ALMs, 407 RAM blocks. Hardware: 5.99M instr/s with the
+I-cache, ALL CHANNELS clean behind the dialog, clock "2.58pm Tue 10" from the
+RTC-stamped TOT, 6-minute soak 268/270 messages free. All older Pace cores and
+launchers removed from the SD card (local copies under builds/).
+
+Open: the firmware reports "No satellite signal" (frontend state 7, flag
+80105C00=0) and then stops taking new TOTs, so its clock only advances at
+guest speed (~14x slower than real time). Next: the frontend lock model.
+
 ## Session 3 (9 Nov, evening) - investigation only, stopped early at user request
 
 No RTL, ROM, MiSTer file or core was changed. Nothing was pushed to GitHub (no
