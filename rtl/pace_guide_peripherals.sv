@@ -29,6 +29,26 @@ module pace_guide_peripherals #(
  `include "rtl/pace_checkpoint_csr.vh"
  reg [31:0] seed[0:127],csr[0:127];
  initial $readmemh("rom/checkpoint_csr.hex",seed);
+ // CSRs this model reads or writes itself ("hot") stay in flip-flops. The
+ // rest are plain guest storage: written only by the CPU and read only by
+ // the CPU, so they live in MLAB memory (one write port, asynchronous read,
+ // so the read-back timing is unchanged). cold_written[i]=0 reads the
+ // checkpoint seed, which is what a reset loads.
+ function automatic is_hot(input [6:0] i);
+  is_hot=i==csr_index(32'hb0000040) || i==csr_index(32'hb0004200) || i==csr_index(32'hb0009010) ||
+         i==csr_index(32'hb0009100) || i==csr_index(32'hb000b814) || i==csr_index(32'hb000d020) ||
+         i==csr_index(32'hb000d030) || i==csr_index(32'hb000d050) || i==csr_index(32'hb000d0c0) ||
+         i==csr_index(32'hb2002060) || i==csr_index(32'hb2002070) || i==csr_index(32'hb2006010) ||
+         i==csr_index(32'hb2006040) || i==csr_index(32'hb2006050) || i==csr_index(32'hb2006060) ||
+         i==csr_index(32'hb2009000) || i==csr_index(32'hb2009010) || i==csr_index(32'hb2009020) ||
+         i==csr_index(32'hb2009030) || i==csr_index(32'hb200a000);
+ endfunction
+ (* ramstyle="MLAB, no_rw_check" *) reg [31:0] csr_cold[0:127];
+ reg [127:0] cold_written=0;
+ wire [6:0] io_index=csr_index(io_addr);
+ wire io_hot=is_hot(io_index);
+ wire [31:0] io_csr=io_hot ? csr[io_index] : cold_written[io_index] ? csr_cold[io_index] : seed[io_index];
+ // Hot registers only (all callers pass one of the addresses above).
  function automatic [31:0] regval(input[31:0] a);regval=csr[csr_index(a)];endfunction
  reg [31:0] last_retired=0;
  wire tick=retired!=last_retired;
@@ -83,7 +103,7 @@ module pace_guide_peripherals #(
    eeprom[ee_pending_addr[ee_commit_index[7:0]]]<=ee_pending_data[ee_commit_index[7:0]];
  end
  always @* begin
-   io_rdata=regval(io_addr);
+   io_rdata=io_csr;
    case(io_addr)
     32'hb0000030:io_rdata=irq_status;
     32'hb000d0d0:io_rdata={31'd0,timer_pending};
@@ -111,7 +131,8 @@ module pace_guide_peripherals #(
  always @(posedge clk)begin
   gpu_start<=0;
   if(reset)begin
-   for(n=0;n<128;n=n+1)csr[n]<=seed[n];
+   for(n=0;n<128;n=n+1)if(is_hot(n[6:0]))csr[n]<=seed[n];
+   cold_written<=0;
    for(n=0;n<8;n=n+1)uart[n]<=0;
    uart[3]<=3;
    last_retired<=retired;timer_remaining<=740656;timer_pending<=0;gpu_pending<=0;wall_acc<=0;
@@ -225,7 +246,11 @@ module pace_guide_peripherals #(
    end
    if(gpu_done)begin gpu_pending<=1;csr[csr_index(32'hb0009010)]<=regval(32'hb0009010)&32'hffffefff;end
    if(io_req && io_ready && io_we)begin
-    if(csr_index(io_addr)!=127)csr[csr_index(io_addr)]<=io_wdata;
+    if(io_index!=127)begin
+     // Constant-index writes: only the hot registers exist as flip-flops.
+     for(n=0;n<128;n=n+1)if(is_hot(n[6:0]) && io_index==n[6:0])csr[n]<=io_wdata;
+     if(!io_hot)begin csr_cold[io_index]<=io_wdata;cold_written[io_index]<=1;end
+    end
     if(io_addr>=32'hb4080000 && io_addr<32'hb4080008)uart[io_addr[2:0]^3'b011]<=io_wdata[7:0];
     case(io_addr)
      32'hb000d030:if(io_wdata[0] && (regval(32'hb000d030)&1)==0)timer_remaining<=regval(32'hb000d050);
@@ -281,4 +306,29 @@ module pace_guide_peripherals #(
    end
   end
  end
+ // synthesis translate_off
+`ifdef PACE_PERIPH_LOCKSTEP
+ // The original all-flip-flop CSR file (sim/baseline_peripherals), driven
+ // identically; every output must match on every cycle.
+ wire [31:0] g_io_rdata,g_gpu_descriptor,g_osd_root,g_serial_frames,g_key_frames,g_timer_acks,g_gpu_acks;
+ wire g_io_ready,g_io_irq,g_gpu_start;wire [7:0] g_model_halt,g_last_key;
+ pace_guide_peripherals_ref #(.TIMER_COUNTS_PER_INSTRUCTION(TIMER_COUNTS_PER_INSTRUCTION),.WALL_TIMER(WALL_TIMER)) golden(
+  .clk(clk),.reset(reset),.hold(hold),.retired(retired),.io_req(io_req),.io_we(io_we),.io_addr(io_addr),
+  .io_wdata(io_wdata),.io_size(io_size),.io_rdata(g_io_rdata),.io_ready(g_io_ready),.io_irq(g_io_irq),
+  .key_valid(key_valid),.key_pressed(key_pressed),.key_code(key_code),.gpu_start(g_gpu_start),
+  .gpu_descriptor(g_gpu_descriptor),.osd_root(g_osd_root),.gpu_done(gpu_done),.transport_irq(transport_irq),
+  .transport_lock(transport_lock),.model_halt(g_model_halt),.serial_frames(g_serial_frames),
+  .key_frames(g_key_frames),.timer_acks(g_timer_acks),.gpu_acks(g_gpu_acks),.last_key(g_last_key));
+ reg [63:0] lockstep_cycles=0;
+ always @(negedge clk)begin
+  lockstep_cycles<=lockstep_cycles+1;
+  if(g_io_rdata!==io_rdata || g_io_ready!==io_ready || g_io_irq!==io_irq || g_gpu_start!==gpu_start ||
+     g_gpu_descriptor!==gpu_descriptor || g_osd_root!==osd_root || g_model_halt!==model_halt ||
+     g_serial_frames!==serial_frames || g_key_frames!==key_frames || g_timer_acks!==timer_acks ||
+     g_gpu_acks!==gpu_acks || g_last_key!==last_key)
+   $fatal(1,"peripherals lockstep mismatch at %0d: addr %h io_rdata %h/%h irq %b/%b",
+    lockstep_cycles,io_addr,io_rdata,g_io_rdata,io_irq,g_io_irq);
+ end
+`endif
+ // synthesis translate_on
 endmodule
