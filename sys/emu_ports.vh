@@ -114,6 +114,22 @@ output [63:0] DDRAM_DIN,
 output  [7:0] DDRAM_BE,
 output        DDRAM_WE,
 
+`ifdef MISTER_RAM2
+// PACE: second 64-bit DDR3 master (sysmem ram2), used by the MPEG decoder.
+// Only with MISTER_DISABLE_ALSA; the MiSTer framebuffer palette fetch that
+// otherwise shares this port is not used by this core.
+output        DDRAM2_CLK,
+input         DDRAM2_BUSY,
+output  [7:0] DDRAM2_BURSTCNT,
+output [28:0] DDRAM2_ADDR,
+input  [63:0] DDRAM2_DOUT,
+input         DDRAM2_DOUT_READY,
+output        DDRAM2_RD,
+output [63:0] DDRAM2_DIN,
+output  [7:0] DDRAM2_BE,
+output        DDRAM2_WE,
+`endif
+
 //SDRAM interface with lower latency
 output        SDRAM_CLK,
 output        SDRAM_CKE,

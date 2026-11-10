@@ -3,9 +3,10 @@
 module emu (
 `include "sys/emu_ports.vh"
 );
-localparam CONF_STR={"Pace2500N_TS;;","F0,BIN,Load FLASH_U202.bin;","F1,BIN,Load RAM checkpoint;","F2,BIN,Load CPU state;","F3,TS,Load transport stream (64MiB max);","O3,Display,Guide,Diagnostics;","O4,Diagnostic RF lock,From TS,Off;","O5,Broadcast clock (TOT),MiSTer RTC,TS file;","-;","R0,Reset (reload checkpoint);","V,0.5.7 A/V trace"};
-wire clk_sys,clk_video,pll_locked;
-pll pll(.refclk(CLK_50M),.rst(1'b0),.outclk_0(clk_sys),.outclk_1(clk_video),.locked(pll_locked));
+localparam CONF_STR={"Pace2500N_TS;;","F0,BIN,Load FLASH_U202.bin;","F1,BIN,Load RAM checkpoint;","F2,BIN,Load CPU state;","F3,TS,Load transport stream (64MiB max);","O3,Display,Guide,Diagnostics;","O4,Diagnostic RF lock,From TS,Off;","O5,Broadcast clock (TOT),MiSTer RTC,TS file;","-;","R0,Reset (reload checkpoint);","V,0.5.8 MPEG video+audio"};
+wire clk_sys,clk_video,clk_mem,clk_dec,clk_dot,pll_locked;
+pll pll(.refclk(CLK_50M),.rst(1'b0),.outclk_0(clk_sys),.outclk_1(clk_video),
+ .outclk_2(clk_mem),.outclk_3(clk_dec),.outclk_4(clk_dot),.locked(pll_locked));
 // Unused platform interfaces: MiSTer sys_top remains responsible for
 // pinout, HPS bus, and video/composite sync on the analogue board.
 assign ADC_BUS='Z;
@@ -39,9 +40,7 @@ assign HDMI_BLACKOUT=1'b0;
 assign HDMI_BOB_DEINT=1'b1; // Interlaced field bob for HDMI fallback
 assign LED_POWER=2'b00;
 assign LED_DISK=2'b00;
-assign AUDIO_L=16'd0;
-assign AUDIO_R=16'd0;
-assign AUDIO_S=1'b1;
+
 assign AUDIO_MIX=2'b00;
 assign VIDEO_ARX=13'd4;
 assign VIDEO_ARY=13'd3;
@@ -146,18 +145,68 @@ pace_section_demux demux(.clk(clk_sys),.reset(core_reset),.stream_reset(stream_l
  .ts_valid(ts_valid),.ts_ready(ts_ready),.ts_data(ts_data),
  .io_req(device_req && demux_selected),.io_we(iw),.io_addr(ia),.io_wdata(id),.io_size(iz),.io_rdata(dir),.irq(demux_irq),.config_ready(demux_config_ready),
  .mem_req(dq),.mem_addr(dad),.mem_wdata(dwd),.mem_be(dbe),.mem_accept(da),
- .packets(ts_packets),.sections(ts_sections),.dropped(ts_dropped),.crc_errors(ts_crc_errors));
+ .packets(ts_packets),.sections(ts_sections),.dropped(ts_dropped),.crc_errors(ts_crc_errors),
+ .av_video(av_video),.av_audio(av_audio),.av_pcr());
+
+// ---- MPEG A/V: the elementary streams on the PIDs the firmware routes to the
+// EMMA's A/V decoder (B000A094 video, B000A098 audio, bit 14 = on).
+wire [15:0] av_video,av_audio;
+wire video_on=av_video[14] && !holding;
+wire audio_on=av_audio[14] && !holding;
+wire [7:0] ves_data,aes_data;wire ves_valid,ves_ready,aes_valid,aes_full;
+wire [31:0] ves_bytes,aes_bytes;wire [15:0] ves_dropped,aes_dropped;
+pace_av_pes av_pes(.clk(clk_sys),.reset(core_reset || stream_loading),.ts_strobe(ts_valid && ts_ready),.ts_data(ts_data),
+ .video_pid(av_video[12:0]),.audio_pid(av_audio[12:0]),.video_on(video_on),.audio_on(audio_on),
+ .video_data(ves_data),.video_valid(ves_valid),.video_ready(ves_ready),
+ .audio_data(aes_data),.audio_valid(aes_valid),.audio_ready(!aes_full),
+ .video_bytes(ves_bytes),.audio_bytes(aes_bytes),.video_dropped(ves_dropped),.audio_dropped(aes_dropped));
+wire [7:0] dec_r,dec_g,dec_b;wire dec_en,dec_hs,dec_vs;wire [11:0] dec_h,dec_v;
+wire dec_live,dec_busy;wire [15:0] dec_pictures,dec_pickups,dec_late;wire [7:0] dec_vbuf;wire [13:0] dec_hsize,dec_vsize;
+pace_mpeg_video mpeg_video(.clk_sys(clk_sys),.clk_dec(clk_dec),.clk_mem(clk_mem),.clk_dot(clk_dot),
+ .reset(!pll_locked || RESET),.enable(video_on),
+ .es_data(ves_data),.es_valid(ves_valid),.es_ready(ves_ready),
+ .ddr_addr(DDRAM2_ADDR),.ddr_burstcnt(DDRAM2_BURSTCNT),.ddr_read(DDRAM2_RD),.ddr_write(DDRAM2_WE),
+ .ddr_wdata(DDRAM2_DIN),.ddr_be(DDRAM2_BE),.ddr_rdata(DDRAM2_DOUT),.ddr_rvalid(DDRAM2_DOUT_READY),.ddr_waitrequest(DDRAM2_BUSY),
+ .r(dec_r),.g(dec_g),.b(dec_b),.pixel_en(dec_en),.hs(dec_hs),.vs(dec_vs),.h_pos(dec_h),.v_pos(dec_v),
+ .video_live(dec_live),.busy(dec_busy),.pictures(dec_pictures),.pickups(dec_pickups),.frames_late(dec_late),.vbuf_fill(dec_vbuf),
+ .horizontal_size(dec_hsize),.vertical_size(dec_vsize));
+assign DDRAM2_CLK=clk_mem;
+// MPEG-1 Layer II audio, 48 kHz from the core clock (the replayed broadcast is
+// paced by the same clock, so production and consumption rates are equal).
+reg [25:0] aud_acc=0;reg aud_ce=0;
+always @(posedge clk_sys)begin
+ aud_ce<=0;
+ if(aud_acc+26'd48000>=26'd50000000)begin aud_acc<=aud_acc+26'd48000-26'd50000000;aud_ce<=1;end
+ else aud_acc<=aud_acc+26'd48000;
+end
+wire signed [15:0] pcm_l,pcm_r;wire mp2_synced,mp2_err;
+mp2_decode mp2(.clk(clk_sys),.rst(core_reset || !audio_on),.wr_en(aes_valid && !aes_full),.wr_data(aes_data),.full(aes_full),
+ .aud_ce(aud_ce),.audio_l(pcm_l),.audio_r(pcm_r),.aud_valid(),.synced(mp2_synced),.err_unsupported(mp2_err),
+ .fs_o(),.dbg_s_nz(),.dbg_pcm_nz(),.cp_step(1'b0),.cp_q());
+assign AUDIO_L=audio_on && mp2_synced ? pcm_l : 16'd0;
+assign AUDIO_R=audio_on && mp2_synced ? pcm_r : 16'd0;
+assign AUDIO_S=1'b1;
 
 wire [9:0] x,y;wire shown,hs,vs,field,ce;
 wire [23:0] frame_rgb;wire video_ce,video_de,video_hs,video_vs,video_field;
 // Video runs in its own 54 MHz domain: BT.601 13.5 MHz samples, 720 active
 // per line, one sample per firmware OSD pixel.
-pace_pal576i601 raster(.clk(clk_video),.reset(!pll_locked),.sync(1'b0),.sync_field(1'b0),.ce_pixel(ce),.x(x),.y(y),.visible(shown),.hs(hs),.vs(vs),.field(field));
+wire raster_sync,raster_sync_field;
+pace_pal576i601 raster(.clk(clk_video),.reset(!pll_locked),.sync(raster_sync && video_on_v),.sync_field(raster_sync_field),.ce_pixel(ce),.x(x),.y(y),.visible(shown),.hs(hs),.vs(vs),.field(field));
 pace_guide_video601 scanout(.clk(clk_sys),.reset(core_reset),.hold(holding),.osd_root(osd_root),
  .error(video_error),.frames(video_frames),.underruns(video_underruns),
  .mem_req(vq),.mem_addr(vad),.mem_accept(va),.mem_rvalid(vv),.mem_rdata(DDRAM_DOUT),
  .vclk(clk_video),.x(x),.y(y),.ce(ce),.visible(shown),.hs(hs),.vs(vs),.field(field),
- .out_ce(video_ce),.out_visible(video_de),.out_hs(video_hs),.out_vs(video_vs),.out_field(video_field),.rgb(frame_rgb));
+ .out_ce(video_ce),.out_visible(video_de),.out_hs(video_hs),.out_vs(video_vs),.out_field(video_field),.rgb(frame_rgb),.key(osd_key));
+// Decoded video under the OSD. While the firmware has video routed, the OSD
+// raster follows the decoder's raster (same 625-line timing).
+wire osd_key;wire [23:0] mixed_rgb;
+reg [2:0] video_on_s=0,live_s=0;
+always @(posedge clk_video)begin video_on_s<={video_on_s[1:0],video_on};live_s<={live_s[1:0],dec_live};end
+wire video_on_v=video_on_s[2];
+pace_video_mix mixer(.clk_video(clk_video),.dec_r(dec_r),.dec_g(dec_g),.dec_b(dec_b),.dec_en(dec_en),.dec_vs(dec_vs),.dec_v(dec_v),
+ .show_video(video_on_v && live_s[2]),.sync(raster_sync),.sync_field(raster_sync_field),
+ .osd_rgb(frame_rgb),.osd_key(osd_key),.osd_de(video_de),.rgb(mixed_rgb),.dbg_en(),.dbg_rgb());
 
 // One outstanding read; it stays owned until its last beat. Only the blitter
 // issues multi-beat bursts (source rows), every other master reads 1 beat.
@@ -206,9 +255,9 @@ assign CLK_VIDEO=clk_video;
 assign CE_PIXEL=diagnostics?ce:video_ce;
 assign VGA_HS=diagnostics?hs:video_hs;assign VGA_VS=diagnostics?vs:video_vs;
 assign VGA_DE=diagnostics?shown:video_de;assign VGA_F1=diagnostics?field:video_field;
-assign VGA_R=diagnostics?(shown?monitor_r:8'd0):(video_de?frame_rgb[23:16]:8'd0);
-assign VGA_G=diagnostics?(shown?monitor_g:8'd0):(video_de?frame_rgb[15:8]:8'd0);
-assign VGA_B=diagnostics?(shown?monitor_b:8'd0):(video_de?frame_rgb[7:0]:8'd0);
+assign VGA_R=diagnostics?(shown?monitor_r:8'd0):mixed_rgb[23:16];
+assign VGA_G=diagnostics?(shown?monitor_g:8'd0):mixed_rgb[15:8];
+assign VGA_B=diagnostics?(shown?monitor_b:8'd0):mixed_rgb[7:0];
 assign LED_USER=halt_code!=0?field:retired[21];
 // Diagnostic MMIO trace: every access to the EMMA A/V decoder pages
 // (B0002xxx, B0008xxx) and demux writes outside the busy section-ring set.
@@ -218,7 +267,7 @@ wire trace_event=device_req && device_ready && !holding && (ia[31:12]==20'hb0002
 pace_debug_uart telemetry(.clk(clk_sys),.reset(!pll_locked),.tx(UART_TXD),
  .pc(pc),.instruction(inst),.retired(retired),.ram_writes(ram_writes),
  .mmio_address({gpu_count[15:0],ts_sections[15:0]}),.mmio_value({key_count[15:0],key_frames[15:0]}),
- .mmio_read({8'd0,last_key,video_underruns[15:0]}),.interrupt_count(interrupt_count),
+ .mmio_read({dec_pictures[7:0],dec_vbuf,video_on,audio_on,dec_live,mp2_synced,mp2_err,dec_busy,2'd0,ves_dropped[7:0]}),.interrupt_count(interrupt_count),
  .guessed_reads(ts_packets),.mmio_policy(2'd1),.halt_code(halt_code),.mips16(mips16),.full_flash_loaded(loaded_flash),
  .ev_valid(trace_event),.ev_we(iw),.ev_addr(ia),.ev_data(iw ? id : (demux_selected ? dir : pir)));
 endmodule

@@ -21,6 +21,7 @@ def main():
     ap.add_argument('av'); ap.add_argument('si'); ap.add_argument('out')
     ap.add_argument('--video', type=lambda n: int(n, 0), default=0x200)
     ap.add_argument('--audio', type=lambda n: int(n, 0), default=0x102)
+    ap.add_argument('--keep', type=lambda n: int(n, 0), action='append', default=[], help='Further A/V PIDs to pass through (repeatable)')
     ap.add_argument('--rate', type=int, default=6250000)
     ap.add_argument('--si-rate', type=int, default=1000000)
     ap.add_argument('--max-bytes', type=int, default=0, help='Truncate output to this many bytes (whole packets)')
@@ -40,7 +41,7 @@ def main():
         pkt = av[i * P:(i + 1) * P]
         if pkt[0] != 0x47:
             sys.exit(f'A/V sync lost at packet {i}')
-        if pid(pkt) in (a.video, a.audio):
+        if pid(pkt) in (a.video, a.audio, *a.keep):
             out += pkt; continue
         now = i * P * 8 / a.rate
         due, sp = carousel[k % len(carousel)]

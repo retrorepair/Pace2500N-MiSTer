@@ -1,7 +1,12 @@
-// 50 MHz core clock and 54 MHz video clock (4 x the BT.601 13.5 MHz sample
-// rate), using the same altera_pll interface as MiSTer sys PLLs.
-module pll(input wire refclk, rst, output wire outclk_0, outclk_1, locked);
-    pace_pll_impl pll_inst(.refclk(refclk), .rst(rst), .outclk_0(outclk_0), .outclk_1(outclk_1), .locked(locked));
+// One 1350 MHz VCO (50 MHz x 27):
+//  outclk_0  50.0  MHz  core / CPU / DDR port 1     (VCO / 27)
+//  outclk_1  54.0  MHz  video (4 x BT.601 13.5 MHz) (VCO / 25)
+//  outclk_2  90.0  MHz  MPEG decoder memory, DDR port 2 (VCO / 15)
+//  outclk_3  79.41 MHz  MPEG decoder compute        (VCO / 17)
+//  outclk_4  27.0  MHz  MPEG decoder dot clock      (VCO / 50), phase-aligned to outclk_1
+module pll(input wire refclk, rst, output wire outclk_0, outclk_1, outclk_2, outclk_3, outclk_4, locked);
+    pace_pll_impl pll_inst(.refclk(refclk), .rst(rst), .outclk_0(outclk_0), .outclk_1(outclk_1),
+        .outclk_2(outclk_2), .outclk_3(outclk_3), .outclk_4(outclk_4), .locked(locked));
 endmodule
 `timescale 1ns/10ps
 module  pace_pll_impl(
@@ -15,6 +20,9 @@ module  pace_pll_impl(
 	// interface 'outclk0'
 	output wire outclk_0,
 	output wire outclk_1,
+	output wire outclk_2,
+	output wire outclk_3,
+	output wire outclk_4,
 
 	// interface 'locked'
 	output wire locked
@@ -24,20 +32,20 @@ module  pace_pll_impl(
 		.fractional_vco_multiplier("true"),
 		.reference_clock_frequency("50.0 MHz"),
 		.operation_mode("direct"),
-		.number_of_clocks(2),
+		.number_of_clocks(5),
 		.output_clock_frequency0("50.000000 MHz"),
 		.phase_shift0("0 ps"),
 		.duty_cycle0(50),
 		.output_clock_frequency1("54.000000 MHz"),
 		.phase_shift1("0 ps"),
 		.duty_cycle1(50),
-		.output_clock_frequency2("0 MHz"),
+		.output_clock_frequency2("90.000000 MHz"),
 		.phase_shift2("0 ps"),
 		.duty_cycle2(50),
-		.output_clock_frequency3("0 MHz"),
+		.output_clock_frequency3("79.411764 MHz"),
 		.phase_shift3("0 ps"),
 		.duty_cycle3(50),
-		.output_clock_frequency4("0 MHz"),
+		.output_clock_frequency4("27.000000 MHz"),
 		.phase_shift4("0 ps"),
 		.duty_cycle4(50),
 		.output_clock_frequency5("0 MHz"),
@@ -83,7 +91,7 @@ module  pace_pll_impl(
 		.pll_subtype("General")
 	) altera_pll_i (
 		.rst	(rst),
-		.outclk	({outclk_1,outclk_0}),
+		.outclk	({outclk_4,outclk_3,outclk_2,outclk_1,outclk_0}),
 		.locked	(locked),
 		.fboutclk	( ),
 		.fbclk	(1'b0),

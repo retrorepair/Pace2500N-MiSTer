@@ -601,6 +601,21 @@ end
 wire reset;
 wire clk_100m;
 
+`ifdef MISTER_RAM2
+// PACE: ram2 belongs to the core (emu DDRAM2_*). ddr_svc stays instantiated
+// on its own svc_* nets, permanently stalled (its users are compiled out).
+wire        ram2_clk;
+wire [28:0] ram2_address;
+wire  [7:0] ram2_burstcount;
+wire  [7:0] ram2_byteenable;
+wire        ram2_waitrequest;
+wire [63:0] ram2_readdata;
+wire [63:0] ram2_writedata;
+wire        ram2_readdatavalid;
+wire        ram2_read;
+wire        ram2_write;
+`endif
+
 sysmem_lite sysmem
 (
 	//Reset/Clock
@@ -624,7 +639,11 @@ sysmem_lite sysmem
 	.ram1_write(ram_write),
 
 	//64-bit DDR3 RAM access
+`ifdef MISTER_RAM2
+	.ram2_clk(ram2_clk),
+`else
 	.ram2_clk(clk_audio),
+`endif
 	.ram2_address(ram2_address),
 	.ram2_burstcount(ram2_burstcount),
 	.ram2_waitrequest(ram2_waitrequest),
@@ -649,6 +668,7 @@ sysmem_lite sysmem
 	.vbuf_read(vbuf_read)
 );
 
+`ifndef MISTER_RAM2
 wire [28:0] ram2_address;
 wire  [7:0] ram2_burstcount;
 wire  [7:0] ram2_byteenable;
@@ -658,12 +678,30 @@ wire [63:0] ram2_writedata;
 wire        ram2_readdatavalid;
 wire        ram2_read;
 wire        ram2_write;
+`endif
 wire  [7:0] ram2_bcnt;
+`ifdef MISTER_RAM2
+wire [28:0] svc_address;
+wire  [7:0] svc_burstcount,svc_byteenable;
+wire [63:0] svc_writedata;
+wire        svc_read,svc_write;
+`endif
 
 ddr_svc ddr_svc
 (
 	.clk(clk_audio),
 
+`ifdef MISTER_RAM2
+	.ram_waitrequest(1'b1),
+	.ram_burstcnt(svc_burstcount),
+	.ram_addr(svc_address),
+	.ram_readdata(64'd0),
+	.ram_read_ready(1'b0),
+	.ram_read(svc_read),
+	.ram_writedata(svc_writedata),
+	.ram_byteenable(svc_byteenable),
+	.ram_write(svc_write),
+`else
 	.ram_waitrequest(ram2_waitrequest),
 	.ram_burstcnt(ram2_burstcount),
 	.ram_addr(ram2_address),
@@ -673,6 +711,7 @@ ddr_svc ddr_svc
 	.ram_writedata(ram2_writedata),
 	.ram_byteenable(ram2_byteenable),
 	.ram_write(ram2_write),
+`endif
 	.ram_bcnt(ram2_bcnt),
 
 `ifndef MISTER_DISABLE_ALSA
@@ -1845,6 +1884,18 @@ emu emu
 	.DDRAM_DIN(ram_writedata),
 	.DDRAM_BE(ram_byteenable),
 	.DDRAM_WE(ram_write),
+`ifdef MISTER_RAM2
+	.DDRAM2_CLK(ram2_clk),
+	.DDRAM2_ADDR(ram2_address),
+	.DDRAM2_BURSTCNT(ram2_burstcount),
+	.DDRAM2_BUSY(ram2_waitrequest),
+	.DDRAM2_DOUT(ram2_readdata),
+	.DDRAM2_DOUT_READY(ram2_readdatavalid),
+	.DDRAM2_RD(ram2_read),
+	.DDRAM2_DIN(ram2_writedata),
+	.DDRAM2_BE(ram2_byteenable),
+	.DDRAM2_WE(ram2_write),
+`endif
 
 	.SDRAM_DQ(SDRAM_DQ),
 	.SDRAM_A(SDRAM_A),

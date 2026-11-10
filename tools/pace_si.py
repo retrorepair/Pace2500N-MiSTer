@@ -83,7 +83,8 @@ def loop_events(title, duration, anchor):
     return [(start, length, title) for start, length in events]
 
 
-def diagnostic_tables(when, codec=None, full_day=False, with_index=False, channels=None, looped=None, es=None):
+def diagnostic_tables(when, codec=None, full_day=False, with_index=False, channels=None, looped=None, es=None,
+                      music=None, music_linkage=False):
     """Synthetic test services; no claim that these were broadcast.
 
     channels: optional list of channel names (default TEST ONE / TEST TWO).
@@ -91,11 +92,17 @@ def diagnostic_tables(when, codec=None, full_day=False, with_index=False, channe
     every channel instead of the hourly test programmes.
     es: optional (video_pid, audio_pid). The first service's PMT then lists an
     MPEG-2 video stream (stream_type 2, also the PCR PID) and an MPEG-1 Layer II
-    audio stream (stream_type 3); the caller muxes the matching PES."""
+    audio stream (stream_type 3); the caller muxes the matching PES.
+    music: optional (service_id, audio_pid): an audio-only digital radio service
+    named "EPG Background Audio" on this transport (SDT, PAT, PMT and the BAT's
+    service list; not a numbered channel in the line-up). music_linkage points
+    the BAT's 0x91 guide linkage at it instead of the first TV service."""
     names = channels or ['TEST ONE', 'TEST TWO']
     services = [(1001 + i, 3000 + i, 101 + i, name.encode()) for i, name in enumerate(names)]
+    radio = [music] if music else []
     namespace = bytes.fromhex('5f0400000002')
-    service_list = descriptor(0x41, b''.join(u16(sid) + b'\x01' for sid, *_ in services))
+    service_list = descriptor(0x41, b''.join(u16(sid) + b'\x01' for sid, *_ in services)
+                              + b''.join(u16(sid) + b'\x02' for sid, _ in radio))
     # 11778 MHz, 28.2E, vertical DVB-S, 27.5 Msym/s, FEC 2/3.
     satellite = descriptor(0x43, bytes.fromhex('011778000282a102750002'))
     transport = u16(0) + u16(0x20)
@@ -110,15 +117,20 @@ def diagnostic_tables(when, codec=None, full_day=False, with_index=False, channe
         # the title fixture supplies matching row text plus native B5 events.
         desc += descriptor(0xb2, bytes((1 if codec else 0, 0, 3 << 5)) + row_text)
         sdt_body += u16(sid) + b'\xfc' + u16(0x8000 | len(desc)) + desc
+    for sid, _ in radio:
+        name = b'EPG Background Audio'
+        desc = namespace + descriptor(0x48, b'\x02\x05BSkyB' + bytes((len(name),)) + name)
+        sdt_body += u16(sid) + b'\xfc' + u16(0x8000 | len(desc)) + desc
     sdt = long_section(0x42, 0, sdt_body)
-    linkage = descriptor(0x4a, transport + u16(1001) + b'\x91')
+    linkage = descriptor(0x4a, transport + u16(music[0] if music and music_linkage else 1001) + b'\x91')
     lineup = b'\xff\xff' + b''.join(u16(sid) + b'\x01' + u16(listing) + b'\x00\x00'
                                       + u16(number << 4 | 6) for sid, listing, number, _ in services)
     bat_desc = namespace + descriptor(0xb1, lineup) + service_list + linkage
     bat = long_section(0x4a, 0x1000, loop(descriptor(0x47, b'PACE TEST') + linkage)
                        + loop(transport + loop(bat_desc)))
     pat = long_section(0x00, 0, b''.join(u16(sid) + u16(0xe000 | (0x1000 + i))
-                                       for i, (sid, *_) in enumerate(services)))
+                                       for i, (sid, *_) in enumerate(services))
+                       + b''.join(u16(sid) + u16(0xe000 | (0x1100 + i)) for i, (sid, _) in enumerate(radio)))
     # There are no elementary streams in this SI-only fixture. Do not advertise
     # imaginary MPEG decoders or fixed audio/video PIDs.
     def pmt_body(i):
@@ -130,6 +142,10 @@ def diagnostic_tables(when, codec=None, full_day=False, with_index=False, channe
         return b'\xff\xff\xf0\x00'
     pmts = [(0x1000 + i, long_section(0x02, sid, pmt_body(i)))
             for i, (sid, *_) in enumerate(services)]
+    # Radio service: MPEG-1 Layer II audio only; the audio PID also carries the PCR.
+    pmts += [(0x1100 + i, long_section(0x02, sid, u16(0xe000 | pid) + b'\xf0\x00'
+                                       + b'\x03' + u16(0xe000 | pid) + b'\xf0\x00'))
+             for i, (sid, pid) in enumerate(radio)]
     tables = [(0x14, tot(when)), (0x10, nit), (0x11, sdt), (0x11, bat), (0, pat)] + pmts
     if codec:
         mjd = int.from_bytes(dvb_utc(when)[:2], 'big')
