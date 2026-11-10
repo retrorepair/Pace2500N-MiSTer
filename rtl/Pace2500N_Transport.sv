@@ -3,7 +3,7 @@
 module emu (
 `include "sys/emu_ports.vh"
 );
-localparam CONF_STR={"Pace2500N_TS;;","F0,BIN,Load FLASH_U202.bin;","F1,BIN,Load RAM checkpoint;","F2,BIN,Load CPU state;","F3,TS,Load SI replay (1MiB max);","O3,Display,Guide,Diagnostics;","O4,Diagnostic RF lock,From TS,Off;","O5,Broadcast clock (TOT),MiSTer RTC,TS file;","-;","R0,Reset (reload checkpoint);","V,0.5.2 broadcast clock from RTC"};
+localparam CONF_STR={"Pace2500N_TS;;","F0,BIN,Load FLASH_U202.bin;","F1,BIN,Load RAM checkpoint;","F2,BIN,Load CPU state;","F3,TS,Load SI replay (1MiB max);","O3,Display,Guide,Diagnostics;","O4,Diagnostic RF lock,From TS,Off;","O5,Broadcast clock (TOT),MiSTer RTC,TS file;","-;","R0,Reset (reload checkpoint);","V,0.5.3 burst blitter, I-cache"};
 wire clk_sys,clk_video,pll_locked;
 pll pll(.refclk(CLK_50M),.rst(1'b0),.outclk_0(clk_sys),.outclk_1(clk_video),.locked(pll_locked));
 // Unused platform interfaces: MiSTer sys_top remains responsible for
@@ -47,7 +47,6 @@ assign VIDEO_ARX=13'd4;
 assign VIDEO_ARY=13'd3;
 assign BUTTONS=2'b00;
 assign DDRAM_CLK=clk_sys;
-assign DDRAM_BURSTCNT=8'd1;
 
 wire [1:0] buttons;
 wire [127:0] status;
@@ -115,10 +114,10 @@ wire [31:0] ts_loops,ts_packets,ts_sections,ts_dropped,ts_crc_errors;
 wire [31:0] pc,inst,retired,ram_writes,last_ram,mmio_address,mmio_value,mmio_read,mmio_writes,guessed_reads,interrupt_count;
 wire [7:0] cpu_halt,model_halt,gpu_error,video_error;
 wire mips16;
-wire gpu_start,gpu_done,gpu_busy;
+wire gpu_start,gpu_done,gpu_busy;wire [7:0] gburst;
 wire [31:0] gpu_descriptor,osd_root,gpu_count,gpu_last,serial_frames,key_frames,timer_acks,gpu_acks,video_frames,video_underruns;
 wire [7:0] halt_code=cpu_halt!=0?cpu_halt:model_halt!=0?model_halt:gpu_error!=0?gpu_error:video_error;
-pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1),.ICACHE(0)) cpu( // I-cache off until the blitter bursts (see CURRENT_STATUS)
+pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1),.ICACHE(1)) cpu(
  .clk(clk_sys),.reset(core_reset),.full_flash_loaded(loaded_flash),.mmio_policy(2'd1),
  .checkpoint_hold(holding),.checkpoint_wr(state_write),.checkpoint_index(ioctl_addr[8:2]),.checkpoint_data(state_data),
  .io_req(iq),.io_we(iw),.io_addr(ia),.io_wdata(id),.io_size(iz),.io_rdata(ir),.io_ready(irdy),.io_irq(irq),
@@ -134,7 +133,7 @@ pace_guide_peripherals devices(.clk(clk_sys),.reset(core_reset),.hold(holding),.
  .serial_frames(serial_frames),.key_frames(key_frames),.timer_acks(timer_acks),.gpu_acks(gpu_acks),.last_key(last_key));
 pace_guide_blitter gpu(.clk(clk_sys),.reset(core_reset),.hold(holding),.start(gpu_start),.descriptor(gpu_descriptor),
  .done(gpu_done),.busy(gpu_busy),.error(gpu_error),.completions(gpu_count),.last_opcode(gpu_last),
- .mem_req(gq),.mem_we(gw),.mem_addr(gad),.mem_wdata(gwd),.mem_be(gbe),
+ .mem_req(gq),.mem_we(gw),.mem_addr(gad),.mem_wdata(gwd),.mem_be(gbe),.mem_burst(gburst),
  .mem_accept(ga),.mem_rvalid(gv),.mem_rdata(DDRAM_DOUT));
 
 pace_ts_replay transport(.clk(clk_sys),.reset(core_reset || stream_loading),.hold(holding),
@@ -160,7 +159,9 @@ pace_guide_video601 scanout(.clk(clk_sys),.reset(core_reset),.hold(holding),.osd
  .vclk(clk_video),.x(x),.y(y),.ce(ce),.visible(shown),.hs(hs),.vs(vs),.field(field),
  .out_ce(video_ce),.out_visible(video_de),.out_hs(video_hs),.out_vs(video_vs),.out_field(video_field),.rgb(frame_rgb));
 
-// Single outstanding read; retain its owner until DDRAM_DOUT_READY.
+// One outstanding read; it stays owned until its last beat. Only the blitter
+// issues multi-beat bursts (source rows), every other master reads 1 beat.
+reg [7:0] read_beats=0;
 // Video, graphics, section writes, replay reads, CPU. Transport is rate limited.
 reg read_pending=0;reg [2:0] read_owner=0;
 wire [2:0] owner=vq?3'd2:gq?3'd1:dq?3'd4:tq?3'd3:3'd0;
@@ -179,8 +180,8 @@ assign tv=DDRAM_DOUT_READY && read_pending && read_owner==3;
 always @(posedge clk_sys)begin
  if(core_reset)read_pending<=0;
  else begin
-  if(DDRAM_DOUT_READY)read_pending<=0;
-  if(accepted && !write_request)begin read_pending<=1;read_owner<=owner;end
+  if(DDRAM_DOUT_READY && read_pending)begin if(read_beats<=8'd1)read_pending<=0;else read_beats<=read_beats-8'd1;end
+  if(accepted && !write_request)begin read_pending<=1;read_owner<=owner;read_beats<=owner==1 ? gburst : 8'd1;end
  end
 end
 assign DDRAM_ADDR=download_store ?
@@ -189,6 +190,7 @@ assign DDRAM_ADDR=download_store ?
 assign DDRAM_DIN=download_store ? ({48'd0,ioctl_dout}<<(ioctl_addr[2:0]*8)) : owner==4?dwd:owner==1?gwd:cwd;
 assign DDRAM_BE=download_store ? (8'h03<<ioctl_addr[2:0]) : owner==4?dbe:owner==2 || owner==3?8'hff:owner==1?gbe:cbe;
 assign DDRAM_WE=download_store || (accepted && write_request);
+assign DDRAM_BURSTCNT=(!download_store && owner==1 && !write_request) ? gburst : 8'd1;
 assign DDRAM_RD=accepted && !write_request;
 
 wire [7:0] monitor_r,monitor_g,monitor_b;

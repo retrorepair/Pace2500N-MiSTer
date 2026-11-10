@@ -10,6 +10,7 @@ module tb_guide_transport;
  wire cq,cw,ca,cv,gq,gw,ga,gv,tq,ta,tv,dq,da;
  wire[28:0] cad,gad;wire[63:0] cwd,gwd;wire[7:0] cbe,gbe;
  reg[63:0] returned=0;reg response=0,pending=0;reg [1:0] response_owner=0;
+ reg [7:0] beats=0,rem=0;reg [28:0] baddr=0;wire [7:0] gburst;
  wire iq,iw,irdy,irq,prdy,device_req,device_ready;wire[31:0] ia,id,ir,pir,dir,retired,pc;wire[1:0] iz;
  wire selected=ia[31:12]==20'hb000a;
  wire config_ready;
@@ -46,7 +47,7 @@ module tb_guide_transport;
   .osd_root(osd_root),.gpu_done(gpu_done),.transport_irq(demux_irq),.transport_lock(ts_packets>=3),.model_halt(model_halt));
  pace_guide_blitter gpu(.clk(clk),.reset(reset),.hold(hold),.start(gpu_start),.descriptor(gpu_descriptor),
   .done(gpu_done),.error(gpu_error),.completions(gpu_count),.mem_req(gq),.mem_we(gw),.mem_addr(gad),
-  .mem_wdata(gwd),.mem_be(gbe),.mem_accept(ga),.mem_rvalid(gv),.mem_rdata(returned));
+  .mem_wdata(gwd),.mem_be(gbe),.mem_burst(gburst),.mem_accept(ga),.mem_rvalid(gv),.mem_rdata(returned));
  pace_ts_replay transport(.clk(clk),.reset(reset),.hold(hold),.enabled(!disable_ts),.length(24'd500080),
   .valid(ts_valid),.ready(ts_ready),.data(ts_data),.loops(ts_loops),
   .mem_req(tq),.mem_addr(tad),.mem_accept(ta),.mem_rvalid(tv),.mem_rdata(returned));
@@ -123,7 +124,9 @@ module tb_guide_transport;
   if(gpu_trace && gpu.state==4)$fdisplay(trace,"GPU_CMD RET %d OP %h SRC %h EVEN %h ODD %h STRIDE %h XY %h WH %h COL %h",retired,gpu.words[0],gpu.words[1],gpu.words[7],gpu.words[8],gpu.words[11],gpu.words[12],gpu.words[13],gpu.words[14]);
   if(gpu_trace && gpu_done)$fdisplay(trace,"GPU_DONE RET %d",retired);
   response<=0;
-  if(pending)begin pending<=0;response<=1;end
+  // Multi-beat reads (blitter bursts): one beat per cycle, bus held until done.
+  if(pending)begin response<=1;if(beats<=1)pending<=0;else beats<=beats-1'b1;end
+  if(response)begin rem<=rem-1'b1;if(rem>1)begin returned<=ram[baddr+1-29'h06000000];baddr<=baddr+1'b1;end end
   if(bus_req && !pending)begin
    if(bus_addr>=29'h06600000 && bus_addr<29'h06600000+62510)begin
     if(bus_write)$fatal(1,"transport ROM write");returned<=ts_rom[bus_addr-29'h06600000];
@@ -135,12 +138,12 @@ module tb_guide_transport;
      for(lane=0;lane<8;lane=lane+1)if(bus_be[lane])ram[bus_addr-29'h06000000][lane*8+:8]<=bus_data[lane*8+:8];
     end else returned<=ram[bus_addr-29'h06000000];
    end else $fatal(1,"unmapped memory %h",bus_addr);
-   if(!bus_write)begin pending<=1;response_owner<=owner;end
+   if(!bus_write)begin pending<=1;response_owner<=owner;beats<=owner==1 ? gburst : 8'd1;rem<=owner==1 ? gburst : 8'd1;baddr<=bus_addr;end
    if(owner==0 && !bus_write && bus_addr>=29'h060f4000 && bus_addr<29'h06100000)ring_reads<=ring_reads+1;
    if(gpu_trace && owner==0 && bus_write && gpu.busy && gpu.copy8 && bus_addr>=29'h06000000+gpu.source[23:3] && bus_addr<29'h06000000+gpu.source[23:3]+29'h800)begin
     race_writes<=race_writes+1;
     hazard_row=((bus_addr-29'h06000000)*8-{5'd0,gpu.source})/gpu.width;
-    if(hazard_row>=gpu.row)begin hazard_writes<=hazard_writes+1;if(hazard_writes<40)$fdisplay(trace,"SRC_HAZARD VA %h RET %d PC %h RA %h SRC_ROW %0d BLIT_ROW %0d BLIT_COL %0d XY %h",cpu.bus_virtual,retired,pc,cpu.gpr[31],hazard_row,gpu.row,gpu.column,gpu.words[12]);end
+    if(hazard_row>=gpu.row)begin hazard_writes<=hazard_writes+1;if(hazard_writes<40)$fdisplay(trace,"SRC_HAZARD VA %h RET %d PC %h RA %h SRC_ROW %0d BLIT_ROW %0d BLIT_COL %0d XY %h",cpu.bus_virtual,retired,pc,cpu.gpr[31],hazard_row,gpu.row,gpu.dest_index,gpu.words[12]);end
    end
    if(watch_addr!=0 && owner==0 && bus_write && bus_addr==29'h06000000+watch_addr[23:3])
     $fdisplay(trace,"WATCH RET %d PC %h BE %h DATA %h OLD %h RA %h SP %h",retired,pc,bus_be,bus_data,ram[bus_addr-29'h06000000],cpu.gpr[31],cpu.gpr[29]);

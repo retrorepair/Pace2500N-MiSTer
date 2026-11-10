@@ -87,6 +87,20 @@ file. `sim/tb_tot_clock.sv`: 5/5 TOTs rewritten to MJD 61354 12:34:56 with
 valid CRC, no other byte changed. Listings in the fixture are still dated
 2002-09-01; the "time travel" year (OSD) is future work.
 
+Burst blitter (source for v053): `pace_guide_blitter.sv` burst-reads each
+00AC source row (<=64 beats/request, 128-word M10K row buffer) and emits whole
+64-bit destination words through a fixed byte shift; fills emit whole words.
+Top-level arbiter keeps a read owned until its last beat; only the blitter
+uses DDRAM_BURSTCNT>1. Simulation from the 200M checkpoint with Select:
+frame identical to the clean reference with ICACHE=0 and ICACHE=1 (0 index
+pixels differ), and no CPU writes land in the source during any copy.
+v053 = v052 + burst blitter + ICACHE=1 (compiling).
+
+v052 (v051 + broadcast clock) timing: core +2.358, video +5.484, HDMI +0.325,
+hold +0.246 ns. After `load_core Pace2500N_V052.mgl` at 13:41:15 UTC the MiSTer
+stopped answering on the network (ping: host unreachable). v052 has the same
+DDR/arbiter logic as v051, which loaded and ran normally. Cause not yet known.
+
 ## Session 3 (9 Nov, evening) - investigation only, stopped early at user request
 
 No RTL, ROM, MiSTer file or core was changed. Nothing was pushed to GitHub (no

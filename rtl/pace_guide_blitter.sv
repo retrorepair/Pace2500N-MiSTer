@@ -1,11 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Actual guest DMA12 packets:418F fill16,01AC index8 fill,00AC packed copy.
 // No host text/assets. Completion asserts only after all RAM writes finish.
-// Destination pixels are merged into whole 64-bit DDR words (byte enables)
-// and each source word is read once, as a word-wide DMA engine does. The
-// earlier one-DDR-write-per-pixel model was so slow relative to the CPU that
-// the firmware's next CPU rasterisation into the shared source buffer
-// (80000E2C) overtook an in-progress copy, corrupting the Guide.
+//
+// Word-wide DMA model. Each destination row is written as whole 64-bit DDR
+// words with byte enables. For 00AC copies the row's source span is first
+// burst-read (DDRAM burst, <=64 beats per request) into an on-chip row
+// buffer, then streamed out through a fixed byte shift.
+//
+// Why this matters for fidelity: the Guide rasterises text into one shared
+// source buffer (0x55C288) through KSEG1 (uncached, loop at 80000E4C) and
+// refills it while the previous copy is still in flight. On the receiver,
+// uncached VR4110 stores are slow bus transactions and the EMMA DMA moves
+// data in bursts, so a copy always captures its source before the CPU can
+// overwrite it. The earlier one-DDR-transaction-per-pixel model was slow
+// enough for the CPU to overtake it, which corrupted the Guide.
 module pace_guide_blitter (
  input wire clk,reset,hold,start,
  input wire [31:0] descriptor,
@@ -17,12 +25,13 @@ module pace_guide_blitter (
  output reg [28:0] mem_addr=0,
  output reg [63:0] mem_wdata=0,
  output reg [7:0] mem_be=0,
+ output reg [7:0] mem_burst=1,
  input wire mem_accept,mem_rvalid,
  input wire [63:0] mem_rdata
 );
  localparam IDLE=0,READ_REQ=1,READ_WAIT=2,DECODE_DESC=3,DECODE_CMD=4,
-            PIXEL=5,SOURCE_REQ=6,SOURCE_WAIT=7,WRITE_REQ=8,NEXT_PIXEL=9,
-            MERGE=10,FINISH=11;
+            ROW_START=5,BURST_REQ=6,BURST_WAIT=7,PRIME=8,PRIME_WAIT=9,
+            EMIT=10,WRITE_REQ=11,ROW_END=12;
  reg [3:0] state=0;
  reg command_phase=0;
  reg [4:0] word_index=0;
@@ -30,33 +39,59 @@ module pace_guide_blitter (
  reg [31:0] read_base=0,read_address=0;
  reg [23:0] source=0,base_even=0,base_odd=0;
  reg [11:0] stride=0,width=0;
- reg [10:0] height=0,x=0,y=0,column=0,row=0;
+ reg [10:0] height=0,x=0,y=0,row=0;
  reg [15:0] even_color=0,odd_color=0;
  reg fill16=0,copy8=0;
- reg [63:0] source_cache=0;
- reg [20:0] source_tag=0;
- reg source_valid=0;
- reg [23:0] pixel_destination=0,pixel_source=0;
- reg [7:0] pixel_value=0;
- // Pending destination word being assembled.
- reg pend_valid=0;reg [20:0] pend_addr=0;reg [63:0] pend_data=0;reg [7:0] pend_be=0;
- reg [3:0] flush_return=0;
- wire [2:0] lane=pixel_destination[2:0];
- wire [7:0] new_be=fill16 ? (8'h03<<lane) : (8'h01<<lane);
- wire [63:0] new_data=fill16 ? ({48'd0,even_color[7:0],even_color[15:8]}<<(lane*8)) : ({56'd0,pixel_value}<<(lane*8));
- wire [63:0] new_mask={{8{new_be[7]}},{8{new_be[6]}},{8{new_be[5]}},{8{new_be[4]}},{8{new_be[3]}},{8{new_be[2]}},{8{new_be[1]}},{8{new_be[0]}}};
+ // Row geometry (byte addresses within guest RAM).
+ reg [23:0] dest_start=0,src_start=0;
+ reg [12:0] dest_bytes=0;
+ reg [8:0] dest_words=0,dest_index=0;
+ reg [7:0] src_words=0,buf_fill=0,burst_left=0;
+ reg signed [4:0] shift=0;  // src_lane - dest_lane, -7..7
+ // Source row buffer, written by burst beats, read sequentially.
+ (* ramstyle="M10K" *) reg [63:0] row_buf[0:127];
+ reg [6:0] buf_raddr=0;
+ reg [63:0] buf_q=0,lo_word=0;
+ always @(posedge clk)begin
+  buf_q<=row_buf[buf_raddr];
+  if(state==BURST_WAIT && mem_rvalid)row_buf[buf_fill[6:0]]<=mem_rdata;
+ end
  wire [11:0] frame_line=y+row;
- wire [31:0] src_offset={8'd0,source}+row*width+column;
- wire [31:0] dest_offset=fill16 ? ({8'd0,base_even}+(y+row)*stride+(x+column)*2) :
-                  ({8'd0,(frame_line[0]?base_odd:base_even)}+(frame_line>>1)*stride+x+column);
  assign busy=state!=IDLE;
  function automatic [31:0] be_word(input[63:0] data,input upper);
   reg[31:0] part;
   begin part=upper?data[63:32]:data[31:0];be_word={part[7:0],part[15:8],part[23:16],part[31:24]};end
  endfunction
+ // Destination word for dest_index: bytes from the {buf_q,lo_word} window
+ // (copy) or the fill colour, with enables for bytes inside the row.
+ reg [63:0] word_data;reg [7:0] word_be;
+ wire [127:0] window={buf_q,lo_word};
+ wire [3:0] base_pos=shift<0 ? shift+5'sd8 : shift;
+ integer lane;
+ reg signed [15:0] g;      // destination byte index within the row
+ reg [3:0] pos;
+ always @* begin
+  word_data=0;word_be=0;
+  for(lane=0;lane<8;lane=lane+1)begin
+   g=$signed({3'b000,dest_index,3'b000})+lane-$signed({13'd0,dest_start[2:0]});
+   pos=lane[3:0]+base_pos;
+   if(g>=0 && g<$signed({3'b000,dest_bytes}))begin
+    word_be[lane]=1'b1;
+    if(copy8)word_data[lane*8+:8]=window[pos*8+:8];
+    else if(fill16)word_data[lane*8+:8]=g[0] ? even_color[7:0] : even_color[15:8];
+    else word_data[lane*8+:8]=frame_line[0] ? odd_color[7:0] : even_color[7:0];
+   end
+  end
+ end
+ // Row-buffer word supplying the window's high half for dest_index.
+ wire [8:0] hi_index=dest_index+(shift<0 ? 9'd0 : 9'd1);
+ wire [31:0] row_dest=fill16 ? ({8'd0,base_even}+(y+row)*stride+{20'd0,x,1'b0}) :
+                  ({8'd0,(frame_line[0] ? base_odd : base_even)}+(frame_line>>1)*stride+x);
+ wire [31:0] row_src={8'd0,source}+row*width;
+ wire [12:0] row_dest_bytes=fill16 ? {width,1'b0} : {1'b0,width};
  always @(posedge clk)begin
   done<=0;
-  if(reset)begin state<=IDLE;mem_req<=0;source_valid<=0;error<=0;completions<=0;last_opcode<=0;pend_valid<=0;pend_be<=0;end
+  if(reset)begin state<=IDLE;mem_req<=0;mem_burst<=1;error<=0;completions<=0;last_opcode<=0;end
   else if(!hold && error==0)begin
    if(start && state!=IDLE)error<=8'hb0;
    case(state)
@@ -66,13 +101,13 @@ module pace_guide_blitter (
     end
     READ_REQ:begin
      read_address<=read_base+{25'd0,word_index,2'b00};
-     mem_req<=1;mem_we<=0;mem_addr<=29'h06000000+((read_base+{25'd0,word_index,2'b00})>>3);mem_be<=8'hff;
+     mem_req<=1;mem_we<=0;mem_burst<=1;mem_addr<=29'h06000000+((read_base+{25'd0,word_index,2'b00})>>3);mem_be<=8'hff;
      if(mem_req && mem_accept)begin mem_req<=0;state<=READ_WAIT;end
     end
     READ_WAIT:if(mem_rvalid)begin
      if(command_phase)words[word_index]<=be_word(mem_rdata,read_address[2]);
      else desc[word_index]<=be_word(mem_rdata,read_address[2]);
-     if(word_index==(command_phase?14:9))state<=command_phase?DECODE_CMD:DECODE_DESC;
+     if(word_index==(command_phase ? 14 : 9))state<=command_phase ? DECODE_CMD : DECODE_DESC;
      else begin word_index<=word_index+1'b1;state<=READ_REQ;end
     end
     DECODE_DESC:begin
@@ -86,55 +121,69 @@ module pace_guide_blitter (
      stride<=({1'b0,words[11][10:0]}+1)*(words[0]==32'h418f0000 ? 2 : 1);
      x<=words[12][10:0];y<=words[12][26:16];
      width<={1'b0,words[13][10:0]}+1;height<={1'b0,words[13][25:16]}+1;
-     column<=0;row<=0;source_valid<=0;pend_valid<=0;pend_be<=0;
+     row<=0;
      if(words[0]!=32'h418f0000 && words[0]!=32'h01ac0000 && words[0]!=32'h00ac0000)error<=8'hb3;
      else if(words[7]>=32'h01000000 || words[8]>=32'h01000000 ||
        ({1'b0,words[12][10:0]}+{1'b0,words[13][10:0]}+1) > ({1'b0,words[11][10:0]}+1))error<=8'hb4;
      else if(words[0]==32'h00ac0000 && words[1]>=32'h01000000)error<=8'hb5;
-     else state<=PIXEL;
+     // The row buffer holds 128 words: copies up to 1017 pixels wide.
+     else if(words[0]==32'h00ac0000 && words[13][10:0]>11'd1016)error<=8'hb7;
+     else state<=ROW_START;
     end
-    PIXEL:begin
-     pixel_destination<=dest_offset[23:0];pixel_source<=src_offset[23:0];
-     if(dest_offset>=32'h01000000 || (copy8 && src_offset>=32'h01000000))error<=8'hb6;
-     else if(copy8)begin
-      if(source_valid && source_tag==src_offset[23:3])begin
-       pixel_value<=source_cache[src_offset[2:0]*8+:8];state<=MERGE;
-      end else if(pend_valid && pend_addr==src_offset[23:3])begin
-       flush_return<=PIXEL;state<=WRITE_REQ; // write back before reading the same word
-      end else state<=SOURCE_REQ;
-     end else begin pixel_value<=frame_line[0]?odd_color[7:0]:even_color[7:0];state<=MERGE;end
-    end
-    SOURCE_REQ:begin
-     mem_req<=1;mem_we<=0;mem_addr<=29'h06000000+{8'd0,pixel_source[23:3]};mem_be<=8'hff;
-     if(mem_req && mem_accept)begin mem_req<=0;state<=SOURCE_WAIT;end
-    end
-    SOURCE_WAIT:if(mem_rvalid)begin
-     source_cache<=mem_rdata;source_tag<=pixel_source[23:3];source_valid<=1;
-     pixel_value<=mem_rdata[pixel_source[2:0]*8+:8];state<=MERGE;
-    end
-    MERGE:begin
-     if(pend_valid && pend_addr!=pixel_destination[23:3])begin flush_return<=MERGE;state<=WRITE_REQ;end
+    ROW_START:begin
+     if(row_dest>=32'h01000000 || row_dest+row_dest_bytes>32'h01000000 ||
+        (copy8 && (row_src>=32'h01000000 || row_src+width>32'h01000000)))error<=8'hb6;
      else begin
-      pend_data<=(pend_data&~new_mask)|new_data;
-      pend_be<=(pend_valid?pend_be:8'd0)|new_be;
-      pend_addr<=pixel_destination[23:3];pend_valid<=1;state<=NEXT_PIXEL;
+      dest_start<=row_dest[23:0];src_start<=row_src[23:0];dest_bytes<=row_dest_bytes;
+      dest_words<=({10'd0,row_dest[2:0]}+row_dest_bytes+13'd7)>>3;
+      src_words<=({10'd0,row_src[2:0]}+{1'b0,width}+13'd7)>>3;
+      shift<=$signed({2'b00,row_src[2:0]})-$signed({2'b00,row_dest[2:0]});
+      dest_index<=0;buf_fill<=0;
+      state<=copy8 ? BURST_REQ : EMIT;
      end
     end
-    WRITE_REQ:begin
-     mem_req<=1;mem_we<=1;mem_addr<=29'h06000000+{8'd0,pend_addr};
-     mem_wdata<=pend_data;mem_be<=pend_be;
-     if(mem_req && mem_accept)begin mem_req<=0;pend_valid<=0;pend_be<=0;state<=flush_return;end
+    BURST_REQ:begin
+     // Up to 64 beats per request; the arbiter returns one beat per cycle of
+     // DDRAM_DOUT_READY and keeps the read owned by the blitter until done.
+     mem_req<=1;mem_we<=0;mem_be<=8'hff;
+     mem_addr<=29'h06000000+{8'd0,src_start[23:3]}+{21'd0,buf_fill};
+     mem_burst<=(src_words-buf_fill>8'd64) ? 8'd64 : src_words-buf_fill;
+     if(mem_req && mem_accept)begin
+      mem_req<=0;burst_left<=mem_burst;state<=BURST_WAIT;
+     end
     end
-    NEXT_PIXEL:begin
-     if(column+1==width)begin
-      column<=0;
-      if(row+1==height)begin
-       if(pend_valid)begin flush_return<=FINISH;state<=WRITE_REQ;end
-       else state<=FINISH;
-      end else begin row<=row+1'b1;state<=PIXEL;end
-     end else begin column<=column+1'b1;state<=PIXEL;end
+    BURST_WAIT:if(mem_rvalid)begin
+     buf_fill<=buf_fill+1'b1;burst_left<=burst_left-1'b1;
+     if(burst_left==1)begin
+      mem_burst<=1;
+      if(buf_fill+1'b1==src_words)begin buf_raddr<=0;state<=PRIME;end
+      else state<=BURST_REQ;
+     end
     end
-    FINISH:begin done<=1;completions<=completions+1'b1;state<=IDLE;end
+    PRIME:state<=PRIME_WAIT; // registered read of row_buf[0]
+    PRIME_WAIT:begin
+     // Low half of the first window: word 0 (unused when shift<0).
+     lo_word<=buf_q;buf_raddr<=hi_index[6:0];state<=ROW_END;
+    end
+    ROW_END:state<=EMIT; // row_buf[buf_raddr] arrives in buf_q
+    EMIT:begin
+     mem_req<=1;mem_we<=1;mem_burst<=1;
+     mem_addr<=29'h06000000+{8'd0,dest_start[23:3]}+{20'd0,dest_index};
+     mem_wdata<=word_data;mem_be<=word_be;
+     state<=WRITE_REQ;
+    end
+    WRITE_REQ:if(mem_req && mem_accept)begin
+     mem_req<=0;
+     if(dest_index+1'b1==dest_words)begin
+      if(row+1'b1==height)begin done<=1;completions<=completions+1'b1;state<=IDLE;end
+      else begin row<=row+1'b1;state<=ROW_START;end
+     end else begin
+      dest_index<=dest_index+1'b1;
+      if(copy8)begin
+       lo_word<=buf_q;buf_raddr<=hi_index[6:0]+7'd1;state<=ROW_END;
+      end else state<=EMIT;
+     end
+    end
     default:error<=8'hbf;
    endcase
   end
