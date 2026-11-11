@@ -187,8 +187,12 @@ def step(ring, server, up, tuned, want, want_since, last_seq, alive_at, retry_at
         w = (st['video'], st['audio']) if alive else None
         if w != want:
             want, want_since = w, now
-        # a tuning must hold for 300 ms (the firmware rewrites PIDs while zapping)
-        if want != tuned and now - want_since >= 0.3:
+        # A tuning must hold for 300 ms (the firmware rewrites PIDs while zapping).
+        # Mid-zap the firmware switches both PIDs off for about a second before
+        # routing the next channel: hold the current stream through that (2 s)
+        # rather than restarting twice per zap.
+        settle = 2.0 if (want and tuned and want == (0x1fff, 0x1fff) and tuned != want) else 0.3
+        if want != tuned and now - want_since >= settle:
             # Same channel (e.g. the Guide stops the video but keeps the sound)?
             # Then keep the stream that is playing.
             svc = service_of(server, want) if want else None

@@ -119,15 +119,20 @@ class Session:
                 self.guide_only()
             else:
                 self.channel()
-        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, OSError):
-            pass
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError) as e:
+            why = f'box disconnected ({type(e).__name__})'
+        except Exception:
+            import traceback
+            why = 'error:\n' + traceback.format_exc()
+        else:
+            why = 'finished'
         finally:
             self.stopped = True
             if self.proc and self.proc.poll() is None:
                 self.proc.kill()
             with Session.lock:
                 Session.active.pop(id(self), None)
-            self.srv.log(f'session ended after {self.sent / RATE:.0f} s')
+        self.srv.log(f'session ended after {self.sent / RATE:.0f} s: {why}')
 
     def guide_only(self):
         self.srv.log('guide data only (no channel tuned)')
@@ -176,6 +181,11 @@ class Session:
 
 class Server(ThreadingHTTPServer):
     daemon_threads = True
+
+    def handle_error(self, request, client_address):
+        """Request errors go to the log (a windowed app has no stderr)."""
+        import traceback
+        self.log(f'request from {client_address[0]} failed:\n' + traceback.format_exc())
 
     def __init__(self, port, lineup, settings, log=None):
         self.settings = settings
@@ -274,6 +284,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header('Content-Type', 'video/mp2t')
             self.end_headers()
             self.server.log(f'tune from {self.client_address[0]}: video {video:04x} audio {audio:04x}')
+            self.server.last_box = (time.time(), self.client_address[0])
             Session(self.server, video, audio, self.wfile).run()
         elif url.path == '/service':
             # which service a tuning means (the relay keeps its stream when unchanged)

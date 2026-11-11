@@ -126,6 +126,7 @@ class App(tk.Tk):
         self.server_thread = None
         self.signing_in = False
         self.log_q = queue.Queue()
+        self.start_diagnostics()
         nb = ttk.Notebook(self)
         nb.pack(fill='both', expand=True, padx=6, pady=6)
         self.tab_playout(nb)
@@ -142,10 +143,58 @@ class App(tk.Tk):
         if self.settings.get('autostart', True) and self.lineup_path and '--selftest' not in sys.argv:
             self.after(800, self.start_server)
 
+    # ------------------------------------------------------------ diagnostics
+    def start_diagnostics(self):
+        """A windowed app has no console: everything that matters goes to
+        app.log beside settings.json - the log, uncaught exceptions in any
+        thread, a fault dump on a hard crash, and the stacks of every thread
+        when playout stops answering (hang watchdog)."""
+        import faulthandler, traceback
+        path = pc.settings_path().with_name('app.log')
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if path.exists() and path.stat().st_size > 5 << 20:
+            path.replace(path.with_suffix('.old.log'))
+        self.log_file = open(path, 'a', buffering=1, encoding='utf-8')
+        self.log_lock = threading.Lock()
+        faulthandler.enable(file=self.log_file, all_threads=True)
+        self.file_log(f'==== {APP} started (pid {os.getpid()})')
+
+        def hook(kind, exc_type, exc, tb):
+            self.file_log(f'uncaught exception in {kind}:' + chr(10) + ''.join(traceback.format_exception(exc_type, exc, tb)))
+        sys.excepthook = lambda t, e, tb: hook('main thread', t, e, tb)
+        threading.excepthook = lambda a: hook(f'thread {a.thread.name if a.thread else "?"}', a.exc_type, a.exc_value, a.exc_traceback)
+        self.report_callback_exception = lambda t, e, tb: hook('Tk callback', t, e, tb)
+
+        def watchdog():
+            missed = 0
+            while True:
+                time.sleep(5)
+                srv = self.server
+                if not srv:
+                    missed = 0
+                    continue
+                try:
+                    urllib.request.urlopen(f"http://127.0.0.1:{srv.server_address[1]}/service", timeout=15).read()
+                    missed = 0
+                except Exception as e:
+                    missed += 1
+                    self.log(f'WATCHDOG: playout did not answer ({e}); thread stacks written to app.log')
+                    if missed <= 3:
+                        with self.log_lock:
+                            self.log_file.write(f'---- thread stacks {time.strftime("%H:%M:%S")}' + chr(10))
+                            faulthandler.dump_traceback(file=self.log_file, all_threads=True)
+                            self.log_file.flush()
+        threading.Thread(target=watchdog, name='watchdog', daemon=True).start()
+
+    def file_log(self, line):
+        with self.log_lock:
+            self.log_file.write(line + chr(10))
+
     # ------------------------------------------------------------ plumbing
     def log(self, msg):
         if not msg[:2].isdigit():
             msg = time.strftime('%H:%M:%S ') + msg
+        self.file_log(msg)
         self.log_q.put(msg)
 
     def ui(self, fn):
@@ -251,8 +300,16 @@ class App(tk.Tk):
                     self.now_tv.insert('', 'end', values=(c['number'], c['name'], c['now'], f"{c['next_at']}  {c['next']}",
                                                           f"{c['on_air']}: {c['source']}"))
                 st = d['streaming']
-                self.streaming_lbl.config(text='Streaming to the box: ' + '; '.join(
-                    f"{s['channel']} ({s['seconds']} s)" for s in st) if st else 'The box has not tuned anything.')
+                last = getattr(self.server, 'last_box', None)
+                if st:
+                    text = 'Box connected - streaming: ' + '; '.join(f"{s['channel']} ({s['seconds']} s)" for s in st)
+                elif last:
+                    text = (f'Box not connected (last connected {time.strftime("%H:%M:%S", time.localtime(last[0]))} '
+                            f'from {last[1]}). Is the Pace core running on the MiSTer?')
+                else:
+                    text = ('The box has not connected yet. Load the Pace core on the MiSTer; if it still does not '
+                            'connect, check relay.ini on the MiSTer points at this PC and Windows Firewall allows this app.')
+                self.streaming_lbl.config(text=text, foreground='#060' if st else '#a60')
             except Exception as e:
                 self.streaming_lbl.config(text=f'status: {e}')
         self.after(2000, self.refresh_now)
@@ -802,6 +859,10 @@ class App(tk.Tk):
         self.log('settings saved')
 
     def quit_app(self):
+        if self.server and '--selftest' not in sys.argv and not messagebox.askyesno(
+                APP, 'Playout is running - closing the app stops your channels on the box.' + chr(10) * 2 + 'Close anyway?'):
+            return
+        self.file_log('==== closed by the user' if '--selftest' not in sys.argv else '==== selftest done')
         self.signing_in = False
         self.stop_server()
         self.destroy()
