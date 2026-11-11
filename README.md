@@ -10,6 +10,12 @@ programmes.
 > This guide is kept current with every change. Developer and reverse-engineering
 > notes are in `CURRENT_STATUS.md`, `handoff.md` and `re/`.
 
+**Downloads:** [Releases](https://github.com/retrorepair/Pace2500N-MiSTer/releases)
+(latest **v0.6.2**) — `PaceChannelBuilder-v0.6.2-windows.zip` (the Windows app)
+and `Pace2500N-MiSTer-files-v0.6.2.zip` (launcher + relay). The core itself is
+not in the release: it contains your box's boot ROM, so you build it from your
+own firmware dump (see *Building the core*).
+
 ## What works
 
 | Area | State |
@@ -52,8 +58,8 @@ Copy to the MiSTer SD card:
 
 | File | Where |
 |------|-------|
-| `Pace2500N_V062.rbf` (from a build, see *Building*) | `/media/fat/_Other/` |
-| `Pace2500N_V062_Live.mgl` | `/media/fat/` |
+| `Pace2500N_V062.rbf` (your own build, see *Building the core*) | `/media/fat/_Other/` |
+| `Pace2500N_V062_Live.mgl` (in the MiSTer files zip) | `/media/fat/` |
 | Your firmware `FLASH_U202.bin` | `/media/fat/games/Pace2500N/` |
 | Guide checkpoint `RAM.bin`, `STATE.bin` | `/media/fat/games/Pace2500N_GUIDE/` |
 
@@ -64,9 +70,20 @@ The firmware and checkpoint images are not distributed; they come from your own 
 A normal Windows program - nothing else to install (Python, ffmpeg and yt-dlp
 are inside its folder).
 
+- **Get it:** unzip `PaceChannelBuilder-v0.6.2-windows.zip` from
+  [Releases](https://github.com/retrorepair/Pace2500N-MiSTer/releases) anywhere
+  (e.g. `C:\PaceChannelBuilder`) and run `PaceChannelBuilder.exe`. Keep the
+  whole folder together. Windows SmartScreen may warn the first time (the exe
+  is not code-signed): *More info* -> *Run anyway*.
 - **Run it:** *Pace Channel Builder* on the Desktop / Start menu, or
-  `dist\PaceChannelBuilder\PaceChannelBuilder.exe`. Keep the whole
-  `PaceChannelBuilder` folder together if you move it.
+  `PaceChannelBuilder.exe` in that folder.
+- **Upgrading:** close the app (it asks first while playout is running - the
+  box loses its channels until you reopen it), replace the folder, start it
+  again. Your settings, line-ups and adverts are kept (they are not in the
+  app folder).
+- **If something goes wrong:** the app writes `%APPDATA%\Pace2500N\app.log`
+  (everything it did, errors, and a full dump if playout stops answering).
+  The *Playout* tab shows whether the box is connected and when it last was.
 - **Plex:** *Settings* tab -> **Sign in with Plex...**. Your browser opens Plex's
   own sign-in page; approve *Pace Channel Builder* and the app receives the
   token and finds your server by itself. You never copy a token by hand.
@@ -80,14 +97,17 @@ are inside its folder).
   or on GitHub). The *Data folder* holds line-ups and `roms\` (ripped adverts).
 
 To rebuild the app from source: `tools\build_app.bat` (needs Python and
-PyInstaller on the build machine only).
+PyInstaller on the build machine only; close the app first).
 
 ## 3. Install the relay on the MiSTer (once)
 
-From the PC (replace the address with your PC's LAN address):
+The two files are in the `relay` folder of the MiSTer files zip (or
+`tools/mister/` in the source). From that folder on the PC (`MISTER` is the
+MiSTer's address; the last address is your PC's LAN address, which the app's
+Playout tab shows):
 
 ```bash
-scp tools/mister/pace_live_relay.py tools/mister/install_relay.sh root@MISTER:/tmp/
+scp pace_live_relay.py install_relay.sh root@MISTER:/tmp/
 ```
 
 ```bash
@@ -97,7 +117,8 @@ ssh root@MISTER "sh /tmp/install_relay.sh 192.168.1.247:8250"
 This puts the relay in `/media/fat/linux/pace/`, writes `relay.ini` (the PC
 address — edit it if your PC's address changes) and adds one line to
 `/media/fat/linux/user-startup.sh` so it starts at boot. It is idle until the
-Pace core runs. Its log is `/tmp/pace_live_relay.log`.
+Pace core runs. Its log is `/tmp/pace_live_relay.log`. To upgrade, run the same
+two commands with the new files; the old relay is stopped first.
 
 ## 4. Build channels
 
@@ -151,11 +172,19 @@ Channel numbering in the line-up maps to the box's services: channel *n*
 
 ## Building the core
 
-Quartus Prime Lite 17.0.2 (Cyclone V). The working build trees are under
-`builds/` (e.g. `builds/v062_irq`, made from `files.qip` of the previous build
-plus current `rtl/` and `sys/`): `quartus_sh --flow compile Pace2500N`, output
-`output_files/Pace2500N.rbf`. Simulation benches are in `sim/`
-(`iverilog -g2012`; e.g. `sim/tb_ts_live.sv`, `sim/tb_ts_stream.sv`).
+Quartus Prime Lite 17.0.2 (Cyclone V).
+
+1. Put your own 2 MiB U202 flash dump at `firmware/FLASH_U202.bin` and run
+   `python tools/make_bootrom.py` - it writes `rom/bootloader_words.hex`, the
+   box's genuine 128 KiB boot block that the core boots from. (This is why the
+   core can't be downloaded: it would contain the original firmware.)
+2. In the repository root: `quartus_sh --flow compile Pace2500N`. The root
+   project (`Pace2500N.qsf`, `files.qip`) builds the current core (v0.6.2).
+3. Copy `output_files/Pace2500N.rbf` to the MiSTer as
+   `/media/fat/_Other/Pace2500N_V062.rbf`.
+
+Development build trees live in `builds/` (not in git). Simulation benches are
+in `sim/` (`iverilog -g2012`; e.g. `sim/tb_ts_live.sv`, `sim/tb_ts_stream.sv`).
 
 The MPEG-2 decoder is from MiSTer_DVD (mpeg2fpga, GPL-3). The MiSTer
 framework in `sys/` is GPL; see `LICENSE`.
