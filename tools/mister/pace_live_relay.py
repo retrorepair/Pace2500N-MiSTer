@@ -188,10 +188,11 @@ def step(ring, server, up, tuned, want, want_since, last_seq, alive_at, retry_at
         if w != want:
             want, want_since = w, now
         # A tuning must hold for 300 ms (the firmware rewrites PIDs while zapping).
-        # Mid-zap the firmware switches both PIDs off for about a second before
-        # routing the next channel: hold the current stream through that (2 s)
-        # rather than restarting twice per zap.
-        settle = 2.0 if (want and tuned and want == (0x1fff, 0x1fff) and tuned != want) else 0.3
+        # Mid-zap the firmware switches both PIDs off (1-3 s seen on hardware)
+        # before routing the next channel: hold the current stream through that
+        # (5 s) rather than restarting twice per zap. If nothing else is
+        # routed by then, the box really has stopped and so does the stream.
+        settle = 5.0 if (want and tuned and want == (0x1fff, 0x1fff) and tuned != want) else 0.3
         if want != tuned and now - want_since >= settle:
             # Same channel (e.g. the Guide stops the video but keeps the sound)?
             # Then keep the stream that is playing.

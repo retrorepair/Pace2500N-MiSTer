@@ -155,8 +155,9 @@ For scripting there are command-line equivalents (`tools/pace_channels.py`,
 
 1. Open **Pace Channel Builder** on the PC (playout starts with it).
 2. On the MiSTer load **Pace2500N_V063_Live**. The firmware starts in the Guide.
-   On a cold start the channel list can take a little while to fill (the box
-   collects its listings first); if ALL CHANNELS shows nothing, wait and retry.
+   After loading, the box gathers its listings while ALL CHANNELS is open:
+   the list usually fills on the second or third visit (about 1.5 minutes
+   after loading the core).
 3. Press **TV Guide** (F1), choose **All Channels**, highlight a channel and
    press **Select** (Enter). After a few seconds (the PC starts the transcode at
    the scheduled point) the picture and sound appear.
@@ -181,8 +182,9 @@ Quartus Prime Lite 17.0.2 (Cyclone V).
 
 1. In the repository root: `quartus_sh --flow compile Pace2500N`. The root
    project (`Pace2500N.qsf`, `files.qip`) builds the current core (v0.6.3).
-   No firmware is needed to build it: the Live core reads the boot block from
-   the loaded flash image (`BOOTROM(0)` in `rtl/Pace2500N_Transport.sv`).
+   No firmware is needed to build it: the Live core's boot-block memory is
+   filled from your `FLASH_U202.bin` as the launcher loads it
+   (`BOOT_LOAD(1)` in `rtl/Pace2500N_Transport.sv`, `rtl/pace_bootram.sv`).
 2. Copy `output_files/Pace2500N.rbf` to the MiSTer as
    `/media/fat/_Other/Pace2500N_V063.rbf`.
 

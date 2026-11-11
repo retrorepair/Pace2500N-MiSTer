@@ -786,23 +786,25 @@ not established): group 1 bits 10/14/15/16-23, group 2 bits 3/10/24/26/29, group
 
 ## v0.6.3 — the core carries no firmware (11 Nov 2026)
 
-`pace_firmware_cpu` parameter `BOOTROM` (default 1). The Live core (`Pace2500N_Transport.sv`) sets
-`BOOTROM(0)`: there is no M10K boot ROM; U202[000000:020000] is read from the full flash image the
-launcher already loads into DDR (0x32000000), like the rest of the flash and like the VR4110 reads
-its flash chip. Safe because the CPU is held (`holding`) until flash, RAM and state are loaded.
-Built with `rom/bootloader_words.hex` absent, so the `.rbf` provably holds no firmware and can be
-distributed. Fit 417/553 M10K (was 545), 74% ALMs, all clocks positive slack.
+The CPU's 128 KiB boot block M10K (U202[000000:020000]) is no longer initialised in the bitstream:
+`rtl/pace_bootram.sv` is the same 32768x32 M10K with the same single synchronous read port, filled
+from the FLASH_U202.bin download (the same 16-bit writes that go to DDR, assembled into big-endian
+words) while the CPU is held. `pace_firmware_cpu` parameter `BOOT_LOAD` (Live core = 1; older tops
+keep the initialised `pace_bootrom`). The CPU logic and everything else are byte-identical to v0.6.2.
+Built with `rom/bootloader_words.hex` absent. Fit as v0.6.2: 545/553 M10K, 75% ALMs, worst slack
++0.216 ns (v0.6.2 +0.142).
 
-- `sim/tb_bootrom_ddr.sv`: two CPUs in lock step (M10K boot ROM vs DDR), real U202 cold boot,
-  per-instruction compare: 8,000,000 identical, 2,240 MMIO writes each, with and without the
-  I-cache (`-DTB_ICACHE=1`). Uses RETIRE_TIMING so timer IRQs land on the same instruction; with a
-  cycle-counted Count the slower DDR fetch moves the first timer IRQ (3,589,431) - timing only.
-- The running Guide does use the boot block (RAM literals to 9fc0xxxx, reads of bfc00000 and
-  bfc1fff8); the DDR image under v0.6.3 was checked word-for-word against the file on hardware.
-- Hardware (`tools/mister/test_two_tunes.sh`, now defaults to the V063 launcher): BBC1 -> ITV ->
-  Sky One, pictures on screen, on two consecutive runs. The first run after deployment never got
-  the channel list within the test's six Guide visits (listings not yet collected; firmware alive,
-  idle, no halt); a manual F1/Enter on that boot tuned BBC1 about 40 s later. v0.6.2 run as a
-  baseline in between passed. Watch for slow first listings on a cold start.
-- Relay note: a zap shows 1fff/1fff for ~3 s, longer than the relay's 2 s mid-zap hold, so the
-  stream still restarts twice per zap (log 15:52:39-42).
+- `sim/tb_bootram.sv`: ROM CPU (as v0.6.2) vs CPU whose boot RAM is loaded through the download
+  path; loaded block == bootloader_words.hex (32768 words); real U202 boot with I-cache and the
+  cycle-counted timer: identical on every clock for 39.3M cycles / 8M instructions (110 IRQs,
+  2,240 MMIO writes, 1.8M RAM writes).
+- Hardware A/B (`tools/mister/ab_cores.py`, 3 alternating cold starts each): listings in RAM after
+  2-3 ALL CHANNELS visits on both (v0.6.2 98 s, this core 80-98 s); select -> PIDs routed 10.1-10.6 s
+  vs 10.1-11.8 s. 3/3 each. Three-tune test BBC1 -> ITV -> Sky One passes.
+- Superseded first attempt (published briefly as v0.6.3 earlier the same day): read the boot block
+  from the DDR flash image instead (no M10K). Functionally identical in lock-step simulation, but it
+  changes the timing of the boot-block routines the running Guide calls (RAM literals 9fc0xxxx,
+  reads of bfc00000/bfc1fff8); replaced so the core runs exactly as v0.6.2.
+- Neither core fills the listings without ALL CHANNELS being opened (180 s idle: none).
+- Relay: mid-zap hold 2 s -> 5 s; the firmware's both-PIDs-off gap is up to ~3 s. Zaps now go
+  straight 4200 -> 4210 -> 4220 with no restart in between (log 17:02-17:03).
