@@ -743,3 +743,31 @@ deploy, load the 64 MiB stream. Then: menu music selection by the firmware, cloc
   `tools/make_mock_lineup.py` → `roms/lineup_mock.json`. Interstitial rips in `roms/interstitials/`.
 - 7-day titles (PIDs 0x30-0x37) are generated but unproven on the firmware; settings `days` = 1
   until verified.
+
+## Second-channel tune: root cause = MPEG decoder status/interrupts not modelled (11 Nov 2026)
+
+Hardware: the first channel selected after boot plays (any channel); later selections show the
+banner but the firmware never writes the demux A/V registers again. The B0002/B0008/demux MMIO
+trace (`re/v061_tune_trace.txt`) shows the whole first-tune decoder setup and then *no* decoder
+or demux access at all on later tunes: the A/V layer is waiting, not polling hardware.
+
+Firmware decoder driver (Ghidra, `re/dec_b0002004_m16.txt`, `re/dec_avstate_m16.txt`; pools
+from `RAM.bin`):
+- **ISR 8000fdec** handles three interrupt groups: status B0002480/84/88 (write ~bits to
+  acknowledge) with enables at +0x10 (B0002490/94/98; first tune sets 0040CC00, A0000000, 3).
+  - grp2 bit31 = **sequence header**: reads B0002158 bits 7:4 (aspect 2=4:3, 3=16:9), calls the
+    A/V callback at [0x80105a3c]; re-arms grp2 bit11.
+  - grp2 bit11 = **GOP header**: B000216C time code (pictures 5:0, seconds 11:6, minutes,
+    hours), sets GOP flag 0x80105a54.
+  - grp2 bit29 / bit26 / bit24 / bit10 / bit3: re-arm / mode-2 / strobe B0002004 bit29 paths.
+  - grp1 bit11: B0002120 bits 29:28 picks timeout 1 or 2 (0x80106348), signals 800026f1/8000237d.
+  - grp1 bits 16..23 (0x10000..0x800000): flags 0x80105a5a/5b/34, B0002004 bit29 strobes.
+  - grp3 bit0: per-field tick (counters, timeouts).
+- **8000d9a4** "video started": B0002158 aspect, B0002154 (size >> 16 vs 0x121/0xf1), calls the
+  A/V callback. B0002004 bit28/29 sequences (800025bc) are fixed 10-write strobes, not polls.
+- Driver mode variable 0x801434E4 (==2 paths), flag 0x80105A34.
+
+Next: model these in RTL from real decoder events (start codes 000001B3/B8/00 on the video ES
+entering mpeg2fpga, horizontal/vertical size, aspect/frame rate, GOP time code, field ticks from
+the raster), with the decoder IRQ into the firmware's interrupt controller (find the ISR's
+registration/line), then verify in tb_guide_transport with two successive tunes.
