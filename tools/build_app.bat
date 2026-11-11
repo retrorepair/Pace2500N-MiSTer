@@ -11,6 +11,7 @@ mkdir dist\PaceChannelBuilder\tools 2>nul
 for /d %%D in (third_party\ffmpeg-*) do (
   copy /y "%%D\bin\ffmpeg.exe" dist\PaceChannelBuilder\tools\ >nul
   copy /y "%%D\bin\ffprobe.exe" dist\PaceChannelBuilder\tools\ >nul
+  copy /y "%%D\bin\ffplay.exe" dist\PaceChannelBuilder\tools\ >nul
 )
 if not exist third_party\yt-dlp.exe curl -sSL -o third_party\yt-dlp.exe https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe
 copy /y third_party\yt-dlp.exe dist\PaceChannelBuilder\tools\ >nul

@@ -167,8 +167,9 @@ class App(tk.Tk):
             try:
                 fn(*args)
             except Exception as e:  # report, keep the app alive
-                self.log(f'error: {e}')
-                self.ui(lambda: messagebox.showerror(APP, str(e)))
+                msg = str(e)
+                self.log(f'error: {msg}')
+                self.ui(lambda: messagebox.showerror(APP, msg))
         threading.Thread(target=run, daemon=True).start()
 
     # ------------------------------------------------------------ playout
@@ -480,16 +481,40 @@ class App(tk.Tk):
             self.yt.heading(col, text=t)
             self.yt.column(col, width=w)
         self.yt.pack(fill='x')
-        ttk.Label(f, text='Your sets', style='Head.TLabel').pack(anchor='w', pady=(10, 2))
-        self.sets = ttk.Treeview(f, columns=('set', 'files', 'size'), show='headings', height=7)
-        for col, t, w in (('set', 'Set', 300), ('files', 'Recordings', 100), ('size', 'Size', 100)):
+        row = ttk.Frame(f)
+        row.pack(fill='x', pady=(10, 2))
+        ttk.Label(row, text='Your sets', style='Head.TLabel').pack(side='left')
+        ttk.Button(row, text='Import videos into set...', command=self.import_videos).pack(side='left', padx=12)
+        ttk.Button(row, text='Refresh', command=self.refresh_sets).pack(side='left')
+        ttk.Label(f, text='Long compilations are split automatically at the cuts between items (black frames with '
+                          'silence; announcer pauses in continuity). Select a set to see its spots; Play to check one, '
+                          'Exclude anything that is not an advert/ident/continuity (a break never runs across it).',
+                  wraplength=1000, foreground='#555').pack(anchor='w')
+        pane = ttk.Panedwindow(f, orient='horizontal')
+        pane.pack(fill='both', expand=True, pady=4)
+        left = ttk.Frame(pane)
+        pane.add(left, weight=1)
+        self.sets = ttk.Treeview(left, columns=('set', 'files', 'size'), show='headings', height=8, selectmode='browse')
+        for col, t, w in (('set', 'Set', 170), ('files', 'Recordings', 80), ('size', 'Size', 70)):
             self.sets.heading(col, text=t)
             self.sets.column(col, width=w)
-        self.sets.pack(fill='x')
-        row = ttk.Frame(f)
-        row.pack(fill='x', pady=4)
-        ttk.Button(row, text='Refresh', command=self.refresh_sets).pack(side='left')
-        ttk.Button(row, text='Find spots in selected set', command=lambda: self.background(self.analyse_set)).pack(side='left', padx=4)
+        self.sets.pack(fill='both', expand=True)
+        self.sets.bind('<<TreeviewSelect>>', lambda e: self.refresh_spots())
+        right = ttk.Frame(pane)
+        pane.add(right, weight=3)
+        self.spots = ttk.Treeview(right, columns=('rec', 'start', 'len', 'state'), show='headings', height=8)
+        for col, t, w in (('rec', 'Recording', 300), ('start', 'Starts at', 90), ('len', 'Length', 70), ('state', 'Used?', 220)):
+            self.spots.heading(col, text=t)
+            self.spots.column(col, width=w)
+        self.spots.pack(fill='both', expand=True)
+        self.spots.bind('<Double-1>', lambda e: self.play_spot())
+        row = ttk.Frame(right)
+        row.pack(fill='x', pady=2)
+        ttk.Button(row, text='Play', command=self.play_spot).pack(side='left')
+        ttk.Button(row, text='Exclude / include', command=self.toggle_spot).pack(side='left', padx=4)
+        self.spot_lbl = ttk.Label(row, text='', foreground='#555')
+        self.spot_lbl.pack(side='left', padx=8)
+        self.spot_rows = {}
         self.refresh_sets()
 
     def ytdlp(self):
@@ -536,13 +561,108 @@ class App(tk.Tk):
         self.sets.delete(*self.sets.get_children())
         base = pc.ROOT / 'roms' / 'interstitials'
         for d in sorted(base.glob('*')) if base.exists() else []:
-            files = [x for x in d.glob('*') if x.suffix.lower() in ('.mkv', '.mp4', '.webm', '.mpg', '.ts', '.avi')]
+            files = [x for x in d.glob('*') if x.suffix.lower() in pc.VIDEO_SUFFIXES]
             self.sets.insert('', 'end', values=(d.name, len(files), f'{sum(x.stat().st_size for x in files) >> 20} MB'))
 
-    def analyse_set(self):
+    def selected_set(self):
         sel = self.sets.selection()
-        if sel:
-            self.analyse(pc.ROOT / 'roms' / 'interstitials' / self.sets.item(sel[0])['values'][0])
+        return pc.ROOT / 'roms' / 'interstitials' / str(self.sets.item(sel[0])['values'][0]) if sel else None
+
+    def import_videos(self):
+        """Bring videos downloaded anywhere into a set (copied), then find their spots."""
+        files = filedialog.askopenfilenames(title='Videos to add to a set', filetypes=[('Video', VIDEO_EXT), ('All files', '*.*')])
+        if not files:
+            return
+        default = self.selected_set().name if self.selected_set() else self.v_set.get().strip()
+        name = simpledialog.askstring(APP, 'Set name (station and years, e.g. c4_1994):', initialvalue=default)
+        if not name:
+            return
+        target = pc.ROOT / 'roms' / 'interstitials' / name.strip()
+
+        def run():
+            import shutil
+            target.mkdir(parents=True, exist_ok=True)
+            for src in files:
+                dst = target / Path(src).name
+                if not dst.exists():
+                    self.log(f'importing {Path(src).name} into {target.name}')
+                    shutil.copy2(src, dst)
+            self.ui(self.refresh_sets)
+            self.analyse(target)
+            self.ui(lambda: self.select_set(target.name))
+        self.background(run)
+
+    def select_set(self, name):
+        for i in self.sets.get_children():
+            if str(self.sets.item(i)['values'][0]) == name:
+                self.sets.selection_set(i)
+                self.sets.see(i)
+
+    def refresh_spots(self):
+        folder = self.selected_set()            # read on the Tk thread
+        if folder:
+            self.spot_lbl.config(text='finding spots...')
+            self.background(self.show_spots, folder)
+
+    def show_spots(self, folder):
+        media = pc.Media(self.settings)
+        excluded = pc.excluded_spots(folder)
+        rows, used, total = [], 0, 0.0
+        for f in sorted(folder.glob('*')):
+            if f.suffix.lower() not in pc.VIDEO_SUFFIXES:
+                continue
+            title = f.name
+            info = f.with_suffix('.info.json')
+            if info.exists():
+                try:
+                    title = json.loads(info.read_text(encoding='utf-8')).get('title', f.name)
+                except ValueError:
+                    pass
+            for a, ln in pc.recording_spots(media, f, self.log):
+                sid = pc.spot_id(f, a)
+                if sid in excluded:
+                    state = 'excluded'
+                elif not pc.usable(ln):
+                    state = 'not used (too short)' if ln < 2 else 'not used (too long - a programme?)'
+                else:
+                    state = 'used'
+                    used += 1
+                    total += ln
+                rows.append((str(f), a, ln, title, state, sid))
+
+        def fill():
+            self.spots.delete(*self.spots.get_children())
+            self.spot_rows = {}
+            for src, a, ln, title, state, sid in rows:
+                i = self.spots.insert('', 'end', values=(title[:60], f'{int(a) // 60}:{a % 60:04.1f}', f'{ln:.1f} s', state))
+                self.spot_rows[i] = (src, a, ln, sid)
+            self.spot_lbl.config(text=f'{used} usable spots, {total / 60:.0f} minutes')
+        self.ui(fill)
+
+    def play_spot(self):
+        sel = self.spots.selection()
+        if not sel:
+            return
+        src, a, ln, _ = self.spot_rows[sel[0]]
+        ffplay = str(Path(self.settings['ffmpeg']).with_name('ffplay.exe'))
+        subprocess.Popen([ffplay, '-hide_banner', '-loglevel', 'error', '-autoexit', '-ss', f'{a:.2f}', '-t', f'{ln:.2f}',
+                          '-window_title', f'{Path(src).name} @ {a:.1f}s', src], creationflags=NO_WINDOW)
+
+    def toggle_spot(self):
+        folder = self.selected_set()
+        if not folder:
+            return
+        ids = pc.excluded_spots(folder)
+        for i in self.spots.selection():
+            sid = self.spot_rows[i][3]
+            ids.symmetric_difference_update({sid})
+        pc.set_excluded(folder, ids)
+        self.refresh_spots()
+
+    def analyse_set(self):
+        folder = self.selected_set()
+        if folder:
+            self.analyse(folder)
 
     def analyse(self, folder):
         runs = pc.interstitial_runs(pc.Media(self.settings), [str(folder)], self.log)

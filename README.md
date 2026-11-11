@@ -111,8 +111,15 @@ In the app:
   to fill the day. *Apply changes* saves.
 - **Adverts & continuity** - search YouTube (e.g. `TVS adverts 1987`,
   `BBC1 continuity 1989`, `Sky One adverts 1994`), select results and *Rip
-  selected* into a set named for the station and years. The app splits each
-  recording into its original spots by itself.
+  selected* into a set named for the station and years. Videos you downloaded
+  yourself go in with *Import videos into set...*.
+  Long compilations (a whole evening's breaks in one video) are split
+  automatically at the cuts between items - black frames with silence, black
+  frames alone on hissy tapes, announcer pauses in long continuity. Select a set
+  to see every spot with its time and length: *Play* (or double-click) previews
+  it, *Exclude / include* drops anything that is not an advert, ident or
+  continuity. Breaks use runs of spots exactly as they were broadcast, and never
+  run across an excluded or over-long segment (e.g. a programme excerpt).
 - **Schedule** - *Show today's guide* lists exactly what the box will show.
   *Find natural breaks* (once per programme, slow) moves ITV/Sky centre breaks
   to the programme's own fade-to-black points.

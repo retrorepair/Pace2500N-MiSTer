@@ -190,39 +190,80 @@ class Media:
         return hit['cuts']
 
 
+VIDEO_SUFFIXES = ('.mkv', '.mp4', '.webm', '.mpg', '.mpeg', '.ts', '.avi', '.m4v', '.mov')
+
+
+def set_folder(folder):
+    """Relative sets are under the data folder (the same for every tool)."""
+    return Path(folder) if Path(folder).is_absolute() else ROOT / folder
+
+
+def recording_spots(media, f, log=print):
+    """Every segment of one recording between detected cuts: [(start, length)].
+    A long compilation (one YouTube video of a whole evening's breaks) becomes its
+    individual adverts / idents / continuity items."""
+    dur = media.probe(str(f))['duration']
+    cuts = media.cuts(str(f), log)
+    hit = media.cache[media.key(str(f))]
+    if len(hit['silence']) < dur / 60:
+        # tape hiss above the silence threshold: black frames alone mark the cuts
+        cuts = hit['black']
+    cuts = [c for c in cuts if 1.0 < c < dur - 1.0]
+    edges = [0.0] + cuts + [dur]
+    # Continuity often cuts straight between items (no black frame): split
+    # long stretches at the announcer's pauses instead (silence >= 0.3 s).
+    pauses = [(a + b) / 2 for a, b in hit['silence'] if b - a >= 0.3]
+    fine = []
+    for a, b in zip(edges, edges[1:]):
+        fine.append(a)
+        if b - a > 150:
+            last = a
+            for q in pauses:
+                if last + 25 <= q <= b - 10:
+                    fine.append(q)
+                    last = q
+    edges = sorted(set(fine + [dur]))
+    return [(a, b - a) for a, b in zip(edges, edges[1:])]
+
+
+def spot_id(f, start):
+    return f'{Path(f).name}@{start:.1f}'
+
+
+def excluded_spots(folder):
+    p = set_folder(folder) / 'excluded.json'
+    return set(json.loads(p.read_text())) if p.exists() else set()
+
+
+def set_excluded(folder, ids):
+    (set_folder(folder) / 'excluded.json').write_text(json.dumps(sorted(ids), indent=1))
+
+
+def usable(length):
+    return 2.0 <= length <= 240.0
+
+
 def interstitial_runs(media, folders, log=print):
-    """Spots of every recording in the sets: [(source, start, length)] in recorded order,
-    grouped per recording."""
+    """Usable spots of every recording in the sets: lists of (source, start, length)
+    that were broadcast back to back. A run is broken wherever a segment is
+    unusable (too short/long, e.g. a programme excerpt) or excluded by the user,
+    so a break never jumps over it."""
     runs = []
     for folder in folders:
-        # relative sets are under the project folder (the same for every tool)
-        folder = Path(folder) if Path(folder).is_absolute() else ROOT / folder
+        folder = set_folder(folder)
+        excluded = excluded_spots(folder)
         for f in sorted(folder.glob('*')):
-            if f.suffix.lower() not in ('.mkv', '.mp4', '.webm', '.mpg', '.ts', '.avi'):
+            if f.suffix.lower() not in VIDEO_SUFFIXES:
                 continue
-            dur = media.probe(str(f))['duration']
-            cuts = media.cuts(str(f), log)
-            hit = media.cache[media.key(str(f))]
-            if len(hit['silence']) < dur / 60:
-                # tape hiss above the silence threshold: black frames alone mark the cuts
-                cuts = hit['black']
-            cuts = [c for c in cuts if 1.0 < c < dur - 1.0]
-            edges = [0.0] + cuts + [dur]
-            # Continuity often cuts straight between items (no black frame): split
-            # long stretches at the announcer's pauses instead (silence >= 0.3 s).
-            pauses = [(a + b) / 2 for a, b in media.cache[media.key(str(f))]['silence'] if b - a >= 0.3]
-            fine = []
-            for a, b in zip(edges, edges[1:]):
-                fine.append(a)
-                if b - a > 150:
-                    last = a
-                    for q in pauses:
-                        if last + 25 <= q <= b - 10:
-                            fine.append(q); last = q
-            edges = sorted(set(fine + [dur]))
-            spots = [(str(f), a, b - a) for a, b in zip(edges, edges[1:]) if 2.0 <= b - a <= 240.0]
-            if spots:
-                runs.append(spots)
+            run = []
+            for a, ln in recording_spots(media, f, log):
+                if usable(ln) and spot_id(f, a) not in excluded:
+                    run.append((str(f), a, ln))
+                elif run:
+                    runs.append(run)
+                    run = []
+            if run:
+                runs.append(run)
     return runs
 
 
