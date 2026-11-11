@@ -1,0 +1,60 @@
+
+// 800d0fd0 not inside a defined function; previous function 800cb000 firmware_guide_row_parse body [[800cb000, 800cb04f]]
+// instruction: null
+
+// 800d019c not inside a defined function; previous function 800cb000 firmware_guide_row_parse body [[800cb000, 800cb04f]]
+// instruction: null
+
+// 8006ebec is inside 8006ebac application_native_event_bridge body [[8006ebac, 8006ec23]]
+// refs to entry:
+
+int application_native_event_bridge(int param_1,undefined4 param_2)
+
+{
+  int in_zero;
+  undefined4 uVar1;
+  int *piVar2;
+  undefined1 uStack_48;
+  undefined1 auStack_47 [31];
+  undefined1 *puStack_28;
+  undefined1 *puStack_24;
+  int iStack_20;
+  undefined4 uStack_14;
+  
+  puStack_24 = &uStack_48;
+  puStack_28 = auStack_47;
+  (*pcRam8006edc8)(&puStack_28);
+  uVar1 = (*pcRam8006edcc)(param_1,param_2,uStack_14,iStack_20 == 1);
+  if (param_1 == iRam8006edd0) {
+    do {
+      piVar2 = (int *)(iRam8006eda0 + in_zero * 4);
+      if (*piVar2 != 0) {
+        *(undefined4 *)(*piVar2 + 0xc) = uVar1;
+      }
+      in_zero = in_zero + 1;
+    } while (in_zero < 0x10);
+  }
+  else {
+    if (param_1 < 0) {
+      return in_zero;
+    }
+    if (0xf < param_1) {
+      return in_zero;
+    }
+    piVar2 = (int *)(iRam8006eda0 + param_1 * 4);
+    if (*piVar2 == 0) {
+      return in_zero;
+    }
+    *(undefined4 *)(*piVar2 + 0xc) = uVar1;
+  }
+                    /* WARNING: Treating indirect jump as return */
+  return 1;
+}
+
+
+
+// 80105d4c not inside a defined function; previous function 800cb000 firmware_guide_row_parse body [[800cb000, 800cb04f]]
+// instruction: null
+
+// 800f6a38 not inside a defined function; previous function 800cb000 firmware_guide_row_parse body [[800cb000, 800cb04f]]
+// instruction: null

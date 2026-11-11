@@ -1,0 +1,12 @@
+
+// 9fc04afe not inside a defined function; previous function none
+// instruction: null
+
+// bfc04afe not inside a defined function; previous function bfc0434c timer0_interrupt body [[bfc0434c, bfc04371]]
+// instruction: lbu v1,0x0(s0)
+
+// 9fc08aa0 not inside a defined function; previous function none
+// instruction: null
+
+// 9fc09502 not inside a defined function; previous function none
+// instruction: null

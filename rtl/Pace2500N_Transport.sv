@@ -3,7 +3,7 @@
 module emu (
 `include "sys/emu_ports.vh"
 );
-localparam CONF_STR={"Pace2500N_TS;;","F0,BIN,Load FLASH_U202.bin;","F1,BIN,Load RAM checkpoint;","F2,BIN,Load CPU state;","F3,TS,Load transport stream (64MiB max);","S0,TS,Stream transport stream / live ring;","O3,Display,Guide,Diagnostics;","O4,Diagnostic RF lock,From TS,Off;","O5,Broadcast clock (TOT),MiSTer RTC,TS file;","-;","R0,Reset (reload checkpoint);","V,0.6.2 decoder irq"};
+localparam CONF_STR={"Pace2500N_TS;;","F0,BIN,Load FLASH_U202.bin;","F1,BIN,Load RAM checkpoint;","F2,BIN,Load CPU state;","F3,TS,Load transport stream (64MiB max);","S0,TS,Stream transport stream / live ring;","O3,Display,Guide,Diagnostics;","O4,Diagnostic RF lock,From TS,Off;","O5,Broadcast clock (TOT),MiSTer RTC,TS file;","-;","R0,Reset (reload checkpoint);","V,0.6.3 no boot ROM"};
 wire clk_sys,clk_video,clk_mem,clk_dec,clk_dot,pll_locked;
 pll pll(.refclk(CLK_50M),.rst(1'b0),.outclk_0(clk_sys),.outclk_1(clk_video),
  .outclk_2(clk_mem),.outclk_3(clk_dec),.outclk_4(clk_dot),.locked(pll_locked));
@@ -131,7 +131,7 @@ wire mips16;
 wire gpu_start,gpu_done,gpu_busy;wire [7:0] gburst;
 wire [31:0] gpu_descriptor,osd_root,gpu_count,gpu_last,serial_frames,key_frames,timer_acks,gpu_acks,video_frames,video_underruns;
 wire [7:0] halt_code=cpu_halt!=0?cpu_halt:model_halt!=0?model_halt:gpu_error!=0?gpu_error:video_error;
-pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1),.WALL_COUNT(1),.ICACHE(1)) cpu(
+pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1),.WALL_COUNT(1),.ICACHE(1),.BOOTROM(0)) cpu(
  .clk(clk_sys),.reset(core_reset),.full_flash_loaded(loaded_flash),.mmio_policy(2'd1),
  .checkpoint_hold(holding),.checkpoint_wr(state_write),.checkpoint_index(ioctl_addr[8:2]),.checkpoint_data(state_data),
  .io_req(iq),.io_we(iw),.io_addr(ia),.io_wdata(id),.io_size(iz),.io_rdata(ir),.io_ready(irdy),.io_irq(irq),

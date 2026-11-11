@@ -783,3 +783,26 @@ ISR-style read/acknowledge): 720x576, aspect 2, GOP 00:02:00, frame pictures, fi
 Hardware (`tools/mister/test_two_tunes.sh`): v0.6.1 baseline first tune 4200 then 1fff/1fff;
 v0.6.2 tunes 4200 -> 4210 -> 4220 (BBC1, ITV, Sky One), pictures on screen. Not driven yet (meaning
 not established): group 1 bits 10/14/15/16-23, group 2 bits 3/10/24/26/29, group 3 bit 1.
+
+## v0.6.3 — the core carries no firmware (11 Nov 2026)
+
+`pace_firmware_cpu` parameter `BOOTROM` (default 1). The Live core (`Pace2500N_Transport.sv`) sets
+`BOOTROM(0)`: there is no M10K boot ROM; U202[000000:020000] is read from the full flash image the
+launcher already loads into DDR (0x32000000), like the rest of the flash and like the VR4110 reads
+its flash chip. Safe because the CPU is held (`holding`) until flash, RAM and state are loaded.
+Built with `rom/bootloader_words.hex` absent, so the `.rbf` provably holds no firmware and can be
+distributed. Fit 417/553 M10K (was 545), 74% ALMs, all clocks positive slack.
+
+- `sim/tb_bootrom_ddr.sv`: two CPUs in lock step (M10K boot ROM vs DDR), real U202 cold boot,
+  per-instruction compare: 8,000,000 identical, 2,240 MMIO writes each, with and without the
+  I-cache (`-DTB_ICACHE=1`). Uses RETIRE_TIMING so timer IRQs land on the same instruction; with a
+  cycle-counted Count the slower DDR fetch moves the first timer IRQ (3,589,431) - timing only.
+- The running Guide does use the boot block (RAM literals to 9fc0xxxx, reads of bfc00000 and
+  bfc1fff8); the DDR image under v0.6.3 was checked word-for-word against the file on hardware.
+- Hardware (`tools/mister/test_two_tunes.sh`, now defaults to the V063 launcher): BBC1 -> ITV ->
+  Sky One, pictures on screen, on two consecutive runs. The first run after deployment never got
+  the channel list within the test's six Guide visits (listings not yet collected; firmware alive,
+  idle, no halt); a manual F1/Enter on that boot tuned BBC1 about 40 s later. v0.6.2 run as a
+  baseline in between passed. Watch for slow first listings on a cold start.
+- Relay note: a zap shows 1fff/1fff for ~3 s, longer than the relay's 2 s mid-zap hold, so the
+  stream still restarts twice per zap (log 15:52:39-42).

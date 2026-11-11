@@ -11,10 +11,10 @@ programmes.
 > notes are in `CURRENT_STATUS.md`, `handoff.md` and `re/`.
 
 **Downloads:** [Releases](https://github.com/retrorepair/Pace2500N-MiSTer/releases)
-(latest **v0.6.2**) — `PaceChannelBuilder-v0.6.2-windows.zip` (the Windows app)
-and `Pace2500N-MiSTer-files-v0.6.2.zip` (launcher + relay). The core itself is
-not in the release: it contains your box's boot ROM, so you build it from your
-own firmware dump (see *Building the core*).
+(latest **v0.6.3**) — `Pace2500N_V063.rbf` (the core),
+`Pace2500N-MiSTer-files-v0.6.3.zip` (launcher + relay) and
+`PaceChannelBuilder-v0.6.3-windows.zip` (the Windows app). The core contains no
+firmware: it runs the flash dump you supply.
 
 ## What works
 
@@ -26,6 +26,7 @@ own firmware dump (see *Building the core*).
 | Streaming from the server share (file mode, any length) | working (v0.5.9; v0.6.1 adds tuner lock) |
 | **Live channels from the PC playout server** — guide listings, channel numbers, now/next banner | **working (v0.6.1)** |
 | Live channels — picture and sound of the channel you select, changing channel | **working (v0.6.2)** — the MPEG decoder's interrupts and header registers are now modelled |
+| Core contains no firmware (boots from the flash dump it loads) — downloadable | **v0.6.3** |
 | Channel sound continuing under the TV Guide | working |
 | Plex library as a programme source | written; untested until a Plex token is entered |
 | 7-day listings | generated; set `days` to 1 until proven on the firmware |
@@ -58,19 +59,21 @@ Copy to the MiSTer SD card:
 
 | File | Where |
 |------|-------|
-| `Pace2500N_V062.rbf` (your own build, see *Building the core*) | `/media/fat/_Other/` |
-| `Pace2500N_V062_Live.mgl` (in the MiSTer files zip) | `/media/fat/` |
+| `Pace2500N_V063.rbf` (from Releases) | `/media/fat/_Other/` |
+| `Pace2500N_V063_Live.mgl` (in the MiSTer files zip) | `/media/fat/` |
 | Your firmware `FLASH_U202.bin` | `/media/fat/games/Pace2500N/` |
 | Guide checkpoint `RAM.bin`, `STATE.bin` | `/media/fat/games/Pace2500N_GUIDE/` |
 
 The firmware and checkpoint images are not distributed; they come from your own box.
+The core boots entirely from the `FLASH_U202.bin` it loads - nothing from the
+box is built into it.
 
 ## 2. The Windows app: Pace Channel Builder
 
 A normal Windows program - nothing else to install (Python, ffmpeg and yt-dlp
 are inside its folder).
 
-- **Get it:** unzip `PaceChannelBuilder-v0.6.2-windows.zip` from
+- **Get it:** unzip `PaceChannelBuilder-v0.6.3-windows.zip` from
   [Releases](https://github.com/retrorepair/Pace2500N-MiSTer/releases) anywhere
   (e.g. `C:\PaceChannelBuilder`) and run `PaceChannelBuilder.exe`. Keep the
   whole folder together. Windows SmartScreen may warn the first time (the exe
@@ -151,7 +154,9 @@ For scripting there are command-line equivalents (`tools/pace_channels.py`,
 ## 5. Watch
 
 1. Open **Pace Channel Builder** on the PC (playout starts with it).
-2. On the MiSTer load **Pace2500N_V062_Live**. The firmware starts in the Guide.
+2. On the MiSTer load **Pace2500N_V063_Live**. The firmware starts in the Guide.
+   On a cold start the channel list can take a little while to fill (the box
+   collects its listings first); if ALL CHANNELS shows nothing, wait and retry.
 3. Press **TV Guide** (F1), choose **All Channels**, highlight a channel and
    press **Select** (Enter). After a few seconds (the PC starts the transcode at
    the scheduled point) the picture and sound appear.
@@ -174,14 +179,17 @@ Channel numbering in the line-up maps to the box's services: channel *n*
 
 Quartus Prime Lite 17.0.2 (Cyclone V).
 
-1. Put your own 2 MiB U202 flash dump at `firmware/FLASH_U202.bin` and run
-   `python tools/make_bootrom.py` - it writes `rom/bootloader_words.hex`, the
-   box's genuine 128 KiB boot block that the core boots from. (This is why the
-   core can't be downloaded: it would contain the original firmware.)
-2. In the repository root: `quartus_sh --flow compile Pace2500N`. The root
-   project (`Pace2500N.qsf`, `files.qip`) builds the current core (v0.6.2).
-3. Copy `output_files/Pace2500N.rbf` to the MiSTer as
-   `/media/fat/_Other/Pace2500N_V062.rbf`.
+1. In the repository root: `quartus_sh --flow compile Pace2500N`. The root
+   project (`Pace2500N.qsf`, `files.qip`) builds the current core (v0.6.3).
+   No firmware is needed to build it: the Live core reads the boot block from
+   the loaded flash image (`BOOTROM(0)` in `rtl/Pace2500N_Transport.sv`).
+2. Copy `output_files/Pace2500N.rbf` to the MiSTer as
+   `/media/fat/_Other/Pace2500N_V063.rbf`.
+
+Older development tops (`rtl/Pace2500N.sv`, `rtl/Pace2500N_Guide.sv`) still
+cold-boot from an in-fabric boot ROM: make it from your own dump with
+`python tools/make_bootrom.py` (writes `rom/bootloader_words.hex`). Those
+builds contain firmware and must not be shared.
 
 Development build trees live in `builds/` (not in git). Simulation benches are
 in `sim/` (`iverilog -g2012`; e.g. `sim/tb_ts_live.sv`, `sim/tb_ts_stream.sv`).
