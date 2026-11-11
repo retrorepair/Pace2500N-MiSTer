@@ -771,3 +771,15 @@ Next: model these in RTL from real decoder events (start codes 000001B3/B8/00 on
 entering mpeg2fpga, horizontal/vertical size, aspect/frame rate, GOP time code, field ticks from
 the raster), with the decoder IRQ into the firmware's interrupt controller (find the ISR's
 registration/line), then verify in tb_guide_transport with two successive tunes.
+
+## v0.6.2 — EMMA MPEG decoder interrupts/status modelled; channel changes work (11 Nov 2026)
+
+`rtl/pace_mpeg_status.sv`: status B0002480/84/88 (write keeps bits written as 1), enables snooped
+from B0002490/94/98, info B0002120 (picture_structure 29:28), B0002154 (v 27:16, h 11:0),
+B0002158 (aspect 7:4), B000216C (GOP time code), IRQ on EMMA bit 0x400. Events come from the real
+parser (`vld.v` PACE taps: sequence header, GOP header, first slice of a picture) and the raster's
+vertical sync, crossed to clk_sys in `pace_mpeg_video.sv`. Decoder bench (`sim/tb_mpeg_video.sv`,
+ISR-style read/acknowledge): 720x576, aspect 2, GOP 00:02:00, frame pictures, field ticks.
+Hardware (`tools/mister/test_two_tunes.sh`): v0.6.1 baseline first tune 4200 then 1fff/1fff;
+v0.6.2 tunes 4200 -> 4210 -> 4220 (BBC1, ITV, Sky One), pictures on screen. Not driven yet (meaning
+not established): group 1 bits 10/14/15/16-23, group 2 bits 3/10/24/26/29, group 3 bit 1.

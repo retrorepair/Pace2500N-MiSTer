@@ -58,7 +58,8 @@ module vld(clk, clk_en, rst,
   cc_pair_valid, cc_pair, cc_pair_field,                                                    // DVD-FORK (line-21 CC): EIA-608 byte pairs sniffed out of user_data
   mpeg1,                                                                                    // DVD-FORK FIX (mpeg1): stream is MPEG-1 (no sequence extension) — to rld via the rld fifo
   vbuf_flush,                                                                               // DVD-FORK FIX (seek realign, issue #45): a VBUF flush happened — the references are now stale
-  bitpos, pic_hdr_pulse, pic_hdr_bitpos, pic_hdr_upd, pic_hdr_second,                      // DVD-FORK (PTS association): where in the stream each picture header was parsed
+  bitpos, pic_hdr_pulse, pic_hdr_bitpos, pic_hdr_upd, pic_hdr_second,
+  pace_seq_evt, pace_gop_evt, pace_pic_evt, pace_time_code,                                // PACE: header events for the EMMA decoder status model                      // DVD-FORK (PTS association): where in the stream each picture header was parsed
   skip_ack, skip_rff, skip_field, skip_tff, skip_pf                                         // DVD-FORK (PTS scheduling): a picture was dropped for ANY reason (governor or realign)
   );
 
@@ -319,6 +320,14 @@ module vld(clk, clk_en, rst,
    * pair is flagged pic_hdr_second. */
   input      [31:0]bitpos;
   output reg       pic_hdr_pulse;
+  /* PACE (Pace 2500N, EMMA MPEG decoder status model, rtl/pace_mpeg_status.sv):
+   * one-clk pulses when the parser has just finished a sequence header, a GOP
+   * header, and when the first slice of a picture starts (picture_structure is
+   * then valid). The parsed values are stable on the cycle of each pulse. */
+  output reg       pace_seq_evt;
+  output reg       pace_gop_evt;
+  output reg       pace_pic_evt;
+  output wire[22:0]pace_time_code;   // {hours[4:0], minutes[5:0], seconds[5:0], pictures[5:0]}
   output reg [31:0]pic_hdr_bitpos;
   output reg       pic_hdr_upd;
   output reg       pic_hdr_second;
@@ -2453,6 +2462,26 @@ module vld(clk, clk_en, rst,
             pic_hdr_second <= ~hdr_upd_slot && ~hdr_is_d_m1;
           end
       end
+  /* PACE: header events (see the port declarations) */
+  reg pace_pic_armed;
+  always @(posedge clk)
+    if (~rst)
+      begin
+        pace_seq_evt   <= 1'b0;
+        pace_gop_evt   <= 1'b0;
+        pace_pic_evt   <= 1'b0;
+        pace_pic_armed <= 1'b0;
+      end
+    else
+      begin
+        pace_seq_evt <= clk_en && (state == STATE_SEQUENCE_HEADER3);
+        pace_gop_evt <= clk_en && (state == STATE_GROUP_HEADER0);
+        pace_pic_evt <= clk_en && (state == STATE_SLICE) && pace_pic_armed;
+        if (clk_en && (state == STATE_PICTURE_HEADER)) pace_pic_armed <= 1'b1;
+        else if (clk_en && (state == STATE_SLICE)) pace_pic_armed <= 1'b0;
+      end
+  assign pace_time_code = {time_code_hours, time_code_minutes, time_code_seconds, time_code_pictures};
+
   always @(posedge clk)
     if (~rst) update_picture_buffers <= 1'b0;
     else if (clk_en) update_picture_buffers <= (hdr_upd_slot && ~drop_now_comb && ~realign_now_comb) // emit frame at picture header

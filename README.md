@@ -19,7 +19,7 @@ programmes.
 | MPEG-2 video + MP2 audio, selected by the firmware when you pick a channel | working (v0.5.8+) |
 | Streaming from the server share (file mode, any length) | working (v0.5.9; v0.6.1 adds tuner lock) |
 | **Live channels from the PC playout server** — guide listings, channel numbers, now/next banner | **working (v0.6.1)** |
-| Live channels — picture and sound of the channel you select | **first channel after boot works**; selecting a second channel shows its banner but the firmware does not start its decoder yet (being investigated: MPEG decoder status registers not modelled) |
+| Live channels — picture and sound of the channel you select, changing channel | **working (v0.6.2)** — the MPEG decoder's interrupts and header registers are now modelled |
 | Channel sound continuing under the TV Guide | working |
 | Plex library as a programme source | written; untested until a Plex token is entered |
 | 7-day listings | generated; set `days` to 1 until proven on the firmware |
@@ -52,8 +52,8 @@ Copy to the MiSTer SD card:
 
 | File | Where |
 |------|-------|
-| `Pace2500N_V061.rbf` (from a build, see *Building*) | `/media/fat/_Other/` |
-| `Pace2500N_V061_Live.mgl` | `/media/fat/` |
+| `Pace2500N_V062.rbf` (from a build, see *Building*) | `/media/fat/_Other/` |
+| `Pace2500N_V062_Live.mgl` | `/media/fat/` |
 | Your firmware `FLASH_U202.bin` | `/media/fat/games/Pace2500N/` |
 | Guide checkpoint `RAM.bin`, `STATE.bin` | `/media/fat/games/Pace2500N_GUIDE/` |
 
@@ -123,12 +123,12 @@ For scripting there are command-line equivalents (`tools/pace_channels.py`,
 ## 5. Watch
 
 1. Open **Pace Channel Builder** on the PC (playout starts with it).
-2. On the MiSTer load **Pace2500N_V061_Live**. The firmware starts in the Guide.
+2. On the MiSTer load **Pace2500N_V062_Live**. The firmware starts in the Guide.
 3. Press **TV Guide** (F1), choose **All Channels**, highlight a channel and
    press **Select** (Enter). After a few seconds (the PC starts the transcode at
    the scheduled point) the picture and sound appear.
    Keyboard/remote mapping: `KEYBOARD_REMOTE_MAP.md`.
-4. For now, to watch a different channel reload the core first (see *What works*).
+4. To change channel, press TV Guide again and pick another one.
 
 Channel numbering in the line-up maps to the box's services: channel *n*
 (0-based) is SID 1001+n, video PID 0x200+0x10·n, audio PID 0x102+0x10·n.
@@ -145,7 +145,7 @@ Channel numbering in the line-up maps to the box's services: channel *n*
 ## Building the core
 
 Quartus Prime Lite 17.0.2 (Cyclone V). The working build trees are under
-`builds/` (e.g. `builds/v061_live`, made from `files.qip` of the previous build
+`builds/` (e.g. `builds/v062_irq`, made from `files.qip` of the previous build
 plus current `rtl/` and `sys/`): `quartus_sh --flow compile Pace2500N`, output
 `output_files/Pace2500N.rbf`. Simulation benches are in `sim/`
 (`iverilog -g2012`; e.g. `sim/tb_ts_live.sv`, `sim/tb_ts_stream.sv`).

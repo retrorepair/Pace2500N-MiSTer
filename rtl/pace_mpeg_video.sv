@@ -27,9 +27,36 @@ module pace_mpeg_video(
  output wire [7:0] r,g,b,output wire pixel_en,hs,vs,output wire [11:0] h_pos,v_pos,
  // status, clk_dec
  output wire video_live,busy,output wire [15:0] pictures,pickups,frames_late,output wire [7:0] vbuf_fill,
- output wire [13:0] horizontal_size,vertical_size
+ output wire [13:0] horizontal_size,vertical_size,
+ // decoder events for the EMMA status model (rtl/pace_mpeg_status.sv), clk_sys:
+ // one-cycle pulses, each with the values the parser held at that event
+ output reg seq_evt=0,gop_evt=0,pic_evt=0,field_evt=0,
+ output reg [11:0] seq_hsize=0,seq_vsize=0,output reg [3:0] seq_aspect=0,
+ output reg [22:0] gop_time_code=0,output reg [1:0] pic_structure=0
 );
  wire reset_n=!reset;
+ // ---- decoder events -> clk_sys. Each event latches its values in clk_dec and
+ // flips a toggle; clk_sys sees the toggle two flops later and samples the
+ // latched values, which only change at the next event of the same kind
+ // (milliseconds later), so they are stable when sampled.
+ wire d_seq,d_gop,d_pic;wire [22:0] d_tc;wire [1:0] d_ps;wire [3:0] d_ar;
+ reg [2:0] tog_d=0;reg [11:0] h_l=0,v_l=0;reg [3:0] ar_l=0;reg [22:0] tc_l=0;reg [1:0] ps_l=0;
+ always @(posedge clk_dec)begin
+  if(d_seq)begin tog_d[0]<=~tog_d[0];h_l<=horizontal_size[11:0];v_l<=vertical_size[11:0];ar_l<=d_ar;end
+  if(d_gop)begin tog_d[1]<=~tog_d[1];tc_l<=d_tc;end
+  if(d_pic)begin tog_d[2]<=~tog_d[2];ps_l<=d_ps;end
+ end
+ // field tick: the display raster's vertical sync (clk_dot), one per field
+ reg vs_d=0,tog_f=0;
+ always @(posedge clk_dot)begin vs_d<=vs;if(vs && !vs_d)tog_f<=~tog_f;end
+ reg [3:0] s1=0,s2=0,s3=0;
+ always @(posedge clk_sys)begin
+  s1<={tog_f,tog_d};s2<=s1;s3<=s2;
+  seq_evt<=s2[0]^s3[0];gop_evt<=s2[1]^s3[1];pic_evt<=s2[2]^s3[2];field_evt<=s2[3]^s3[3];
+  if(s2[0]^s3[0])begin seq_hsize<=h_l;seq_vsize<=v_l;seq_aspect<=ar_l;end
+  if(s2[1]^s3[1])gop_time_code<=tc_l;
+  if(s2[2]^s3[2])pic_structure<=ps_l;
+ end
  // ---- stream feed
  wire [7:0] dec_data;wire dec_mark,dec_valid;
  vidfeed_cdc feed(.rst_n(reset_n),.wr_clk(clk_sys),.wr_data({1'b0,es_data}),.wr_valid(es_valid),.wr_ready(es_ready),
@@ -87,7 +114,8 @@ module pace_mpeg_video(
   .dbg_lines_displayed(),.dbg_first_vpos(),.dbg_last_vpos(),
   .dbg_prof0(),.dbg_prof1(),.dbg_prof2(),.dbg_prof3(),.dbg_pic_max(),.dbg_pic_n(pictures),.dbg_pic_over(),
   .dbg_fb_heals(),.dbg_strict_waits(),.cc_pair_valid(),.cc_pair(),.cc_pair_field(),
-  .vertical_size_out(vertical_size),.horizontal_size_out(horizontal_size),.aspect_ratio_out(),
+  .vertical_size_out(vertical_size),.horizontal_size_out(horizontal_size),.aspect_ratio_out(d_ar),
+  .pace_seq_evt(d_seq),.pace_gop_evt(d_gop),.pace_pic_evt(d_pic),.pace_time_code(d_tc),.pace_picture_structure(d_ps),
   .ref_prefetch_en(1'b1),.frame_drop_en(1'b1),
   .dbg_frames_late(frames_late),.dbg_frames_dropped(),.dbg_pickups(pickups),.dbg_drop_costs(),.dbg_vbuf_fill(vbuf_fill),
   .video_live(video_live),.pickup_hold(1'b0),.pause(1'b0),.step_req(1'b0),.freeze_wd(1'b0),

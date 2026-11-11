@@ -113,7 +113,7 @@ pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1)) cpu
 pace_guide_peripherals devices(.clk(clk_sys),.reset(core_reset),.hold(holding),.retired(retired),
  .io_req(iq),.io_we(iw),.io_addr(ia),.io_wdata(id),.io_size(iz),.io_rdata(ir),.io_ready(irdy),.io_irq(irq),
  .key_valid(key_valid),.key_pressed(key_pressed),.key_code(key_code),.gpu_start(gpu_start),
- .gpu_descriptor(gpu_descriptor),.osd_root(osd_root),.gpu_done(gpu_done),.transport_irq(1'b0),.transport_lock(1'b0),.model_halt(model_halt),
+ .gpu_descriptor(gpu_descriptor),.osd_root(osd_root),.gpu_done(gpu_done),.transport_irq(1'b0),.mpeg_irq(1'b0),.transport_lock(1'b0),.model_halt(model_halt),
  .serial_frames(serial_frames),.key_frames(key_frames),.timer_acks(timer_acks),.gpu_acks(gpu_acks),.last_key(last_key));
 pace_guide_blitter gpu(.clk(clk_sys),.reset(core_reset),.hold(holding),.start(gpu_start),.descriptor(gpu_descriptor),
  .done(gpu_done),.busy(gpu_busy),.error(gpu_error),.completions(gpu_count),.last_opcode(gpu_last),

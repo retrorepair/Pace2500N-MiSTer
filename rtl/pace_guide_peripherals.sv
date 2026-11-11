@@ -22,6 +22,7 @@ module pace_guide_peripherals #(
  output reg gpu_start=0,
  output wire [31:0] gpu_descriptor,osd_root,
  input wire gpu_done,transport_irq,transport_lock,
+ input wire mpeg_irq,               // EMMA MPEG video decoder (rtl/pace_mpeg_status.sv), status bit 0x400
  output reg [7:0] model_halt=0,
  output reg [31:0] serial_frames=0,key_frames=0,timer_acks=0,gpu_acks=0,
  output reg [7:0] last_key=0
@@ -88,7 +89,7 @@ module pace_guide_peripherals #(
        ((regval(32'hb2009020)&regval(32'hb2009030)&1)!=0?32'h2000:32'd0) |
        ((regval(32'hb2006050)&regval(32'hb2006060)&1)!=0?32'h200000:32'd0) |
        ((regval(32'hb2002060)&regval(32'hb2002070))!=0?32'h10000:32'd0) |
-       (gpu_pending?32'd2:32'd0) | (transport_irq?32'h01000000:32'd0);
+       (gpu_pending?32'd2:32'd0) | (transport_irq?32'h01000000:32'd0) | (mpeg_irq?32'h00000400:32'd0);
  assign io_irq=(irq_status&regval(32'hb0000040))!=0;
  assign io_ready=io_req && ee_commit_count==0 && model_halt==0;
  assign gpu_descriptor=regval(32'hb0009100);
@@ -316,7 +317,7 @@ module pace_guide_peripherals #(
   .clk(clk),.reset(reset),.hold(hold),.retired(retired),.io_req(io_req),.io_we(io_we),.io_addr(io_addr),
   .io_wdata(io_wdata),.io_size(io_size),.io_rdata(g_io_rdata),.io_ready(g_io_ready),.io_irq(g_io_irq),
   .key_valid(key_valid),.key_pressed(key_pressed),.key_code(key_code),.gpu_start(g_gpu_start),
-  .gpu_descriptor(g_gpu_descriptor),.osd_root(g_osd_root),.gpu_done(gpu_done),.transport_irq(transport_irq),
+  .gpu_descriptor(g_gpu_descriptor),.osd_root(g_osd_root),.gpu_done(gpu_done),.transport_irq(transport_irq),.mpeg_irq(mpeg_irq),
   .transport_lock(transport_lock),.model_halt(g_model_halt),.serial_frames(g_serial_frames),
   .key_frames(g_key_frames),.timer_acks(g_timer_acks),.gpu_acks(g_gpu_acks),.last_key(g_last_key));
  reg [63:0] lockstep_cycles=0;

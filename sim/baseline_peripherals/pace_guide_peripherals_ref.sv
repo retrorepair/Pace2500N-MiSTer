@@ -22,6 +22,7 @@ module pace_guide_peripherals_ref #(
  output reg gpu_start=0,
  output wire [31:0] gpu_descriptor,osd_root,
  input wire gpu_done,transport_irq,transport_lock,
+ input wire mpeg_irq,               // EMMA MPEG video decoder (rtl/pace_mpeg_status.sv), status bit 0x400
  output reg [7:0] model_halt=0,
  output reg [31:0] serial_frames=0,key_frames=0,timer_acks=0,gpu_acks=0,
  output reg [7:0] last_key=0
@@ -68,7 +69,7 @@ module pace_guide_peripherals_ref #(
        ((regval(32'hb2009020)&regval(32'hb2009030)&1)!=0?32'h2000:32'd0) |
        ((regval(32'hb2006050)&regval(32'hb2006060)&1)!=0?32'h200000:32'd0) |
        ((regval(32'hb2002060)&regval(32'hb2002070))!=0?32'h10000:32'd0) |
-       (gpu_pending?32'd2:32'd0) | (transport_irq?32'h01000000:32'd0);
+       (gpu_pending?32'd2:32'd0) | (transport_irq?32'h01000000:32'd0) | (mpeg_irq?32'h00000400:32'd0);
  assign io_irq=(irq_status&regval(32'hb0000040))!=0;
  assign io_ready=io_req && ee_commit_count==0 && model_halt==0;
  assign gpu_descriptor=regval(32'hb0009100);

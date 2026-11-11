@@ -3,7 +3,7 @@
 module emu (
 `include "sys/emu_ports.vh"
 );
-localparam CONF_STR={"Pace2500N_TS;;","F0,BIN,Load FLASH_U202.bin;","F1,BIN,Load RAM checkpoint;","F2,BIN,Load CPU state;","F3,TS,Load transport stream (64MiB max);","S0,TS,Stream transport stream / live ring;","O3,Display,Guide,Diagnostics;","O4,Diagnostic RF lock,From TS,Off;","O5,Broadcast clock (TOT),MiSTer RTC,TS file;","-;","R0,Reset (reload checkpoint);","V,0.6.1 live"};
+localparam CONF_STR={"Pace2500N_TS;;","F0,BIN,Load FLASH_U202.bin;","F1,BIN,Load RAM checkpoint;","F2,BIN,Load CPU state;","F3,TS,Load transport stream (64MiB max);","S0,TS,Stream transport stream / live ring;","O3,Display,Guide,Diagnostics;","O4,Diagnostic RF lock,From TS,Off;","O5,Broadcast clock (TOT),MiSTer RTC,TS file;","-;","R0,Reset (reload checkpoint);","V,0.6.2 decoder irq"};
 wire clk_sys,clk_video,clk_mem,clk_dec,clk_dot,pll_locked;
 pll pll(.refclk(CLK_50M),.rst(1'b0),.outclk_0(clk_sys),.outclk_1(clk_video),
  .outclk_2(clk_mem),.outclk_3(clk_dec),.outclk_4(clk_dot),.locked(pll_locked));
@@ -112,11 +112,15 @@ wire cq,cw,ca,cv,gq,gw,ga,gv,vq,va,vv,tq,ta,tv,dq,da;
 wire [28:0] cad,gad,vad,tad,dad;
 wire [63:0] cwd,gwd,dwd;wire [7:0] cbe,gbe,dbe;
 wire iq,iw,irdy,irq,prdy,device_req,device_ready;wire [31:0] ia,id,ir,pir,dir;wire [1:0] iz;
+// EMMA MPEG decoder interrupt status / header registers (driven by the decoder)
+wire mpeg_hit,mpeg_irq;wire [31:0] mpeg_rdata;
+wire dec_seq_evt,dec_gop_evt,dec_pic_evt,dec_field_evt;wire [11:0] dec_seq_h,dec_seq_v;wire [3:0] dec_seq_ar;
+wire [22:0] dec_gop_tc;wire [1:0] dec_pic_ps;
 wire demux_selected=ia[31:12]==20'hb000a;
 wire demux_config_ready;
 assign device_ready=demux_selected?device_req && demux_config_ready:prdy;
 pace_mmio_response mmio_bus(.clk(clk_sys),.reset(core_reset),.hold(holding),.cpu_req(iq),
- .cpu_ready(irdy),.cpu_data(ir),.device_req(device_req),.device_ready(device_ready),.device_data(demux_selected?dir:pir));
+ .cpu_ready(irdy),.cpu_data(ir),.device_req(device_req),.device_ready(device_ready),.device_data(demux_selected?dir:mpeg_hit?mpeg_rdata:pir));
 wire ts_valid,ts_ready,demux_irq;wire [7:0] ts_data;
 wire [15:0] av_video,av_audio;
 wire raw_valid,raw_ready;wire [7:0] raw_data;wire [31:0] tot_rewrites;
@@ -138,7 +142,7 @@ pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1),.WAL
 pace_guide_peripherals devices(.clk(clk_sys),.reset(core_reset),.hold(holding),.retired(retired),
  .io_req(device_req && !demux_selected),.io_we(iw),.io_addr(ia),.io_wdata(id),.io_size(iz),.io_rdata(pir),.io_ready(prdy),.io_irq(irq),
  .key_valid(key_valid),.key_pressed(key_pressed),.key_code(key_code),.gpu_start(gpu_start),
- .gpu_descriptor(gpu_descriptor),.osd_root(osd_root),.gpu_done(gpu_done),.transport_irq(demux_irq),
+ .gpu_descriptor(gpu_descriptor),.osd_root(osd_root),.gpu_done(gpu_done),.transport_irq(demux_irq),.mpeg_irq(mpeg_irq),
  // tuner lock: a transport is arriving (loaded file, or a streamed/live image)
  .transport_lock((loaded_stream || streaming) && ts_packets>=3 && !status[4]),.model_halt(model_halt),
  .serial_frames(serial_frames),.key_frames(key_frames),.timer_acks(timer_acks),.gpu_acks(gpu_acks),.last_key(last_key));
@@ -205,7 +209,14 @@ pace_mpeg_video mpeg_video(.clk_sys(clk_sys),.clk_dec(clk_dec),.clk_mem(clk_mem)
  .ddr_wdata(DDRAM2_DIN),.ddr_be(DDRAM2_BE),.ddr_rdata(DDRAM2_DOUT),.ddr_rvalid(DDRAM2_DOUT_READY),.ddr_waitrequest(DDRAM2_BUSY),
  .r(dec_r),.g(dec_g),.b(dec_b),.pixel_en(dec_en),.hs(dec_hs),.vs(dec_vs),.h_pos(dec_h),.v_pos(dec_v),
  .video_live(dec_live),.busy(dec_busy),.pictures(dec_pictures),.pickups(dec_pickups),.frames_late(dec_late),.vbuf_fill(dec_vbuf),
- .horizontal_size(dec_hsize),.vertical_size(dec_vsize));
+ .horizontal_size(dec_hsize),.vertical_size(dec_vsize),
+ .seq_evt(dec_seq_evt),.gop_evt(dec_gop_evt),.pic_evt(dec_pic_evt),.field_evt(dec_field_evt),
+ .seq_hsize(dec_seq_h),.seq_vsize(dec_seq_v),.seq_aspect(dec_seq_ar),.gop_time_code(dec_gop_tc),.pic_structure(dec_pic_ps));
+pace_mpeg_status mpeg_status(.clk(clk_sys),.reset(core_reset),
+ .access(device_req && device_ready && !holding && !demux_selected),.we(iw),.addr(ia),.wdata(id),
+ .hit(mpeg_hit),.rdata(mpeg_rdata),.irq(mpeg_irq),
+ .seq_evt(dec_seq_evt),.gop_evt(dec_gop_evt),.pic_evt(dec_pic_evt),.field_evt(dec_field_evt),
+ .seq_hsize(dec_seq_h),.seq_vsize(dec_seq_v),.seq_aspect(dec_seq_ar),.gop_time_code(dec_gop_tc),.pic_structure(dec_pic_ps));
 assign DDRAM2_CLK=clk_mem;
 // MPEG-1 Layer II audio, 48 kHz from the core clock (the replayed broadcast is
 // paced by the same clock, so production and consumption rates are equal).
