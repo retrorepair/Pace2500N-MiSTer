@@ -92,3 +92,6 @@ checkpoints/*/firmware/
 
 # --- Private ROM assets (archived broadcast audio etc.); never pushed ---
 roms/
+
+# --- Downloaded tools (ffmpeg for Windows) ---
+third_party/

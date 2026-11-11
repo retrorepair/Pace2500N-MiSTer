@@ -3,7 +3,7 @@
 module emu (
 `include "sys/emu_ports.vh"
 );
-localparam CONF_STR={"Pace2500N_TS;;","F0,BIN,Load FLASH_U202.bin;","F1,BIN,Load RAM checkpoint;","F2,BIN,Load CPU state;","F3,TS,Load transport stream (64MiB max);","O3,Display,Guide,Diagnostics;","O4,Diagnostic RF lock,From TS,Off;","O5,Broadcast clock (TOT),MiSTer RTC,TS file;","-;","R0,Reset (reload checkpoint);","V,0.5.8 MPEG video+audio"};
+localparam CONF_STR={"Pace2500N_TS;;","F0,BIN,Load FLASH_U202.bin;","F1,BIN,Load RAM checkpoint;","F2,BIN,Load CPU state;","F3,TS,Load transport stream (64MiB max);","S0,TS,Stream transport stream / live ring;","O3,Display,Guide,Diagnostics;","O4,Diagnostic RF lock,From TS,Off;","O5,Broadcast clock (TOT),MiSTer RTC,TS file;","-;","R0,Reset (reload checkpoint);","V,0.6.1 live"};
 wire clk_sys,clk_video,clk_mem,clk_dec,clk_dot,pll_locked;
 pll pll(.refclk(CLK_50M),.rst(1'b0),.outclk_0(clk_sys),.outclk_1(clk_video),
  .outclk_2(clk_mem),.outclk_3(clk_dec),.outclk_4(clk_dot),.locked(pll_locked));
@@ -48,6 +48,10 @@ assign BUTTONS=2'b00;
 assign DDRAM_CLK=clk_sys;
 
 wire [1:0] buttons;
+// Streamed transport stream: image slot 0 (MGL type "s"), read ahead into a
+// DDR3 ring and played at the broadcast rate; any length, looped.
+wire img_mounted,sd_ack,sd_buff_wr,sd_rd,sd_wr;wire [15:0] sd_buff_din;wire [63:0] img_size;wire [31:0] sd_lba;wire [5:0] sd_blk_cnt;
+wire [12:0] sd_buff_addr;wire [15:0] sd_buff_dout;
 wire [127:0] status;
 wire [10:0] ps2_key;
 wire [64:0] rtc;
@@ -62,14 +66,20 @@ hps_io #(.CONF_STR(CONF_STR),.WIDE(1)) io (
  .ioctl_download(ioctl_download),.ioctl_wr(ioctl_wr),.ioctl_index(ioctl_index),
  .ioctl_addr(ioctl_addr),.ioctl_dout(ioctl_dout),.ioctl_wait(ioctl_wait),
  .ioctl_upload_req(1'b0),.ioctl_upload_index(8'h00),.ioctl_din(16'h0000),
- .sd_lba('{32'd0}),.sd_blk_cnt('{6'd0}),.sd_rd(1'b0),.sd_wr(1'b0),.sd_buff_din('{16'h0000}),.sd_buff_wr());
+ .img_mounted(img_mounted),.img_readonly(),.img_size(img_size),
+ .sd_lba('{sd_lba}),.sd_blk_cnt('{sd_blk_cnt}),.sd_rd(sd_rd),.sd_wr(sd_wr),.sd_ack(sd_ack),
+ .sd_buff_addr(sd_buff_addr),.sd_buff_dout(sd_buff_dout),.sd_buff_din('{sd_buff_din}),.sd_buff_wr(sd_buff_wr));
 wire core_reset=!pll_locked || RESET || buttons[1] || status[0];
 reg loaded_flash=0,loaded_ram=0,loaded_state=0;
 reg previous_download=0;reg [15:0] last_download_index=0;
 reg [26:0] last_download_address=0;
 reg [15:0] state_high=0;
 wire loaded_stream;wire [26:0] stream_length;
-wire stream_loading=ioctl_download && ioctl_index==3;
+// stream_restart: playback starts again (new file, or a new live session at a
+// packet boundary). stream_resync additionally resynchronises the demux's
+// packet framing (new mount, or a live switch forced while stalled mid-packet).
+wire stream_restart,stream_resync,streaming,stream_live;
+wire stream_loading=(ioctl_download && ioctl_index==3) || stream_resync;
 pace_ts_load_tracker stream_file(.clk(clk_sys),.reset(core_reset),.download(stream_loading),
  .wr(ioctl_wr && stream_loading),.address(ioctl_addr),.loaded(loaded_stream),.length(stream_length));
 wire holding=ioctl_download || !loaded_flash || !loaded_ram || !loaded_state;
@@ -108,6 +118,7 @@ assign device_ready=demux_selected?device_req && demux_config_ready:prdy;
 pace_mmio_response mmio_bus(.clk(clk_sys),.reset(core_reset),.hold(holding),.cpu_req(iq),
  .cpu_ready(irdy),.cpu_data(ir),.device_req(device_req),.device_ready(device_ready),.device_data(demux_selected?dir:pir));
 wire ts_valid,ts_ready,demux_irq;wire [7:0] ts_data;
+wire [15:0] av_video,av_audio;
 wire raw_valid,raw_ready;wire [7:0] raw_data;wire [31:0] tot_rewrites;
 wire [31:0] ts_loops,ts_packets,ts_sections,ts_dropped,ts_crc_errors;
 wire [31:0] pc,inst,retired,ram_writes,last_ram,mmio_address,mmio_value,mmio_read,mmio_writes,guessed_reads,interrupt_count;
@@ -128,19 +139,44 @@ pace_guide_peripherals devices(.clk(clk_sys),.reset(core_reset),.hold(holding),.
  .io_req(device_req && !demux_selected),.io_we(iw),.io_addr(ia),.io_wdata(id),.io_size(iz),.io_rdata(pir),.io_ready(prdy),.io_irq(irq),
  .key_valid(key_valid),.key_pressed(key_pressed),.key_code(key_code),.gpu_start(gpu_start),
  .gpu_descriptor(gpu_descriptor),.osd_root(osd_root),.gpu_done(gpu_done),.transport_irq(demux_irq),
- .transport_lock(loaded_stream && ts_packets>=3 && !status[4]),.model_halt(model_halt),
+ // tuner lock: a transport is arriving (loaded file, or a streamed/live image)
+ .transport_lock((loaded_stream || streaming) && ts_packets>=3 && !status[4]),.model_halt(model_halt),
  .serial_frames(serial_frames),.key_frames(key_frames),.timer_acks(timer_acks),.gpu_acks(gpu_acks),.last_key(last_key));
 pace_guide_blitter gpu(.clk(clk_sys),.reset(core_reset),.hold(holding),.start(gpu_start),.descriptor(gpu_descriptor),
  .done(gpu_done),.busy(gpu_busy),.error(gpu_error),.completions(gpu_count),.last_opcode(gpu_last),
  .mem_req(gq),.mem_we(gw),.mem_addr(gad),.mem_wdata(gwd),.mem_be(gbe),.mem_burst(gburst),
  .mem_accept(ga),.mem_rvalid(gv),.mem_rdata(DDRAM_DOUT));
 
-pace_ts_replay transport(.clk(clk_sys),.reset(core_reset || stream_loading),.hold(holding),
- .enabled(loaded_stream),.length(stream_length),.fast(stream_length>27'd1048576),.valid(raw_valid),.ready(raw_ready),.data(raw_data),.loops(ts_loops),
+wire [31:0] stream_written,stream_played,stream_loops,stream_underruns;
+wire sq,sa;wire [28:0] sad;wire [63:0] swd;wire [7:0] sbe;
+wire [16:0] utc_seconds;wire utc_valid;wire [39:0] stream_start;
+pace_ts_stream ts_stream(.clk(clk_sys),.reset(core_reset),.now_seconds(utc_seconds),.now_valid(utc_valid),
+ .img_mounted(img_mounted),.img_size(img_size),
+ .sd_lba(sd_lba),.sd_blk_cnt(sd_blk_cnt),.sd_rd(sd_rd),.sd_wr(sd_wr),.sd_ack(sd_ack),
+ .sd_buff_addr(sd_buff_addr),.sd_buff_dout(sd_buff_dout),.sd_buff_wr(sd_buff_wr),.sd_buff_din(sd_buff_din),
+ .video_pid(av_video),.audio_pid(av_audio),.underruns(stream_underruns),.boundary(ts_boundary),
+ .resync(stream_resync),.live(stream_live),
+ .played(stream_played),.active(streaming),.restart(stream_restart),.written(stream_written),.loops(stream_loops),.start_byte(stream_start),
+ .mem_req(sq),.mem_addr(sad),.mem_wdata(swd),.mem_be(sbe),.mem_accept(sa));
+// Pre-fill 512 KiB of the ring (0.67 s) before playing a stream, so network
+// latency on the share does not starve the player.
+reg stream_go=0;
+always @(posedge clk_sys)if(core_reset || stream_restart)stream_go<=0;else if(stream_written>=32'd524288 || stream_loops!=0)stream_go<=1;
+// Packet phase of the replayed stream (for live switches between packets).
+reg [7:0] ts_phase=0;
+wire ts_boundary=ts_phase==0;
+always @(posedge clk_sys)
+ if(core_reset || stream_loading || stream_restart)ts_phase<=0;
+ else if(raw_valid && raw_ready)ts_phase<=ts_phase==8'd187 ? 8'd0 : ts_phase+1'b1;
+pace_ts_replay transport(.clk(clk_sys),.reset(core_reset || stream_loading || stream_restart),.hold(holding),
+ .enabled((streaming && stream_go) || (!streaming && loaded_stream)),.length(streaming ? 27'h400000 : stream_length),
+ .fast(streaming || stream_length>27'd1048576),.stream(streaming),.available(stream_written),
+ .played(stream_played),.underruns(stream_underruns),.valid(raw_valid),.ready(raw_ready),.data(raw_data),.loops(ts_loops),
  .mem_req(tq),.mem_addr(tad),.mem_accept(ta),.mem_rvalid(tv),.mem_rdata(DDRAM_DOUT));
 // The replayed broadcast's TOT carries today's date/time from the MiSTer RTC.
-pace_tot_clock broadcast_clock(.clk(clk_sys),.reset(core_reset || stream_loading),.enable(!status[5]),.rtc(rtc),
- .in_valid(raw_valid),.in_ready(raw_ready),.in_data(raw_data),.out_valid(ts_valid),.out_ready(ts_ready),.out_data(ts_data),.rewritten(tot_rewrites));
+pace_tot_clock broadcast_clock(.clk(clk_sys),.reset(core_reset || stream_loading || stream_restart),.enable(!status[5]),.rtc(rtc),
+ .in_valid(raw_valid),.in_ready(raw_ready),.in_data(raw_data),.out_valid(ts_valid),.out_ready(ts_ready),.out_data(ts_data),.rewritten(tot_rewrites),
+ .seconds_of_day(utc_seconds),.time_valid(utc_valid));
 pace_section_demux demux(.clk(clk_sys),.reset(core_reset),.stream_reset(stream_loading),.hold(holding),
  .ts_valid(ts_valid),.ts_ready(ts_ready),.ts_data(ts_data),
  .io_req(device_req && demux_selected),.io_we(iw),.io_addr(ia),.io_wdata(id),.io_size(iz),.io_rdata(dir),.irq(demux_irq),.config_ready(demux_config_ready),
@@ -150,12 +186,12 @@ pace_section_demux demux(.clk(clk_sys),.reset(core_reset),.stream_reset(stream_l
 
 // ---- MPEG A/V: the elementary streams on the PIDs the firmware routes to the
 // EMMA's A/V decoder (B000A094 video, B000A098 audio, bit 14 = on).
-wire [15:0] av_video,av_audio;
+// (av_video/av_audio are declared with the transport wiring above)
 wire video_on=av_video[14] && !holding;
 wire audio_on=av_audio[14] && !holding;
 wire [7:0] ves_data,aes_data;wire ves_valid,ves_ready,aes_valid,aes_full;
 wire [31:0] ves_bytes,aes_bytes;wire [15:0] ves_dropped,aes_dropped;
-pace_av_pes #(.FIFO_BITS(10)) av_pes(.clk(clk_sys),.reset(core_reset || stream_loading),.ts_strobe(ts_valid && ts_ready),.ts_data(ts_data),
+pace_av_pes #(.FIFO_BITS(10)) av_pes(.clk(clk_sys),.reset(core_reset || stream_loading || stream_restart),.ts_strobe(ts_valid && ts_ready),.ts_data(ts_data),
  .video_pid(av_video[12:0]),.audio_pid(av_audio[12:0]),.video_on(video_on),.audio_on(audio_on),
  .video_data(ves_data),.video_valid(ves_valid),.video_ready(ves_ready),
  .audio_data(aes_data),.audio_valid(aes_valid),.audio_ready(!aes_full),
@@ -215,9 +251,9 @@ pace_video_mix mixer(.clk_video(clk_video),.dec_r(dec_r),.dec_g(dec_g),.dec_b(de
 reg [7:0] read_beats=0;
 // Video, graphics, section writes, replay reads, CPU. Transport is rate limited.
 reg read_pending=0;reg [2:0] read_owner=0;
-wire [2:0] owner=vq?3'd2:gq?3'd1:dq?3'd4:tq?3'd3:3'd0;
-wire request=vq || gq || dq || tq || cq;
-wire write_request=owner==2 || owner==3?1'b0:owner==4?1'b1:owner==1?gw:cw;
+wire [2:0] owner=vq?3'd2:gq?3'd1:dq?3'd4:tq?3'd3:sq?3'd5:3'd0;
+wire request=vq || gq || dq || tq || sq || cq;
+wire write_request=owner==2 || owner==3?1'b0:owner==4 || owner==5?1'b1:owner==1?gw:cw;
 wire accepted=request && !holding && !read_pending && !DDRAM_BUSY;
 wire load_memory=ioctl_download && (ioctl_index<2 || ioctl_index==3);
 wire download_store=load_memory && ioctl_wr && !DDRAM_BUSY && !read_pending && (ioctl_index!=3 || ioctl_addr<27'd67108864);
@@ -226,7 +262,7 @@ assign ca=accepted && owner==0;assign ga=accepted && owner==1;assign va=accepted
 assign cv=DDRAM_DOUT_READY && read_pending && read_owner==0;
 assign gv=DDRAM_DOUT_READY && read_pending && read_owner==1;
 assign vv=DDRAM_DOUT_READY && read_pending && read_owner==2;
-assign ta=accepted && owner==3;assign da=accepted && owner==4;
+assign ta=accepted && owner==3;assign da=accepted && owner==4;assign sa=accepted && owner==5;
 assign tv=DDRAM_DOUT_READY && read_pending && read_owner==3;
 always @(posedge clk_sys)begin
  if(core_reset)read_pending<=0;
@@ -237,9 +273,9 @@ always @(posedge clk_sys)begin
 end
 assign DDRAM_ADDR=download_store ?
  (ioctl_index==0 ? 29'h06400000+{8'd0,ioctl_addr[20:3]} : ioctl_index==3?29'h06600000+{5'd0,ioctl_addr[26:3]}:29'h06000000+{5'd0,ioctl_addr[23:3]}) :
- owner==2?vad:owner==1?gad:owner==4?dad:owner==3?tad:cad;
-assign DDRAM_DIN=download_store ? ({48'd0,ioctl_dout}<<(ioctl_addr[2:0]*8)) : owner==4?dwd:owner==1?gwd:cwd;
-assign DDRAM_BE=download_store ? (8'h03<<ioctl_addr[2:0]) : owner==4?dbe:owner==2 || owner==3?8'hff:owner==1?gbe:cbe;
+ owner==2?vad:owner==1?gad:owner==4?dad:owner==3?tad:owner==5?sad:cad;
+assign DDRAM_DIN=download_store ? ({48'd0,ioctl_dout}<<(ioctl_addr[2:0]*8)) : owner==4?dwd:owner==5?swd:owner==1?gwd:cwd;
+assign DDRAM_BE=download_store ? (8'h03<<ioctl_addr[2:0]) : owner==4?dbe:owner==5?sbe:owner==2 || owner==3?8'hff:owner==1?gbe:cbe;
 assign DDRAM_WE=download_store || (accepted && write_request);
 assign DDRAM_BURSTCNT=(!download_store && owner==1 && !write_request) ? gburst : 8'd1;
 assign DDRAM_RD=accepted && !write_request;
@@ -270,7 +306,7 @@ pace_debug_uart telemetry(.clk(clk_sys),.reset(!pll_locked),.tx(UART_TXD),
  .pc(pc),.instruction(inst),.retired(retired),.ram_writes(ram_writes),
  .mmio_address({gpu_count[15:0],ts_sections[15:0]}),.mmio_value({key_count[15:0],key_frames[15:0]}),
  .mmio_read({dec_pictures[7:0],dec_vbuf,video_on,audio_on,dec_live,mp2_synced,mp2_err,dec_busy,2'd0,ves_dropped[7:0]}),.interrupt_count(interrupt_count),
- .guessed_reads(ts_packets),.mmio_policy(2'd1),.halt_code(halt_code),.mips16(mips16),.full_flash_loaded(loaded_flash),
+ .guessed_reads(streaming ? {stream_underruns[15:0],stream_written[25:10]-stream_played[25:10]} : ts_packets),.mmio_policy(2'd1),.halt_code(halt_code),.mips16(mips16),.full_flash_loaded(loaded_flash),
  .ev_valid(trace_event),.ev_we(iw),.ev_addr(ia),.ev_data(iw ? id : (demux_selected ? dir : pir)));
 endmodule
 

@@ -20,7 +20,9 @@ module pace_tot_clock #(
  input wire [64:0] rtc,           // hps_io RTC: [47:40] yy,[39:32] mm,[31:24] dd,[23:16] hh,[15:8] mi,[7:0] ss (BCD)
  input wire in_valid,output wire in_ready,input wire [7:0] in_data,
  output wire out_valid,input wire out_ready,output wire [7:0] out_data,
- output reg [31:0] rewritten=0
+ output reg [31:0] rewritten=0,
+ // the running broadcast clock as a UTC second of the day (for stream joining)
+ output reg [16:0] seconds_of_day=0,output wire time_valid
 );
  assign out_valid=in_valid;
  assign in_ready=out_ready;
@@ -56,6 +58,9 @@ module pace_tot_clock #(
  // which includes Main's update toggle in bit 64) is loaded two clocks later,
  // once the conversion registers above hold it.
  reg [64:0] rtc_seen=0;reg [1:0] load=0;reg running=0;
+ assign time_valid=running;
+ always @(posedge clk)
+  seconds_of_day<=17'(bcd2bin(hms[23:16]))*17'd3600+17'(bcd2bin(hms[15:8]))*17'd60+17'(bcd2bin(hms[7:0]));
  reg [31:0] tick=0;
  function automatic [7:0] bcd_inc(input [7:0] b);bcd_inc=b[3:0]==4'd9 ? {b[7:4]+4'd1,4'd0} : b+8'd1;endfunction
  always @(posedge clk)begin

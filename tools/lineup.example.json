@@ -1,0 +1,26 @@
+{
+ "channels": [
+  {
+   "name": "BBC1", "number": 101, "style": "bbc", "start": "06:00",
+   "interstitials": ["roms/interstitials/bbc1_1988_89"],
+   "programmes": [
+    {"title": "Children's BBC", "source": "X:/Old Kids TV/Children's BBC - 19th October 1989.mpg"}
+   ]
+  },
+  {
+   "name": "ITV", "number": 103, "style": "itv", "start": "06:00",
+   "interstitials": ["roms/interstitials/itv_1987_89"],
+   "programmes": [
+    {"title": "DuckTales", "source": "X:/TV Shows/DuckTales/Season 1/1x01 - Don't Give Up the Ship (Part 1).avi"},
+    {"title": "DuckTales", "source": "plex:12345", "inpoint": 0, "duration": null}
+   ]
+  },
+  {
+   "name": "Sky One", "number": 106, "style": "sky", "start": "06:00",
+   "interstitials": ["roms/interstitials/sky1_1993_94"],
+   "programmes": [
+    {"title": "Friends", "source": "X:/TV Shows/Friends/Friends.S01E01.mkv", "breaks": "auto"}
+   ]
+  }
+ ]
+}

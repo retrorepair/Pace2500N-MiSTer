@@ -713,3 +713,33 @@ Built and simulated, NOT yet in a core build:
 Still to do for a picture: PLL outputs (90 MHz mem, ~79.4 MHz decode, 27 MHz dot), `ram2` DDR3 port from
 sys_top to emu, instantiate pes/decoder/mp2/mixer in `Pace2500N_Transport.sv`, SDC clock groups, build,
 deploy, load the 64 MiB stream. Then: menu music selection by the firmware, clock not advancing, reminder hang.
+
+## v0.5.9 / v0.6.x — streaming and live channels (11 Nov 2026)
+
+- **v0.5.9 (file streaming):** `rtl/pace_ts_stream.sv` reads a stream image (MGL `type="s"`)
+  through hps_io's block interface into the 4 MiB DDR3 ring at 0x33000000 and joins at "now"
+  (stream-info packet `PACESTRM` + anchor). Verified on hardware: ring stays full, 0 underruns.
+  Bug found on hardware: the replay's `played+8 <= available` test was not wrap-safe, so the
+  player stalled after 4 GiB (~91 min). Fixed with a modular difference (`pace_ts_replay.sv`).
+- **v0.6.0 (live):** a `PACELIVE` header makes the image a ring file in HPS RAM (`/tmp`), filled by
+  `tools/mister/pace_live_relay.py` from the PC playout server (`tools/pace_playout.py`). The core
+  writes a status block (block 1, `PACESTAT`: session, read position, the firmware's demux
+  A/V routing registers B000A094/B000A098, played, underruns) with `sd_wr`; a new relay session
+  switches playback at a TS packet boundary (`ts_phase` in the top level). Bench
+  `sim/tb_ts_live.sv`: byte-exact across ring wraps and a session switch (switch at packet
+  boundary), status fields correct; `sim/tb_ts_stream.sv` (file mode) still passes.
+  Hardware: mount from /tmp works; status every ~55 ms; relay requests guide data when the
+  PIDs are 1FFF; consumption at the broadcast rate; ring full.
+- **Bug found on hardware (since v0.5.9):** tuner lock (`transport_lock`, B2006040) was only
+  asserted for an ioctl-loaded stream, so with a streamed/live image the firmware reported
+  "No satellite signal is being received" and ALL CHANNELS stayed on "Searching for listings".
+  v0.6.1 asserts lock while a streamed/live image is active.
+- Timing note v0.6.0: framework HDMI scaler clock (pll_hdmi) setup slack -0.025 ns; placement
+  variation (v0.5.9: +0.25 ns). Watch HDMI; re-seed if needed.
+- PC side: `tools/pace_channels.py` (line-up metadata, library cache, interstitial spot cuts from
+  black frames + silence, deterministic daily schedule with period breaks, SI tables),
+  `tools/pace_playout.py` (on-demand transcode per schedule item with Windows ffmpeg 9.0.2,
+  SI woven in, CC renumbered), `tools/pace_builder.pyw` (tkinter GUI), mock line-up
+  `tools/make_mock_lineup.py` → `roms/lineup_mock.json`. Interstitial rips in `roms/interstitials/`.
+- 7-day titles (PIDs 0x30-0x37) are generated but unproven on the firmware; settings `days` = 1
+  until verified.
