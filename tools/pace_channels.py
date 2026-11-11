@@ -33,7 +33,11 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-ROOT = HERE.parent
+ROOT = HERE.parent              # data folder (line-ups, roms/); the app sets it from settings
+FROZEN = getattr(sys, 'frozen', False)          # running as the packaged Windows app
+APP_DIR = Path(sys.executable).parent if FROZEN else None
+# no console window flashing up for every ffmpeg/ffprobe run from the GUI
+NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 sys.path.insert(0, str(HERE))
 from pace_si import u16, loop, descriptor, long_section, tot, title_section  # noqa: E402
 from pace_transport import Packetizer  # noqa: E402
@@ -42,7 +46,16 @@ RATE = 781250                    # stream bytes per second (6.25 Mbit/s, the cor
 EPOCH = date(1858, 11, 17)
 
 
+def bundled(name):
+    """A tool shipped next to the packaged app (ffmpeg.exe, ffprobe.exe, yt-dlp.exe)."""
+    if APP_DIR and (APP_DIR / 'tools' / name).exists():
+        return str(APP_DIR / 'tools' / name)
+    return None
+
+
 def default_ffmpeg():
+    if bundled('ffmpeg.exe'):
+        return bundled('ffmpeg.exe')
     local = sorted(ROOT.glob('third_party/ffmpeg-*/bin/ffmpeg.exe'))
     return str(local[-1]) if local else 'ffmpeg'
 
@@ -55,6 +68,11 @@ def settings_path():
 def load_settings():
     p = settings_path()
     s = json.loads(p.read_text()) if p.exists() else {}
+    global ROOT
+    if s.get('data_root') and Path(s['data_root']).is_dir():
+        ROOT = Path(s['data_root'])
+    if FROZEN and bundled('ffmpeg.exe') and not Path(s.get('ffmpeg', '')).exists():
+        s['ffmpeg'] = bundled('ffmpeg.exe')
     s.setdefault('ffmpeg', default_ffmpeg())
     s.setdefault('port', 8250)
     s.setdefault('huffman_ram', str(ROOT / 're' / 'fpga_guide_checkpoint' / 'RAM.bin'))
@@ -132,7 +150,7 @@ class Media:
         k = self.key(source)
         hit = self.cache.get(k, {})
         if 'duration' not in hit:
-            out = subprocess.run([self.ffprobe, '-v', 'error', '-show_entries',
+            out = subprocess.run(creationflags=NO_WINDOW, args=[self.ffprobe, '-v', 'error', '-show_entries',
                                   'format=duration:stream=codec_type,codec_name,width,height',
                                   '-of', 'json', self.url(source)], capture_output=True, text=True)
             if out.returncode:
@@ -152,7 +170,7 @@ class Media:
         hit = self.cache.setdefault(k, {})
         if 'cuts' not in hit or 'silence' not in hit:
             log(f'analysing cuts: {source}')
-            out = subprocess.run([self.ffmpeg, '-hide_banner', '-nostdin', '-i', self.url(source),
+            out = subprocess.run(creationflags=NO_WINDOW, args=[self.ffmpeg, '-hide_banner', '-nostdin', '-i', self.url(source),
                                   '-vf', 'scale=128:-2,blackdetect=d=0.06:pix_th=0.12:pic_th=0.95',
                                   '-af', 'silencedetect=n=-42dB:d=0.12', '-f', 'null', '-'],
                                  capture_output=True, text=True, errors='replace')

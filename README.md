@@ -59,17 +59,28 @@ Copy to the MiSTer SD card:
 
 The firmware and checkpoint images are not distributed; they come from your own box.
 
-## 2. Set up the PC (Windows)
+## 2. The Windows app: Pace Channel Builder
 
-1. Install Python 3.12 (`py -3` must work).
-2. Get ffmpeg for Windows: unzip the gyan.dev *release essentials* build into
-   `Pace2500N/third_party/` (the tools find `third_party/ffmpeg-*/bin/ffmpeg.exe`).
-3. For ripping adverts: `py -3 -m pip install --user yt-dlp`.
-4. Start the **Channel Builder**: `py -3 tools\pace_builder.pyw`.
-   - *Settings*: check the ffmpeg path; for Plex enter the server address
-     (e.g. `http://192.168.1.53:32400`) and your **Plex token**, then *Test Plex*.
-     Settings live in `%APPDATA%\Pace2500N\settings.json`, never in the project.
-5. Allow Python through Windows Firewall when asked (the MiSTer connects to port 8250).
+A normal Windows program - nothing else to install (Python, ffmpeg and yt-dlp
+are inside its folder).
+
+- **Run it:** *Pace Channel Builder* on the Desktop / Start menu, or
+  `dist\PaceChannelBuilder\PaceChannelBuilder.exe`. Keep the whole
+  `PaceChannelBuilder` folder together if you move it.
+- **Plex:** *Settings* tab -> **Sign in with Plex...**. Your browser opens Plex's
+  own sign-in page; approve *Pace Channel Builder* and the app receives the
+  token and finds your server by itself. You never copy a token by hand.
+  (*Test connection* lists your libraries.)
+- **Playout runs inside the app** and starts when the app opens (tick box in
+  Settings). The *Playout* tab shows what each channel is showing and what is
+  being streamed to the box. Keep the app open while you use the box.
+- First time only: allow it through Windows Firewall if asked (the MiSTer
+  connects to port 8250).
+- Settings live in `%APPDATA%\Pace2500N\settings.json` (never in the project
+  or on GitHub). The *Data folder* holds line-ups and `roms\` (ripped adverts).
+
+To rebuild the app from source: `tools\build_app.bat` (needs Python and
+PyInstaller on the build machine only).
 
 ## 3. Install the relay on the MiSTer (once)
 
@@ -90,36 +101,34 @@ Pace core runs. Its log is `/tmp/pace_live_relay.log`.
 
 ## 4. Build channels
 
-In the Channel Builder:
+In the app:
 
-- **Channels tab** — *Add* a channel, set name, number, style (`bbc`, `itv`,
-  `sky`), the time the broadcast day starts (UTC) and its interstitial sets
-  (`roms/interstitials/<set>`, several separated by `;`). Add programmes from
-  files or *Add from Plex*. The programme list repeats to fill the day.
-- **Interstitials tab** — search YouTube (e.g. `TVS adverts 1987`,
+- **Channels** - *Add* a channel; set its name, number, **style** (BBC style:
+  continuity, no adverts / ITV style: terrestrial advert breaks / Sky style:
+  satellite breaks), when its broadcast day starts, and tick the advert /
+  continuity sets it uses. Add programmes with *Add files...* or
+  *Add from Plex...* (pick a library, a show, then episodes). The list repeats
+  to fill the day. *Apply changes* saves.
+- **Adverts & continuity** - search YouTube (e.g. `TVS adverts 1987`,
   `BBC1 continuity 1989`, `Sky One adverts 1994`), select results and *Rip
-  selected* into a set named for the station and years. Each set is analysed
-  for the cuts between spots automatically. Ripped files stay under `roms/`
-  and are never committed.
-- **Schedule tab** — *Prepare* finds natural break points (black frames) in
-  ITV/Sky programmes once (cached); *Build today's guide* shows exactly what the
-  box's guide will list.
-- **Playout tab** — *Start playout server*. *Open status page* shows every
-  channel's now/next and what is being streamed to the box.
+  selected* into a set named for the station and years. The app splits each
+  recording into its original spots by itself.
+- **Schedule** - *Show today's guide* lists exactly what the box will show.
+  *Find natural breaks* (once per programme, slow) moves ITV/Sky centre breaks
+  to the programme's own fade-to-black points.
 
-Command-line equivalents: `py -3 tools/pace_channels.py schedule LINEUP.json`,
-`... prepare LINEUP.json`, `... analyse roms/interstitials/<set>`,
-`py -3 tools/pace_playout.py LINEUP.json`. A sample line-up is
-`tools/lineup.example.json`; `tools/make_mock_lineup.py` writes the mock
-BBC1/ITV/Sky One line-up used for testing.
+For scripting there are command-line equivalents (`tools/pace_channels.py`,
+`tools/pace_playout.py`); a sample line-up is `tools/lineup.example.json`.
 
 ## 5. Watch
 
-1. Start the playout server on the PC.
+1. Open **Pace Channel Builder** on the PC (playout starts with it).
 2. On the MiSTer load **Pace2500N_V061_Live**. The firmware starts in the Guide.
-3. Open the guide / *All Channels* and select a channel; after a few seconds
-   (the PC starts the transcode at the scheduled point) the picture appears.
+3. Press **TV Guide** (F1), choose **All Channels**, highlight a channel and
+   press **Select** (Enter). After a few seconds (the PC starts the transcode at
+   the scheduled point) the picture and sound appear.
    Keyboard/remote mapping: `KEYBOARD_REMOTE_MAP.md`.
+4. For now, to watch a different channel reload the core first (see *What works*).
 
 Channel numbering in the line-up maps to the box's services: channel *n*
 (0-based) is SID 1001+n, video PID 0x200+0x10·n, audio PID 0x102+0x10·n.
@@ -128,8 +137,8 @@ Channel numbering in the line-up maps to the box's services: channel *n*
 
 | Symptom | Check |
 |---------|-------|
-| Guide has no listings | Is the playout server running? `/tmp/pace_live_relay.log` on the MiSTer shows `tuned:` lines and connection errors. |
-| Relay can't reach the PC | `relay.ini` address; Windows Firewall rule for Python on port 8250. |
+| Guide has no listings | Is the app open with playout *Running*? `/tmp/pace_live_relay.log` on the MiSTer shows `tuned:` lines and connection errors. |
+| Relay can't reach the PC | `relay.ini` address (the app shows this PC's address on its Playout tab); Windows Firewall rule for the app on port 8250. |
 | Picture freezes | Status page *Streaming* section; network speed (6.25 Mbit/s needed). |
 | Wrong programme for the time | The MiSTer's clock (RTC) drives the guide; the PC uses its own clock — keep both on NTP. |
 

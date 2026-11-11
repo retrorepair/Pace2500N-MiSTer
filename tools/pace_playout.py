@@ -153,7 +153,8 @@ class Session:
             self.srv.log(f"{c.name}: {it['kind']} '{it['title']}' {Path(it['source']).name} "
                          f"@{it['inpoint'] + offset:.1f}s for {remaining:.1f}s")
             self.proc = subprocess.Popen(self.srv.ffmpeg_cmd(c, it['source'], it['inpoint'] + offset, remaining),
-                                         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+                                         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                                         creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
             target = self.sent + int(remaining * RATE)
             buf = b''
             while True:
@@ -176,15 +177,16 @@ class Session:
 class Server(ThreadingHTTPServer):
     daemon_threads = True
 
-    def __init__(self, port, lineup, settings):
+    def __init__(self, port, lineup, settings, log=None):
         self.settings = settings
+        self.log_sink = log            # the GUI's log, when running inside the app
         self.lineup_path = lineup
+        self.history = []
         self.chans, self.media = load_lineup(lineup, settings, self.log)
         from pace_huffman import FirmwareHuffman
         self.codec = FirmwareHuffman.from_file(settings['huffman_ram'])
         self._si = (0, None)
         self._si_lock = threading.Lock()
-        self.history = []
         super().__init__(('0.0.0.0', port), Handler)
 
     def service(self, video, audio):
@@ -197,7 +199,10 @@ class Server(ThreadingHTTPServer):
 
     def log(self, msg):
         line = time.strftime('%H:%M:%S ') + msg
-        print(line, flush=True)
+        if self.log_sink:
+            self.log_sink(line)
+        else:
+            print(line, flush=True)
         self.history = (self.history + [line])[-40:]
 
     def carousel(self, when):

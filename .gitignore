@@ -95,3 +95,6 @@ roms/
 
 # --- Downloaded tools (ffmpeg for Windows) ---
 third_party/
+
+# --- Packaged Windows app (tools/build_app.bat) ---
+dist/
