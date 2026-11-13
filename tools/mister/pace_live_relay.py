@@ -223,7 +223,9 @@ def step(ring, guest, server, up, tuned, want, want_since, last_seq, alive_at, r
         # before routing the next channel: hold the current stream through that
         # (5 s) rather than restarting twice per zap. If nothing else is
         # routed by then, the box really has stopped and so does the stream.
-        settle = 5.0 if (want and tuned and want[:2] == (0x1fff, 0x1fff) and tuned != want) else 0.3
+        # Not after a retune, though: on another transponder the old stream is simply wrong.
+        settle = 5.0 if (want and tuned and want[:2] == (0x1fff, 0x1fff) and tuned != want
+                         and want[2] == tuned[2]) else 0.3
         if want != tuned and now - want_since >= settle:
             # Same channel (e.g. the Guide stops the video but keeps the sound)?
             # Then keep the stream that is playing.

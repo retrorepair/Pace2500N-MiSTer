@@ -150,12 +150,15 @@ class Session:
                 w.set_si(self.si()); refresh = time.time() + 60
 
     def music(self):
-        """The EPG Background Audio service: the line-up's period MP2, looped, on its PID."""
-        self.srv.log(f"EPG background audio: {Path(self.srv.music).name}")
+        """The EPG Background Audio service: the line-up's period MP2, looped, on its PID - a
+        continuous broadcast, so it is joined where the wall clock says it has got to."""
+        length = self.srv.media.probe(self.srv.music)['duration']
+        at = self.schedule_time() % length
+        self.srv.log(f"EPG background audio: {Path(self.srv.music).name} @{at:.1f}s of {length:.1f}s")
         w = Weaver(self.si(), (MUSIC_PID,))
         refresh = time.time() + 60
         cmd = [self.srv.settings['ffmpeg'], '-hide_banner', '-loglevel', 'error', '-nostdin',
-               '-stream_loop', '-1', '-i', self.srv.music, '-map', '0:a:0', '-c:a', 'copy',
+               '-ss', f'{at:.3f}', '-stream_loop', '-1', '-i', self.srv.music, '-map', '0:a:0', '-c:a', 'copy',
                '-streamid', f'0:{MUSIC_PID}', '-mpegts_pmt_start_pid', str(MUSIC_PMT),
                '-mpegts_service_id', str(MUSIC_SID), '-muxrate', str(RATE * 8), '-f', 'mpegts', 'pipe:1']
         self.proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,

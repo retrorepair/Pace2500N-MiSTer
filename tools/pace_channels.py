@@ -622,12 +622,17 @@ def carousel(tables, today_pid, seconds=8, period_ms=4000):
         return (0xa0 <= s[0] <= 0xa3 and p != today_pid) or 0xa8 <= s[0] <= 0xab
     indices = [(p, s) for p, s in tables if s[0] == 0xc1]
     later = [(p, s) for p, s in tables if spread(p, s)]
-    rest = [(p, s) for p, s in tables if s[0] != 0xc1 and not spread(p, s)]
+    # PAT and PMTs every tick (200 ms), as a broadcaster repeats them: after a retune the box
+    # finds the service it wants without waiting for the 4 s SI round
+    psi = [(p, s) for p, s in tables if s[0] in (0x00, 0x02)]
+    rest = [(p, s) for p, s in tables if s[0] not in (0xc1, 0x00, 0x02) and not spread(p, s)]
     ticks = seconds * 5
     pk = Packetizer()
     data = bytearray()
     for tick in range(ticks):
         start = len(data)
+        for pid, section in psi:
+            data += pk.section(pid, section)
         if tick % (period_ms // 200) == 0:
             for pid, section in rest:
                 data += pk.section(pid, section)

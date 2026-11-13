@@ -96,6 +96,10 @@ service (SID 4152, audio 0x288, own 0xB1 record, 0x91 linkage at it) and serves 
   through transparent OSD areas (we show flat colour). Candidate source: an MPEG still
   broadcast on the home transponder, named like the music by an SI linkage - native (12,0x25)
   looks up linkage type 0x94 (to check).
+- Music start fixed 13 Nov: the relay no longer holds the old stream for 5 s after a RETUNE (only
+  within one transponder), PAT/PMT go every 200 ms, and the music joins the looped track at the
+  wall-clock point. Measured: retune 2-4.5 s after the TV Guide key (the firmware's own delay),
+  music requested the same second.
 - Sky logo, top-left of the Guide - OPEN. Known: the reference project measured that the Guide's
   OSD blits start at x=128 and never paint the top-left 128x112 ("may be where the video window
   belongs, or a blit nothing has issued yet"). The firmware has an "image" device beside "video"
