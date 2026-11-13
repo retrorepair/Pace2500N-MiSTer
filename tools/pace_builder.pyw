@@ -535,7 +535,16 @@ class App(tk.Tk):
             self.load(f)
 
     def load(self, f):
-        self.lineup = json.loads(Path(f).read_text())
+        try:
+            lineup = json.loads(Path(f).read_text())
+            if not isinstance(lineup, dict) or not isinstance(lineup.get('channels'), list):
+                raise ValueError('it has no "channels" list, so it is not a channel line-up')
+        except Exception as e:
+            # never refuse to open over a bad file: say which file and why, start with no line-up
+            self.log(f'could not open line-up {f}: {e}')
+            messagebox.showerror(APP, f'Could not open the line-up\n{f}\n\n{e}\n\nUse Open... on the Channels tab to pick another.')
+            return
+        self.lineup = lineup
         self.lineup_path = f
         self.path_lbl.config(text=f)
         self.settings['last_lineup'] = f
@@ -545,7 +554,11 @@ class App(tk.Tk):
     def save(self):
         if not self.lineup_path:
             return self.save_as()
-        Path(self.lineup_path).write_text(json.dumps(self.lineup, indent=1))
+        # write a temp file and swap it in, so the app closing mid-save can't leave a broken line-up
+        p = Path(self.lineup_path)
+        tmp = p.with_name(p.name + '.saving')
+        tmp.write_text(json.dumps(self.lineup, indent=1))
+        os.replace(tmp, p)
 
     def changed(self):
         """Every edit: save the line-up now (a new one goes to roms/lineup.json), and have a
