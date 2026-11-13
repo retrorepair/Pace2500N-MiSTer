@@ -69,6 +69,17 @@ def title_section(table, listing, mjd, events, codec):
     return long_section(table, listing, u16(mjd) + records)
 
 
+def summary_section(table, listing, mjd, summaries):
+    """OpenTV summary (synopsis) section, tables 0xA8-0xAB on PIDs 0x40-0x47: the title
+    section's addressing and record framing, one descriptor 0xB9 per event carrying the
+    Huffman-coded synopsis. summaries: [(event_id, coded_bytes)]."""
+    records = bytearray()
+    for event_id, coded in summaries:
+        desc = descriptor(0xb9, coded)
+        records += u16(event_id) + u16(0xf000 | len(desc)) + desc
+    return long_section(table, listing, u16(mjd) + records)
+
+
 def loop_events(title, duration, anchor):
     """One programme repeated back to back across the day, a showing starting at
     `anchor` seconds; the first entry is the tail of the showing before midnight."""

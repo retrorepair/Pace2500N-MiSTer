@@ -66,7 +66,8 @@ class Plex:
             if not m.get('duration'):
                 continue
             title = (m.get('grandparentTitle') or m['title']) if kind == 'show' else m['title']
-            out.append({'title': title, 'source': f"plex:{m['ratingKey']}", 'duration': m['duration'] / 1000.0})
+            out.append({'title': title, 'source': f"plex:{m['ratingKey']}", 'duration': m['duration'] / 1000.0,
+                        'summary': m.get('summary', '')})
         return out
 
     def episodes(self, key):
@@ -828,7 +829,7 @@ class App(tk.Tk):
         lines = []
         for c in chans:
             lines.append(f'{c.number}  {c.name}   ({c.style}, {sum(len(r) for r in c.runs)} advert/continuity spots)')
-            for s0, ln, title in c.events_utc(d):
+            for s0, ln, title, _ in c.events_utc(d):
                 lines.append(f'      {s0 // 3600:02d}:{s0 // 60 % 60:02d}  {ln // 60:4d} min  {title}')
             lines.append('')
 

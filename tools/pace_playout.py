@@ -290,8 +290,8 @@ class Server(ThreadingHTTPServer):
             it, off, _ = c.at(t)
             events = c.events_utc(datetime.now(timezone.utc).date())
             sod = t % 86400
-            cur = next(((s, l, ti) for s, l, ti in events if s <= sod < s + l), None)
-            nxt = next(((s, l, ti) for s, l, ti in events if s > sod), None)
+            cur = next(((s, l, ti) for s, l, ti, _ in events if s <= sod < s + l), None)
+            nxt = next(((s, l, ti) for s, l, ti, _ in events if s > sod), None)
             out.append(dict(number=c.number, name=c.name, style=c.style,
                             now=cur[2] if cur else '', next=nxt[2] if nxt else '',
                             next_at=f'{nxt[0]//3600:02d}:{nxt[0]//60%60:02d}' if nxt else '',

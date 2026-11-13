@@ -39,7 +39,7 @@ APP_DIR = Path(sys.executable).parent if FROZEN else None
 # no console window flashing up for every ffmpeg/ffprobe run from the GUI
 NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 sys.path.insert(0, str(HERE))
-from pace_si import u16, loop, descriptor, long_section, tot, title_section  # noqa: E402
+from pace_si import u16, loop, descriptor, long_section, tot, title_section, summary_section  # noqa: E402
 from pace_transport import Packetizer  # noqa: E402
 
 RATE = 781250                    # stream bytes per second (6.25 Mbit/s, the core's replay rate)
@@ -145,6 +145,27 @@ class Media:
         meta = json.load(urllib.request.urlopen(req, timeout=10))
         part = meta['MediaContainer']['Metadata'][0]['Media'][0]['Part'][0]['key']
         return f'{base}{part}?X-Plex-Token={token}'
+
+    def summary(self, source):
+        """Synopsis for the guide: Plex's summary for plex: sources (fetched once, cached);
+        '' for files and when Plex can't be reached (the guide then shows none)."""
+        if not source.startswith('plex:'):
+            return ''
+        hit = self.cache.setdefault(source, {})
+        if 'summary' not in hit:
+            import urllib.request
+            base, token = self.s.get('plex_url'), self.s.get('plex_token')
+            if not base or not token:
+                return ''
+            try:
+                req = urllib.request.Request(f'{base}/library/metadata/{source[5:]}?X-Plex-Token={token}',
+                                             headers={'Accept': 'application/json'})
+                meta = json.load(urllib.request.urlopen(req, timeout=10))['MediaContainer']['Metadata'][0]
+            except Exception:
+                return ''
+            hit['summary'] = meta.get('summary') or ''
+            self._summaries_dirty = True
+        return hit['summary']
 
     def probe(self, source):
         k = self.key(source)
@@ -297,7 +318,8 @@ class Channel:
             inpoint = float(p.get('inpoint') or 0)
             dur = float(p.get('duration') or (media.probe(p['source'])['duration'] - inpoint))
             self.programmes.append(dict(title=p['title'], source=p['source'], inpoint=inpoint, duration=dur,
-                                        breaks=p.get('breaks', 'auto')))
+                                        breaks=p.get('breaks', 'auto'),
+                                        summary=p.get('summary') or media.summary(p['source'])))
         self.runs = interstitial_runs(media, cfg.get('interstitials', []), log)
         self._days = {}
 
@@ -359,7 +381,7 @@ class Channel:
                 items.append(dict(kind='continuity' if self.style == 'bbc' else 'break', title='',
                                   source=src, inpoint=s0, start=t, length=ln))
                 t += ln
-            events.append((slot, t - slot, p['title']))
+            events.append((slot, t - slot, p['title'], p['summary']))
         self._days[n] = (items, events)
         return items, events
 
@@ -374,18 +396,18 @@ class Channel:
         return items[-1], 0.0, n
 
     def events_utc(self, d):
-        """Guide events for UTC calendar day d: (start, length, title), even seconds, clipped."""
+        """Guide events for UTC calendar day d: (start, length, title, summary), even seconds, clipped."""
         midnight = datetime(d.year, d.month, d.day, tzinfo=timezone.utc).timestamp()
         out = []
         for n in (int((midnight - self.start) // 86400) + x for x in (0, 1)):
             base = n * 86400 + self.start
-            for s, ln, title in self.day(n)[1]:
+            for s, ln, title, summary in self.day(n)[1]:
                 # the next broadcast day takes over at its start
                 a, b = base + s - midnight, min(base + s + ln, base + 86400) - midnight
                 a, b = max(a, 0), min(b, 86400)
                 a, b = int(a) // 2 * 2, int(b) // 2 * 2
                 if b > a and not (out and out[-1][0] == a):
-                    out.append((a, b - a, title))
+                    out.append((a, b - a, title, summary))
         return out
 
 
@@ -399,6 +421,9 @@ def load_lineup(path, settings, log=print):
             log(f"{c.get('name', 'channel')}: no programmes yet - not broadcast")
             continue
         chans.append(Channel(i, c, media, log))
+    if getattr(media, '_summaries_dirty', False):     # Plex synopses fetched this time
+        media.save()
+        media._summaries_dirty = False
     return chans, media
 
 
@@ -409,6 +434,34 @@ def load_lineup(path, settings, log=print):
 # service record for it, and the Guide's 0x91 home-service linkage pointing at it. Whether
 # the firmware plays it in the Guide is what the experiment measures (CURRENT_STATUS.md).
 MUSIC_SID, MUSIC_PMT, MUSIC_PID, MUSIC_LISTING = 4152, 0x10ff, 0x288, 0x0fff
+
+
+_PLAIN = {'‘': "'", '’': "'", '“': '"', '”': '"', '–': '-', '—': '-',
+          '…': '...', ' ': ' ', '½': '1/2', 'æ': 'ae', 'ß': 'ss'}
+_encodable = {}
+
+
+def guide_text(codec, text, limit):
+    """Text as the box's own Huffman table can carry it: accents and typographic quotes
+    folded to plain ASCII, characters the table has no code for dropped, whitespace
+    collapsed, and cut at a word so the coded form is at most `limit` bytes."""
+    import unicodedata
+    s = ''.join(_PLAIN.get(ch, ch) for ch in (text or ''))
+    s = unicodedata.normalize('NFKD', s).encode('ascii', 'ignore').decode('ascii')
+    keep = []
+    for ch in ' '.join(s.split()):
+        if ch not in _encodable:
+            try:
+                codec.encode(ch); _encodable[ch] = True
+            except ValueError:
+                _encodable[ch] = False
+        if _encodable[ch]:
+            keep.append(ch)
+    s = ''.join(keep)
+    while s and len(codec.encode(s)) > limit:
+        cut = s.rfind(' ', 0, len(s) * 9 // 10)
+        s = (s[:cut] if cut > 0 else s[:len(s) * 9 // 10]).rstrip(' ,;:') + '...'
+    return s
 
 
 def lineup_tables(now, codec, chans, days, music=False):
@@ -431,9 +484,9 @@ def lineup_tables(now, codec, chans, days, music=False):
         name = c.name.encode('latin-1', 'replace')[:40]
         desc = namespace + descriptor(0x48, b'\x01\x05PLAYO' + bytes((len(name),)) + name)
         it, _, _ = c.at(now)
-        current = it['title'] or next((t for s, l, t in c.events_utc(when.date())
+        current = it['title'] or next((t for s, l, t, _ in c.events_utc(when.date())
                                        if s <= now % 86400 < s + l), c.name)
-        desc += descriptor(0xb2, bytes((1, 0, 3 << 5)) + codec.encode(current))
+        desc += descriptor(0xb2, bytes((1, 0, 3 << 5)) + codec.encode(guide_text(codec, current, 200)))
         sdt_body += u16(c.sid) + b'\xfc' + u16(0x8000 | len(desc)) + desc
     if music:
         name = b'EPG Background Audio'
@@ -464,17 +517,30 @@ def lineup_tables(now, codec, chans, days, music=False):
         d = when.date() + timedelta(days=dd)
         mjd = (d - EPOCH).days
         for c in chans:
-            events = [(dd * 1000 + n + 1, s, l, t) for n, (s, l, t) in enumerate(c.events_utc(d))]
+            events = [(dd * 1000 + n + 1, s, l, guide_text(codec, t, 200))
+                      for n, (s, l, t, _) in enumerate(c.events_utc(d))]
+            synopses = [guide_text(codec, sm, 255) for *_, sm in c.events_utc(d)]
             groups = {}
-            for ev in events:
-                groups.setdefault(ev[1] // 21600, []).append(ev)
+            for ev, sm in zip(events, synopses):
+                groups.setdefault(ev[1] // 21600, []).append((ev, sm))
                 if dd == 0:
                     index_events.append((c.listing, ev))
             for block, group in groups.items():
+                titles = [ev for ev, _ in group]
                 # one section per six-hour block; very short programmes could overflow it
-                while group:
-                    tables.append((0x30 | (mjd & 7), title_section(0xa0 | block, c.listing, mjd, group[:28], codec)))
-                    group = group[28:]
+                while titles:
+                    tables.append((0x30 | (mjd & 7), title_section(0xa0 | block, c.listing, mjd, titles[:28], codec)))
+                    titles = titles[28:]
+                # OpenTV summaries: same channel id / day / block addressing as the titles,
+                # table 0xA8-0xAB on PID 0x40-0x47, descriptor 0xB9 per event id; a section
+                # holds as many as fit (a synopsis is up to 255 coded bytes)
+                encoded = [(ev[0], codec.encode(sm)) for ev, sm in group if sm]
+                while encoded:
+                    n, size = 0, 2
+                    while n < len(encoded) and size + 6 + len(encoded[n][1]) <= 1012 - 4:
+                        size += 6 + len(encoded[n][1]); n += 1
+                    tables.append((0x40 | (mjd & 7), summary_section(0xa8 | block, c.listing, mjd, encoded[:n])))
+                    encoded = encoded[n:]
     def index_record(listing, ev):
         return u16(listing) + b'\x0f\xc0\x00' + u16(ev[0]) + b'\x00\x00'
     for letter in range(ord('A'), ord('Z') + 1):
@@ -491,10 +557,13 @@ def lineup_tables(now, codec, chans, days, music=False):
 def carousel(tables, today_pid, seconds=8, period_ms=4000):
     """1 Mbit/s SI carousel in the layout tools/sky_streamer.py uses (8 s, every
     table each 4 s, two C1 index sections per 200 ms tick after 80 packets).
-    Titles of later days go out once per carousel, spread across the ticks."""
+    Titles of later days and all summaries (synopses) go out once per carousel, spread
+    across the ticks."""
+    def spread(p, s):
+        return (0xa0 <= s[0] <= 0xa3 and p != today_pid) or 0xa8 <= s[0] <= 0xab
     indices = [(p, s) for p, s in tables if s[0] == 0xc1]
-    later = [(p, s) for p, s in tables if 0xa0 <= s[0] <= 0xa3 and p != today_pid]
-    rest = [(p, s) for p, s in tables if s[0] != 0xc1 and not (0xa0 <= s[0] <= 0xa3 and p != today_pid)]
+    later = [(p, s) for p, s in tables if spread(p, s)]
+    rest = [(p, s) for p, s in tables if s[0] != 0xc1 and not spread(p, s)]
     ticks = seconds * 5
     pk = Packetizer()
     data = bytearray()
@@ -550,7 +619,7 @@ def main():
     d = date.fromisoformat(args.day) if args.day else datetime.now(timezone.utc).date()
     for c in chans:
         print(f'== {c.number} {c.name} ({c.style}, {len(c.runs)} interstitial recordings)')
-        for s0, ln, title in c.events_utc(d):
+        for s0, ln, title, _ in c.events_utc(d):
             print(f'  {s0//3600:02d}:{s0//60%60:02d}  {ln//60:4d} min  {title}')
 
 
