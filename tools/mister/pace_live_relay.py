@@ -12,6 +12,11 @@ Nothing is requested while the core is not running (its status sequence
 stops), and every change of tuning ends the previous request, so the PC only
 transcodes what the box is actually watching.
 
+The transponder: the firmware's MPEG manager (guest RAM 0x80163198) holds the tuned
+frequency, BCD as in the NIT, at +0x1C. The relay reads it from the FPGA's DDR3 window
+(guest RAM at 0x30000000) and sends it with each request (freq=), so a retune -- e.g. the
+TV Guide tuning the home transponder -- reaches the playout like a PID change does.
+
 File layout (big-endian; must match rtl/pace_ts_stream.sv):
   0     47 1F FE 10 "PACELIVE" session(u32) written(u32) ring_bytes(u32)
   512   "PACESTAT" session(u32) read_pos(u32) video(u16) audio(u16) seq(u32)
@@ -21,7 +26,7 @@ File layout (big-endian; must match rtl/pace_ts_stream.sv):
 Usage: pace_live_relay.py [--server HOST:PORT] [--file /tmp/pace_live.ts]
        [--ring-mib 8] [--config /media/fat/linux/pace/relay.ini]
 """
-import argparse, configparser, fcntl, os, select, socket, struct, sys, time
+import argparse, configparser, fcntl, mmap, os, select, socket, struct, sys, time
 
 CHUNK = 8192
 HEAD = 1024
@@ -36,6 +41,27 @@ def log(msg):
             f.write(line + '\n')
     except OSError:
         pass
+
+
+class GuestRAM:
+    """The core's guest RAM, read-only, from the HPS: DDR3 0x30000000 + physical address."""
+    TUNED_FREQ = 0x801631B4          # MPEG manager 0x80163198 + 0x1C: tuned frequency (BCD)
+
+    def __init__(self):
+        try:
+            fd = os.open('/dev/mem', os.O_RDONLY | os.O_SYNC)
+            self.m = mmap.mmap(fd, 16 << 20, mmap.MAP_SHARED, mmap.PROT_READ, offset=0x30000000)
+        except OSError as e:
+            log(f'guest RAM not readable ({e}): transponder not reported')
+            self.m = None
+
+    def freq(self):
+        """Tuned frequency as BCD (0x01177800 = 11778.00 MHz), None if not a Ku-band value."""
+        if not self.m:
+            return None
+        f = struct.unpack_from('>I', self.m, self.TUNED_FREQ & 0xffffff)[0]
+        ok = all((f >> s & 0xf) < 10 for s in range(0, 32, 4)) and 0x01070000 <= f <= 0x01280000
+        return f if ok else None
 
 
 class Ring:
@@ -77,12 +103,16 @@ class Ring:
         self.header()
 
 
+def query(video, audio, freq):
+    return f'video=0x{video:04x}&audio=0x{audio:04x}' + (f'&freq={freq:08x}' if freq else '')
+
+
 def service_of(server, tuning):
-    """Ask the playout server which service a tuning means ('0', '1', ... or 'guide')."""
+    """Ask the playout server which service a tuning means ('0@1', 'music@0', 'guide@0' ...)."""
     try:
         host, port = server.rsplit(':', 1)
         s = socket.create_connection((host, int(port)), timeout=2)
-        s.sendall(f'GET /service?video=0x{tuning[0]:04x}&audio=0x{tuning[1]:04x} HTTP/1.0\r\n'
+        s.sendall(f'GET /service?{query(*tuning)} HTTP/1.0\r\n'
                   f'Host: {host}\r\n\r\n'.encode())
         data = b''
         while True:
@@ -98,10 +128,10 @@ def service_of(server, tuning):
 
 class Upstream:
     """One HTTP request to the playout server for one tuning."""
-    def __init__(self, server, video, audio):
+    def __init__(self, server, video, audio, freq=None):
         host, port = server.rsplit(':', 1)
         self.sock = socket.create_connection((host, int(port)), timeout=5)
-        self.sock.sendall(f'GET /tune?video=0x{video:04x}&audio=0x{audio:04x} HTTP/1.0\r\n'
+        self.sock.sendall(f'GET /tune?{query(video, audio, freq)} HTTP/1.0\r\n'
                           f'Host: {host}\r\n\r\n'.encode())
         head = b''
         while b'\r\n\r\n' not in head:
@@ -159,6 +189,7 @@ def main():
     except OSError:
         sys.exit('another relay is already running for ' + a.file)
     ring = Ring(a.file, a.ring_mib << 20)
+    guest = GuestRAM()
     log(f'relay up: {a.file} ({a.ring_mib} MiB ring), playout server {server}')
     up = None
     tuned = None                 # (video, audio) currently requested, None = nothing
@@ -168,7 +199,7 @@ def main():
     while True:
         try:
             up, tuned, want, want_since, last_seq, alive_at, retry_at = step(
-                ring, server, up, tuned, want, want_since, last_seq, alive_at, retry_at)
+                ring, guest, server, up, tuned, want, want_since, last_seq, alive_at, retry_at)
         except Exception as e:       # never die: the box would starve
             log(f'relay error: {e!r}; recovering')
             if up:
@@ -177,14 +208,14 @@ def main():
             time.sleep(1)
 
 
-def step(ring, server, up, tuned, want, want_since, last_seq, alive_at, retry_at):
+def step(ring, guest, server, up, tuned, want, want_since, last_seq, alive_at, retry_at):
     if True:
         now = time.monotonic()
         st = ring.status()
         if st and st['seq'] != last_seq:
             last_seq = st['seq']; alive_at = now
         alive = st is not None and now - alive_at < 3.0
-        w = (st['video'], st['audio']) if alive else None
+        w = (st['video'], st['audio'], guest.freq()) if alive else None
         if w != want:
             want, want_since = w, now
         # A tuning must hold for 300 ms (the firmware rewrites PIDs while zapping).
@@ -192,13 +223,13 @@ def step(ring, server, up, tuned, want, want_since, last_seq, alive_at, retry_at
         # before routing the next channel: hold the current stream through that
         # (5 s) rather than restarting twice per zap. If nothing else is
         # routed by then, the box really has stopped and so does the stream.
-        settle = 5.0 if (want and tuned and want == (0x1fff, 0x1fff) and tuned != want) else 0.3
+        settle = 5.0 if (want and tuned and want[:2] == (0x1fff, 0x1fff) and tuned != want) else 0.3
         if want != tuned and now - want_since >= settle:
             # Same channel (e.g. the Guide stops the video but keeps the sound)?
             # Then keep the stream that is playing.
             svc = service_of(server, want) if want else None
             if up and tuned and svc is not None and svc == ring.service:
-                log(f'tuning {want[0]:04x}/{want[1]:04x}: same service {svc}, stream kept')
+                log(f'tuning {want[0]:04x}/{want[1]:04x} at {want[2] or 0:08x}: same service {svc}, stream kept')
                 tuned = want
                 return up, tuned, want, want_since, last_seq, alive_at, retry_at
             if up:
@@ -210,7 +241,8 @@ def step(ring, server, up, tuned, want, want_since, last_seq, alive_at, retry_at
             else:
                 ring.new_session()
                 retry_at = 0.0
-                log(f'tuned: video {tuned[0]:04x} audio {tuned[1]:04x} -> session {ring.session:08x}')
+                log(f'tuned: video {tuned[0]:04x} audio {tuned[1]:04x} freq {tuned[2] or 0:08x}'
+                    f' -> session {ring.session:08x}')
         if tuned is not None and up is None and now >= retry_at:
             try:
                 up = Upstream(server, *tuned)

@@ -896,3 +896,16 @@ Built with `rom/bootloader_words.hex` absent. Fit as v0.6.2: 545/553 M10K, 75% A
   settings (0-85 C), i.e. ~77 MHz; worst paths are the pipeline's writeback/forward -> stall1 and
   branch -> I-cache fill. With default settings the worst path was KI's 2-way D-cache MRU (gone
   with the VR4110's direct-mapped D-cache).
+
+## 13 Nov (afternoon) - EPG background music in the TV Guide works on hardware
+
+Mechanism, from the firmware: the Guide loads setting "SSBM" (Background Music) into o-code
+global 0x80477228; with it ON the Guide calls native (12,0x24) -> 800CB69C(0x90): it looks up the
+BAT/SDT linkage descriptor of type 0x90, which names the background-audio service. Playout with
+`epg_music` lays the line-up out as Sky's: home/default transponder 11778 V (TSID 0: EPG
+Background Audio SID 4152 audio 0x288 + full guide data), TV channels on 12207 V (TSID 1, now/next
+only), linkage 0x91 -> first TV channel, 0x90 -> music. The firmware retunes by itself (demod
+op 12) for a service on another transport; the relay reads the tuned frequency from guest RAM
+(0x801631B4, BCD) and passes `freq=` so playout sends that transport. Measured: TV Guide on Sky
+Movies -> `tune ... video 1fff audio 4288 at 11778.00 MHz`, playout streams the 2002 music; Sky ->
+back to 12207 / Sky Movies. Typed channel numbers still "Channel Unavailable" (separate).

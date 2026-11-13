@@ -31,7 +31,8 @@ from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from pace_channels import RATE, load_settings, load_lineup, lineup_tables, carousel, MUSIC_PID, MUSIC_PMT, MUSIC_SID  # noqa: E402
+from pace_channels import (RATE, load_settings, load_lineup, lineup_tables, carousel, MUSIC_PID, MUSIC_PMT,  # noqa: E402
+                           MUSIC_SID, HOME_TSID, CHAN_TSID, transport_of)
 
 P = 188
 NULL = bytes([0x47, 0x1f, 0xff, 0x10]) + b'\xff' * 184
@@ -90,9 +91,12 @@ class Session:
     active = {}
     lock = threading.Lock()
 
-    def __init__(self, server, video, audio, wfile):
+    def __init__(self, server, video, audio, wfile, freq=None):
         self.srv, self.wfile = server, wfile
         self.chan = server.service(video, audio)
+        self.on = server.transport(self.chan, freq)
+        if server.music and self.chan is not None and (self.chan == 'music') != (self.on == HOME_TSID):
+            self.chan = None     # that service is not on the transponder the box is tuned to
         self.start = time.time()
         self.sent = 0
         self.item = None
@@ -109,7 +113,7 @@ class Session:
         self.sent += len(data)
 
     def si(self):
-        return self.srv.carousel(self.schedule_time())
+        return self.srv.carousel(self.schedule_time(), self.on)
 
     def run(self):
         with Session.lock:
@@ -229,7 +233,7 @@ class Server(ThreadingHTTPServer):
                 self.log(f'epg_music not found: {m}')
         from pace_huffman import FirmwareHuffman
         self.codec = FirmwareHuffman.from_file(settings['huffman_ram'])
-        self._si = (0, None)
+        self._si = {}
         self._si_lock = threading.Lock()
         super().__init__(('0.0.0.0', port), Handler)
 
@@ -243,6 +247,16 @@ class Server(ThreadingHTTPServer):
         return (next((c for c in self.chans if c.video_pid == v), None)
                 or next((c for c in self.chans if c.audio_pid == a), None))
 
+    def transport(self, chan, freq):
+        """Which transport a tuning is on. With the EPG Background Audio service the line-up has
+        two (home 11778 V: the music service; channels 12207 V: the TV services): the relay reports
+        the frequency the firmware tuned; without that, the service decides. One transport otherwise."""
+        if not self.music:
+            return HOME_TSID
+        if freq:
+            return transport_of(freq)
+        return HOME_TSID if chan is None or chan == 'music' else CHAN_TSID
+
     def log(self, msg):
         line = time.strftime('%H:%M:%S ') + msg
         if self.log_sink:
@@ -251,17 +265,17 @@ class Server(ThreadingHTTPServer):
             print(line, flush=True)
         self.history = (self.history + [line])[-40:]
 
-    def carousel(self, when):
+    def carousel(self, when, on=HOME_TSID):
         override = os.environ.get('PACE_SI_FILE')       # diagnostics: send a fixed carousel
         if override:
             return Path(override).read_bytes()
         with self._si_lock:
-            stamp, si = self._si
+            stamp, si = self._si.get(on, (0, None))
             if si is None or abs(when - stamp) > 60:
                 tables, today = lineup_tables(when, self.codec, self.chans, int(self.settings['days']),
-                                              music=bool(self.music))
+                                              music=bool(self.music), on=on)
                 si = carousel(tables, today)
-                self._si = (when, si)
+                self._si[on] = (when, si)
             return si
 
     def ffmpeg_cmd(self, c, source, start, length):
@@ -317,17 +331,21 @@ class Handler(BaseHTTPRequestHandler):
             q = parse_qs(url.query)
             video = int(q.get('video', ['0x1fff'])[0], 0)
             audio = int(q.get('audio', ['0x1fff'])[0], 0)
+            freq = int(q['freq'][0], 16) if q.get('freq') else None     # BCD, as the NIT carries it
             self.send_response(200)
             self.send_header('Content-Type', 'video/mp2t')
             self.end_headers()
-            self.server.log(f'tune from {self.client_address[0]}: video {video:04x} audio {audio:04x}')
+            self.server.log(f'tune from {self.client_address[0]}: video {video:04x} audio {audio:04x}'
+                            + (f' at {freq >> 8:x}.{freq & 0xff:02x} MHz' if freq else ''))
             self.server.last_box = (time.time(), self.client_address[0])
-            Session(self.server, video, audio, self.wfile).run()
+            Session(self.server, video, audio, self.wfile, freq).run()
         elif url.path == '/service':
             # which service a tuning means (the relay keeps its stream when unchanged)
             q = parse_qs(url.query)
             c = self.server.service(int(q.get('video', ['0x1fff'])[0], 0), int(q.get('audio', ['0x1fff'])[0], 0))
-            body = ('music' if c == 'music' else str(c.i) if c else 'guide').encode()
+            freq = int(q['freq'][0], 16) if q.get('freq') else None
+            body = (('music' if c == 'music' else str(c.i) if c else 'guide')
+                    + f'@{self.server.transport(c, freq)}').encode()
             self.send_response(200)
             self.send_header('Content-Type', 'text/plain')
             self.end_headers()

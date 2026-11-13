@@ -38,7 +38,7 @@ is the version this guide describes. v0.6.3 stays usable as a fallback.
 | Channel sound continuing under the TV Guide | working |
 | Plex library as a programme source (single titles or whole libraries) | working (Sky Movies from Plex, v0.7.0) |
 | 7-day listings | generated; set `days` to 1 until proven on the firmware |
-| EPG background music | partly: with `"epg_music"` in the line-up the box tunes the "EPG Background Audio" service and plays it when you press **Sky** with no channel showing; the TV Guide itself still stops it (being worked on) |
+| EPG background music in the TV Guide | **working (13 Nov)**: with `"epg_music"` in the line-up, pressing TV Guide makes the box retune to its home transponder and play the period Guide music, as a real Digibox did; Sky returns to your channel. Needs the updated relay on the MiSTer (`tools/mister/install_relay.sh`). Background Music in Services > System Setup > Sound Settings |
 | Teletext/VBI, A/V lip-sync | not yet |
 
 ## How it fits together

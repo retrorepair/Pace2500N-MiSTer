@@ -428,11 +428,10 @@ def load_lineup(path, settings, log=print):
 
 
 # ------------------------------------------------------------------ guide data (SI)
-# The EPG Background Audio service (experiment, line-up key "epg_music"): an audio-only
-# radio service as Sky broadcast on the EPG transponder (SID 4152, audio PID 0x288 per a
-# 2013-15 channels.conf; unverified for 2002), with its own 0xB1 entry so the box makes a
-# service record for it, and the Guide's 0x91 home-service linkage pointing at it. Whether
-# the firmware plays it in the Guide is what the experiment measures (CURRENT_STATUS.md).
+# The EPG Background Audio service (line-up key "epg_music"): an audio-only radio service as
+# Sky broadcast on the EPG (home/default) transponder (SID 4152, audio PID 0x288 per a 2013-15
+# channels.conf; unverified for 2002), with its own 0xB1 entry so the box makes a service
+# record for it, and the 0x91 home-service linkage pointing at it.
 MUSIC_SID, MUSIC_PMT, MUSIC_PID, MUSIC_LISTING = 4152, 0x10ff, 0x288, 0x0fff
 
 
@@ -464,66 +463,126 @@ def guide_text(codec, text, limit):
     return s
 
 
-def lineup_tables(now, codec, chans, days, music=False):
+# Transports. With the EPG Background Audio service on, the line-up is laid out as Sky's was:
+# the HOME (default) transponder 11778 V - the box's installed default transponder (EEPROM
+# DTFR=11778000) - carries the EPG Background Audio service, and the TV channels are on a
+# transponder of their own (12207 V here). Both carry the full guide data. The box then tunes
+# between them itself (it retunes only for a service on another transport), and the relay
+# reports which one it is on (the firmware's tuned frequency) so playout sends that transport.
+ONID = 0x0020
+HOME_TSID, CHAN_TSID = 0x0000, 0x0001
+HOME_FREQ, CHAN_FREQ = 0x01177800, 0x01220700          # BCD 10 kHz units, as the NIT carries them
+SATELLITE = {HOME_TSID: '011778000282a102750002',      # 11778 MHz, 28.2E, V, QPSK, 27.5 Ms/s, 2/3
+             CHAN_TSID: '012207000282a102750002'}      # 12207 MHz, same
+
+
+def transport_of(freq_bcd):
+    """The transport the box is tuned to, from the frequency it tuned (BCD, as in the NIT)."""
+    return CHAN_TSID if freq_bcd == CHAN_FREQ else HOME_TSID
+
+
+def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID):
+    """Guide data as sent on transport `on` (one transport, HOME, unless music is on)."""
     when = datetime.fromtimestamp(int(now), timezone.utc)
+    split = bool(music)
+    if not split:
+        on = HOME_TSID
     # The service tables' version_number follows the channel set, as a broadcaster's does:
     # a box keeps the service list it has (the Guide checkpoint holds one) until the version
     # changes. 1-31, so a line-up never matches the version-0 tables the checkpoint was made with.
     shape = repr([(c.sid, c.number, c.listing, c.name, c.pmt_pid, c.video_pid, c.audio_pid) for c in chans]
-                 + ([MUSIC_SID] if music else []))
+                 + (['split', MUSIC_SID, 0x90] if music else []))
     ver = 1 + int(hashlib.md5(shape.encode()).hexdigest(), 16) % 31
     namespace = bytes.fromhex('5f0400000002')
-    service_list = descriptor(0x41, b''.join(u16(c.sid) + b'\x01' for c in chans)
-                              + (u16(MUSIC_SID) + b'\x02' if music else b''))
-    satellite = descriptor(0x43, bytes.fromhex('011778000282a102750002'))   # 11778 V, 28.2E
-    transport = u16(0) + u16(0x20)
-    nit = long_section(0x40, 0x20, loop(descriptor(0x40, b'PACE PLAYOUT'))
-                       + loop(transport + loop(satellite + service_list)), version=ver)
-    sdt_body = u16(0x20) + b'\xff'
-    for c in chans:
-        name = c.name.encode('latin-1', 'replace')[:40]
-        desc = namespace + descriptor(0x48, b'\x01\x05PLAYO' + bytes((len(name),)) + name)
-        it, _, _ = c.at(now)
-        current = it['title'] or next((t for s, l, t, _ in c.events_utc(when.date())
-                                       if s <= now % 86400 < s + l), c.name)
-        desc += descriptor(0xb2, bytes((1, 0, 3 << 5)) + codec.encode(guide_text(codec, current, 200)))
-        sdt_body += u16(c.sid) + b'\xfc' + u16(0x8000 | len(desc)) + desc
+    # per transport: [(service id, service type, its 0xB1 entry)]. B1 entry: service id, type,
+    # channel id, channel number (shown by the guide), then the field carrying the guide-visible
+    # flags 6; the radio service has no number (it is not a guide row)
+    tv = [(c.sid, 1, u16(c.sid) + b'\x01' + u16(c.listing) + u16(c.number) + u16(c.number << 4 | 6))
+          for c in chans]
+    radio = ([(MUSIC_SID, 2, u16(MUSIC_SID) + b'\x02' + u16(MUSIC_LISTING) + u16(0) + u16(0))]
+             if music else [])
+    transports = [(HOME_TSID, radio), (CHAN_TSID, tv)] if split else [(HOME_TSID, tv)]
+    by_sid = {c.sid: c for c in chans}
+
+    def ts_id(tsid):
+        return u16(tsid) + u16(ONID)
+
+    def service_list(services):
+        return descriptor(0x41, b''.join(u16(sid) + bytes((kind,)) for sid, kind, _ in services))
+
+    nit = long_section(0x40, ONID, loop(descriptor(0x40, b'PACE PLAYOUT'))
+                       + loop(b''.join(ts_id(t) + loop(descriptor(0x43, bytes.fromhex(SATELLITE[t]))
+                                                       + service_list(sv)) for t, sv in transports)),
+                       version=ver)
+
+    def sdt_section(table, tsid, services):
+        body = u16(ONID) + b'\xff'
+        for sid, _, _ in services:
+            if sid == MUSIC_SID:
+                name = b'EPG Background Audio'
+                desc = namespace + descriptor(0x48, b'\x02\x05BSkyB' + bytes((len(name),)) + name)
+            else:
+                c = by_sid[sid]
+                name = c.name.encode('latin-1', 'replace')[:40]
+                desc = namespace + descriptor(0x48, b'\x01\x05PLAYO' + bytes((len(name),)) + name)
+                it, _, _ = c.at(now)
+                current = it['title'] or next((t for s, l, t, _ in c.events_utc(when.date())
+                                               if s <= now % 86400 < s + l), c.name)
+                desc += descriptor(0xb2, bytes((1, 0, 3 << 5)) + codec.encode(guide_text(codec, current, 200)))
+            body += u16(sid) + b'\xfc' + u16(0x8000 | len(desc)) + desc
+        return long_section(table, tsid, body, version=ver)
+
+    # SDT "actual" for the transport this stream is, SDT "other" for the rest (all on PID 0x11)
+    sdts = [sdt_section(0x42 if t == on else 0x46, t, sv) for t, sv in transports]
+    # 0x91: the box's home service (where Sky with no channel, and boot, go) - the first TV
+    # channel. 0x90: the EPG background audio. With Background Music on (setting SSBM) the
+    # Guide asks the SI for linkage type 0x90 - native (12,0x24) = 800CB74C -> 800CB69C(0x90),
+    # the same lookup (12,0x23) does for 0x91 - so the music service is named by a 0x90 linkage.
+    linkage = descriptor(0x4a, ts_id(CHAN_TSID if split else HOME_TSID) + u16(chans[0].sid) + b'\x91')
     if music:
-        name = b'EPG Background Audio'
-        desc = namespace + descriptor(0x48, b'\x02\x05BSkyB' + bytes((len(name),)) + name)
-        sdt_body += u16(MUSIC_SID) + b'\xfc' + u16(0x8000 | len(desc)) + desc
-    sdt = long_section(0x42, 0, sdt_body, version=ver)
-    linkage = descriptor(0x4a, transport + u16(MUSIC_SID if music else chans[0].sid) + b'\x91')
-    # B1 entries: service id, type, channel id, channel number (shown by the
-    # guide), then the field carrying the guide-visible flags 6
-    lineup = b'\xff\xff' + b''.join(u16(c.sid) + b'\x01' + u16(c.listing) + u16(c.number)
-                                      + u16(c.number << 4 | 6) for c in chans)
-    if music:      # a record for the box, with no channel number (not a guide row)
-        lineup += u16(MUSIC_SID) + b'\x02' + u16(MUSIC_LISTING) + u16(0) + u16(0)
+        linkage += descriptor(0x4a, ts_id(HOME_TSID) + u16(MUSIC_SID) + b'\x90')
     bat = long_section(0x4a, 0x1000, loop(descriptor(0x47, b'PACE PLAYOUT') + linkage)
-                       + loop(transport + loop(namespace + descriptor(0xb1, lineup) + service_list + linkage)), version=ver)
-    pat = long_section(0x00, 0, b''.join(u16(c.sid) + u16(0xe000 | c.pmt_pid) for c in chans)
-                       + (u16(MUSIC_SID) + u16(0xe000 | MUSIC_PMT) if music else b''), version=ver)
-    pmts = [(c.pmt_pid, long_section(0x02, c.sid,
-             u16(0xe000 | c.video_pid) + b'\xf0\x00'
-             + b'\x02' + u16(0xe000 | c.video_pid) + b'\xf0\x00'
-             + b'\x03' + u16(0xe000 | c.audio_pid) + b'\xf0\x00', version=ver)) for c in chans]
-    if music:
-        pmts.append((MUSIC_PMT, long_section(0x02, MUSIC_SID, u16(0xe000 | MUSIC_PID) + b'\xf0\x00'
-                                             + b'\x03' + u16(0xe000 | MUSIC_PID) + b'\xf0\x00', version=ver)))
-    tables = [(0x14, tot(when)), (0x10, nit), (0x11, sdt), (0x11, bat), (0, pat)] + pmts
+                       + loop(b''.join(ts_id(t) + loop(namespace + descriptor(0xb1, b'\xff\xff' + b''.join(e for *_, e in sv))
+                                                       + service_list(sv) + linkage)
+                                       for t, sv in transports)), version=ver)
+    here = dict(transports)[on]
+
+    def pmt_pid(sid):
+        return MUSIC_PMT if sid == MUSIC_SID else by_sid[sid].pmt_pid
+
+    pat = long_section(0x00, on, b''.join(u16(sid) + u16(0xe000 | pmt_pid(sid)) for sid, _, _ in here), version=ver)
+    pmts = []
+    for sid, _, _ in here:
+        if sid == MUSIC_SID:
+            pmts.append((MUSIC_PMT, long_section(0x02, MUSIC_SID, u16(0xe000 | MUSIC_PID) + b'\xf0\x00'
+                                                 + b'\x03' + u16(0xe000 | MUSIC_PID) + b'\xf0\x00', version=ver)))
+        else:
+            c = by_sid[sid]
+            pmts.append((c.pmt_pid, long_section(0x02, c.sid,
+                         u16(0xe000 | c.video_pid) + b'\xf0\x00'
+                         + b'\x02' + u16(0xe000 | c.video_pid) + b'\xf0\x00'
+                         + b'\x03' + u16(0xe000 | c.audio_pid) + b'\xf0\x00', version=ver)))
+    tables = [(0x14, tot(when)), (0x10, nit)] + [(0x11, x) for x in sdts] + [(0x11, bat), (0, pat)] + pmts
     index_events = []
-    for dd in range(days):
+    # The full guide (every day, synopses, the A-Z/genre index) is on the home transponder only;
+    # another transponder carries just the programmes around now - Sky's other transponders
+    # had "a couple of hours of Now and Next" for the banner, the 7 days needed the EPG one.
+    full = on == HOME_TSID
+    sod = int(now) % 86400
+    for dd in range(days if full else 1):
         d = when.date() + timedelta(days=dd)
         mjd = (d - EPOCH).days
         for c in chans:
             events = [(dd * 1000 + n + 1, s, l, guide_text(codec, t, 200))
                       for n, (s, l, t, _) in enumerate(c.events_utc(d))]
             synopses = [guide_text(codec, sm, 255) for *_, sm in c.events_utc(d)]
+            if not full:     # now and next: the event on air and the one after it
+                keep = [i for i, e in enumerate(events) if e[1] + e[2] > sod][:2]
+                events, synopses = [events[i] for i in keep], ['' for i in keep]
             groups = {}
             for ev, sm in zip(events, synopses):
                 groups.setdefault(ev[1] // 21600, []).append((ev, sm))
-                if dd == 0:
+                if dd == 0 and full:
                     index_events.append((c.listing, ev))
             for block, group in groups.items():
                 titles = [ev for ev, _ in group]
@@ -543,10 +602,10 @@ def lineup_tables(now, codec, chans, days, music=False):
                     encoded = encoded[n:]
     def index_record(listing, ev):
         return u16(listing) + b'\x0f\xc0\x00' + u16(ev[0]) + b'\x00\x00'
-    for letter in range(ord('A'), ord('Z') + 1):
+    for letter in range(ord('A'), ord('Z') + 1) if full else ():
         payload = b''.join(index_record(l, e) for l, e in index_events if e[3][:1].upper() == chr(letter))
         tables.append((0x52, long_section(0xc1, letter, payload[:1000])))
-    for genre in (0, 3):
+    for genre in (0, 3) if full else ():
         for block in range(4):
             payload = b''.join(index_record(l, e) for l, e in index_events if e[1] // 21600 == block)
             tables.append((0x52, long_section(0xc1, 0x100 | block << 6 | genre, payload[:1000])))
