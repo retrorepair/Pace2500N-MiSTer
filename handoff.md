@@ -86,6 +86,16 @@ service (SID 4152, audio 0x288, own 0xB1 record, 0x91 linkage at it) and serves 
   couple of hours of now/next (Search and Scan banner); the full 7 days and synopses need the
   EPG transponder. Sky+ lost EPG music/info when both tuners were recording.
 - Reddit and everybodywiki refuse automated fetches (403); read them in a browser if needed.
+- 13 Nov, user (hardware, by ear): the Guide music PLAYS. Problems: it takes 6-10 s to start,
+  and it starts from the beginning of the track every time - it should loop and, like the
+  channels, play from the point the wall clock says (as if it had been broadcasting all along).
+- 13 Nov, user photo of a real Guide (TV GUIDE main menu): top-left shows a "sky guide" logo
+  (white "sky" over "guide" on dark navy), and the menu sits on a light-blue GRADIENT picture
+  with white diagonal swooshes, not a flat light blue. Dark navy bands top and bottom as ours.
+  Reading: the logo corner and the gradient are a still picture on the VIDEO plane showing
+  through transparent OSD areas (we show flat colour). Candidate source: an MPEG still
+  broadcast on the home transponder, named like the music by an SI linkage - native (12,0x25)
+  looks up linkage type 0x94 (to check).
 - Sky logo, top-left of the Guide - OPEN. Known: the reference project measured that the Guide's
   OSD blits start at x=128 and never paint the top-left 128x112 ("may be where the video window
   belongs, or a blit nothing has issued yet"). The firmware has an "image" device beside "video"
