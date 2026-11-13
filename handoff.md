@@ -31,20 +31,73 @@ version comes from the channel set (fixed the box tuning BBC1 for a new channel)
 service (SID 4152, audio 0x288, own 0xB1 record, 0x91 linkage at it) and serves the MP2.
 
 **Open, in priority order (user):**
-1. **EPG background music.** Finding today (hardware): the box DOES tune the music service as
-   its 0x91 home service - Sky key with no channel plays it (audio-only, decoded, MP2 synced) -
-   but entering the TV Guide explicitly stops that audio and resets the audio decoder, with
-   Background Music ON. So Guide music is another path; leads: AUDIO_MP HISR / AUDRAM
-   play-from-RAM driver (80001814-800025BC, EMMA B00021xx, unmodelled), and the o-code that
-   writes the 0x80477228 variable (o-code PC ~9FC96774) and the natives after it (1,0xBC),
-   (1,0x26). Details: `CURRENT_STATUS.md` (music sections). User: the music came "over dish or
-   modem". Enthusiast sources say it was the EPG Background Audio radio service on the EPG
-   data transponder, heard only in the guide menus.
-2. **Typed channel numbers -> "Channel Unavailable".** The sim run of 1-0-6 was invalid (typed
-   at the Guide menu, where digits pick menu rows); a rerun from TV mode (`+keys=80,01,00,06`,
-   log `/tmp/chan106tv.log`) was started - redo if lost.
-3. Synopsis from Plex metadata; first-visit "Searching for listings"; audio normalisation
+1. **EPG background music - WORKING (13 Nov, hardware), the authentic way.** Pressing TV Guide
+   on a channel makes the FIRMWARE retune to the home transponder (11778) and route the EPG
+   Background Audio service (audio 0x288); Sky retunes back to the channel. How it was found:
+   the Guide o-code loads setting key "SSBM" (Sound Settings Background Music) into global
+   0x80477228 (Guide globals base 0x8045CB64 + 0x1A6C4; `aa` pushes the base, `09` adds a
+   4-byte offset); where SSBM is on, the o-code (9FC930FD / 9FC9338B -> function 9FC4E03D)
+   calls native (12,0x24) = 800CB74C -> 800CB69C(0x90): the BAT/SDT linkage of TYPE 0x90 names
+   the background-audio service ((12,0x23) is 0x91 = home service, (12,0x25) is 0x94). Playout
+   (line-up key `epg_music`) now builds Sky's layout: home transponder 11778 V (TSID 0) with the
+   music service and the full guide; TV channels on 12207 V (TSID 1) with now/next only; 0x91 ->
+   first TV channel, 0x90 -> the music service. The relay reads the tuned frequency from guest
+   RAM (MPEG manager 0x80163198+0x1C, BCD) and sends `freq=` so playout serves the transport the
+   box is on. Not yet heard by ear on this run (UART telemetry flooded); same service/PIDs
+   decoded audio-only with MP2 sync earlier the same day. LSST (0x80477224) is subtitles, not music.
+2. **Typed channel numbers -> "Channel Unavailable".** Reproduced on hardware from TV mode:
+   EVERY number (101, 106) gives "NNN Channel Unavailable" with no tune attempt, while banner
+   Up/Down + SELECT tunes fine. The box's received BAT 0xB1 entries are intact in RAM (sid,
+   type 1, channel id 3000+, number 101/103/106/104, number<<4|6). The sim cannot reach TV mode
+   from the Guide checkpoint (Sky key never tunes in sim, even pressed at 6-7.5 s), so this
+   needs hardware RAM inspection (`scratchpad/ramdump.py` style, DDR 0x30000000) or a sim fix.
+3. **Synopsis (Plex).** Done app-side: Plex summaries are fetched once per programme (cached
+   in library_cache.json, also stored when a library is added) and sent as standard OpenTV
+   summary tables (0xA8-0xAB, PIDs 0x40-0x47, descriptor 0xB9), and guide text is folded to
+   what the firmware's Huffman table can code. The box does NOT show them yet ("Programme
+   synopsis is not available"). Firmware facts: the EPG section parser 800C95D0 takes 0xA0-0xA3
+   (titles, 0xB5), 0xA4-0xA7 ("kind 2": records of descriptor 0xBC = 9-byte cross references
+   channel id/start/event id, callback 800C6B68) and 0xB0; 0xB9 text is decoded by 800CA028,
+   reached from the 0xBC path (800C9F58) and from a request-driven single-event parser 800C3990
+   (section: ext=channel id, [8-9] mjd, [10-11] ?, [12-13] ?, [14-15] 12-bit length,
+   descriptors from 16). The live request table (0x80165048) shows no new request when Info is
+   pressed. Next: find what creates "type 3" requests / what Info reads.
+4. EPG music in the Guide (above); first-visit "Searching for listings"; audio normalisation
    (backlog item 6 in `re/CPU_PORT_PLAN.md`); HDMI scaler timing slack.
+5. Note: with `epg_music` on, the music service is the box's home service and shows as radio
+   channel "0 EPG Background Audio" in the banner Up/Down cycle; Sky with no channel tunes it.
+
+**User-supplied references (13 Nov) - read before working on the Guide music or Guide look:**
+- https://www.tvforum.co.uk/tvhome/sky-guide-music-27594 - the EPG listings are received on
+  the same transponder as the EPG music. User's reading: the Guide is in effect its own
+  channel (in the Guide all channels are left and the box is tuned only to the listings/EPG),
+  so if the listings are fed authentically on that transponder the music should play
+  organically. Feed it the authentic way, not as a special case.
+- https://www.reddit.com/r/olddigibox/comments/cfd4xl/proud_owner_of_two_digiboxes_that_still_has_the/
+- https://en.everybodywiki.com/Sky_EPG_(Electronic_Program_Guide) - photos show a Sky logo in
+  the top-left of the Guide; our Guide leaves that area empty. Find what fills it and why we
+  do not draw it.
+- From the tvforum thread (2008 posters, not official): the box loads its channel list from a
+  "default transponder" at boot and prefers EPG data from it; that is the transponder with the
+  EPG background audio. A box that cannot see the default transponder boots with no channel
+  numbers and no EPG (a box given another default got listings but no music and only half the
+  channels). Pressing TV Guide TUNES AWAY from the current channel to the EPG transponder (the
+  channel's sound stops) and leaving the Guide retunes back. Ordinary transponders carry only a
+  couple of hours of now/next (Search and Scan banner); the full 7 days and synopses need the
+  EPG transponder. Sky+ lost EPG music/info when both tuners were recording.
+- Reddit and everybodywiki refuse automated fetches (403); read them in a browser if needed.
+- Sky logo, top-left of the Guide - OPEN. Known: the reference project measured that the Guide's
+  OSD blits start at x=128 and never paint the top-left 128x112 ("may be where the video window
+  belongs, or a blit nothing has issued yet"). The firmware has an "image" device beside "video"
+  (flash strings at 0x26640/0x26648) - a candidate MPEG-still path. Measured 13 Nov: entering the
+  Guide (now a real retune to 11778) writes no video PID for a still in the first seconds
+  (video 0x0230 disabled, audio 1FFF, then the music). Next: trace who would draw that corner -
+  the "image" device's users, and any PES/section filter the Guide sets on the home transponder.
+- Also (user, via Gemini - unverified): the box tunes its "default transponder" for the full
+  guide; "EPG Background Audio" is an unencrypted audio-only service on that transponder.
+- Measured 13 Nov: the o-code word 0x80477228 is the Background Music setting (1=ON; toggling
+  it in Sound Settings flips it, no A/V access). 0x80477224 beside it is 1 in the checkpoint,
+  0 live; after a core load it goes 0 -> 1 about 11 s in (polled from the HPS).
 
 **Rules (unchanged):** faithful decompilation only; no firmware, RAM images, TS files or
 `rom/bootloader_words.hex` in git or releases; Plex token only in
