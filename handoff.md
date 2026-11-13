@@ -108,6 +108,11 @@ service (SID 4152, audio 0x288, own 0xB1 record, 0x91 linkage at it) and serves 
   9FC69C30 (result stored at Guide global 0x2BCC8, compared against 0x13650/0x1364C) - the
   0x94 linkage is the next thing to identify (a stills/background service is a candidate).
   Also check the OSD descriptor's per-region alpha/blend bits and the "image" device.
+- User's plan for the background/logo (13 Nov): they may also have been broadcast or downloaded.
+  FIRST prove we definitely do not have them (firmware/flash/Guide resources, and what the
+  firmware asks for to draw that corner and the backdrop). Only if they are not in the box:
+  recreate them from screen grabs and YouTube videos, cleaned up as far as possible, and
+  deliver them the way the box expects (as a broadcast service if that is how it came).
 - Sky logo, top-left of the Guide - OPEN. Known: the reference project measured that the Guide's
   OSD blits start at x=128 and never paint the top-left 128x112 ("may be where the video window
   belongs, or a blit nothing has issued yet"). The firmware has an "image" device beside "video"
