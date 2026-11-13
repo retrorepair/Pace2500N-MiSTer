@@ -100,6 +100,14 @@ service (SID 4152, audio 0x288, own 0xB1 record, 0x91 linkage at it) and serves 
   within one transponder), PAT/PMT go every 200 ms, and the music joins the looped track at the
   wall-clock point. Measured: retune 2-4.5 s after the TV Guide key (the firmware's own delay),
   music requested the same second.
+- Background/logo leads (13 Nov): our flat light blue (menu area) and the dark-navy logo corner
+  are both OSD-drawn (rtl/pace_video_mix.sv shows video or black wherever the OSD key is
+  transparent, and we see neither). So on a real box the gradient + logo are either the OSD
+  blended over a video-plane still (our mix is binary key, no alpha) or bitmaps we never
+  receive. Native (12,0x25) = linkage 0x94 lookup is called from Guide o-code 9FC69274 and
+  9FC69C30 (result stored at Guide global 0x2BCC8, compared against 0x13650/0x1364C) - the
+  0x94 linkage is the next thing to identify (a stills/background service is a candidate).
+  Also check the OSD descriptor's per-region alpha/blend bits and the "image" device.
 - Sky logo, top-left of the Guide - OPEN. Known: the reference project measured that the Guide's
   OSD blits start at x=128 and never paint the top-left 128x112 ("may be where the video window
   belongs, or a blit nothing has issued yet"). The firmware has an "image" device beside "video"
