@@ -16,7 +16,7 @@ module tb_transport;
  assign rv=response;
  assign da=dq && cycle%9>3;
  pace_ts_replay #(.BYTE_CLOCKS(2)) reader(.clk(clk),.reset(reset),.hold(hold || manual),.enabled(1'b1),
-  .length(24'(TS_BYTES)),.valid(reader_valid),.ready(ready && !manual),.data(reader_data),.loops(loops),
+  .length(27'(TS_BYTES)),.fast(1'b0),.stream(1'b0),.available(32'd0),.valid(reader_valid),.ready(ready && !manual),.data(reader_data),.loops(loops),
   .mem_req(rq),.mem_addr(rad),.mem_accept(ra),.mem_rvalid(rv),.mem_rdata(returned));
  pace_section_demux dut(.clk(clk),.reset(reset),.hold(hold),.stream_reset(stream_reset),
   .ts_valid(valid),.ts_ready(ready),.ts_data(data),

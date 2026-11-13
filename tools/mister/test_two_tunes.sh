@@ -3,7 +3,7 @@
 # then tune the next one, and report what the firmware routed each time.
 #   sh test_two_tunes.sh [launcher.mgl]
 # Needs /tmp/mister_keys.py (tools/mister_keys.py) and the live relay running.
-MGL=${1:-/media/fat/Pace2500N_V063_Live.mgl}
+MGL=${1:-/media/fat/Pace2500N_V064_Live.mgl}
 status() {
   python3 -c "
 import os, struct

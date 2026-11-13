@@ -253,10 +253,16 @@ def interstitial_runs(media, folders, log=print):
         folder = set_folder(folder)
         excluded = excluded_spots(folder)
         for f in sorted(folder.glob('*')):
-            if f.suffix.lower() not in VIDEO_SUFFIXES:
+            # yt-dlp's per-stream parts (NAME.f251.webm) and unfinished downloads are not recordings
+            if f.suffix.lower() not in VIDEO_SUFFIXES or re.search(r'\.f\d+$', f.stem):
+                continue
+            try:
+                spots = recording_spots(media, f, log)
+            except Exception as e:      # one unreadable file must not take every channel off air
+                log(f'skipping {f.name} in {folder.name}: {e}')
                 continue
             run = []
-            for a, ln in recording_spots(media, f, log):
+            for a, ln in spots:
                 if usable(ln) and spot_id(f, a) not in excluded:
                     run.append((str(f), a, ln))
                 elif run:
@@ -288,9 +294,8 @@ class Channel:
         self.media = media
         self.programmes = []
         for p in cfg['programmes']:
-            info = media.probe(p['source'])
             inpoint = float(p.get('inpoint') or 0)
-            dur = float(p.get('duration') or (info['duration'] - inpoint))
+            dur = float(p.get('duration') or (media.probe(p['source'])['duration'] - inpoint))
             self.programmes.append(dict(title=p['title'], source=p['source'], inpoint=inpoint, duration=dur,
                                         breaks=p.get('breaks', 'auto')))
         self.runs = interstitial_runs(media, cfg.get('interstitials', []), log)
@@ -387,18 +392,40 @@ class Channel:
 def load_lineup(path, settings, log=print):
     cfg = json.loads(Path(path).read_text())
     media = Media(settings)
-    return [Channel(i, c, media, log) for i, c in enumerate(cfg['channels'])], media
+    chans = []
+    for i, c in enumerate(cfg['channels']):
+        if not c.get('programmes'):
+            # nothing to schedule: leave it off air rather than fail every channel's guide
+            log(f"{c.get('name', 'channel')}: no programmes yet - not broadcast")
+            continue
+        chans.append(Channel(i, c, media, log))
+    return chans, media
 
 
 # ------------------------------------------------------------------ guide data (SI)
-def lineup_tables(now, codec, chans, days):
+# The EPG Background Audio service (experiment, line-up key "epg_music"): an audio-only
+# radio service as Sky broadcast on the EPG transponder (SID 4152, audio PID 0x288 per a
+# 2013-15 channels.conf; unverified for 2002), with its own 0xB1 entry so the box makes a
+# service record for it, and the Guide's 0x91 home-service linkage pointing at it. Whether
+# the firmware plays it in the Guide is what the experiment measures (CURRENT_STATUS.md).
+MUSIC_SID, MUSIC_PMT, MUSIC_PID, MUSIC_LISTING = 4152, 0x10ff, 0x288, 0x0fff
+
+
+def lineup_tables(now, codec, chans, days, music=False):
     when = datetime.fromtimestamp(int(now), timezone.utc)
+    # The service tables' version_number follows the channel set, as a broadcaster's does:
+    # a box keeps the service list it has (the Guide checkpoint holds one) until the version
+    # changes. 1-31, so a line-up never matches the version-0 tables the checkpoint was made with.
+    shape = repr([(c.sid, c.number, c.listing, c.name, c.pmt_pid, c.video_pid, c.audio_pid) for c in chans]
+                 + ([MUSIC_SID] if music else []))
+    ver = 1 + int(hashlib.md5(shape.encode()).hexdigest(), 16) % 31
     namespace = bytes.fromhex('5f0400000002')
-    service_list = descriptor(0x41, b''.join(u16(c.sid) + b'\x01' for c in chans))
+    service_list = descriptor(0x41, b''.join(u16(c.sid) + b'\x01' for c in chans)
+                              + (u16(MUSIC_SID) + b'\x02' if music else b''))
     satellite = descriptor(0x43, bytes.fromhex('011778000282a102750002'))   # 11778 V, 28.2E
     transport = u16(0) + u16(0x20)
     nit = long_section(0x40, 0x20, loop(descriptor(0x40, b'PACE PLAYOUT'))
-                       + loop(transport + loop(satellite + service_list)))
+                       + loop(transport + loop(satellite + service_list)), version=ver)
     sdt_body = u16(0x20) + b'\xff'
     for c in chans:
         name = c.name.encode('latin-1', 'replace')[:40]
@@ -408,19 +435,29 @@ def lineup_tables(now, codec, chans, days):
                                        if s <= now % 86400 < s + l), c.name)
         desc += descriptor(0xb2, bytes((1, 0, 3 << 5)) + codec.encode(current))
         sdt_body += u16(c.sid) + b'\xfc' + u16(0x8000 | len(desc)) + desc
-    sdt = long_section(0x42, 0, sdt_body)
-    linkage = descriptor(0x4a, transport + u16(chans[0].sid) + b'\x91')
+    if music:
+        name = b'EPG Background Audio'
+        desc = namespace + descriptor(0x48, b'\x02\x05BSkyB' + bytes((len(name),)) + name)
+        sdt_body += u16(MUSIC_SID) + b'\xfc' + u16(0x8000 | len(desc)) + desc
+    sdt = long_section(0x42, 0, sdt_body, version=ver)
+    linkage = descriptor(0x4a, transport + u16(MUSIC_SID if music else chans[0].sid) + b'\x91')
     # B1 entries: service id, type, channel id, channel number (shown by the
     # guide), then the field carrying the guide-visible flags 6
     lineup = b'\xff\xff' + b''.join(u16(c.sid) + b'\x01' + u16(c.listing) + u16(c.number)
                                       + u16(c.number << 4 | 6) for c in chans)
+    if music:      # a record for the box, with no channel number (not a guide row)
+        lineup += u16(MUSIC_SID) + b'\x02' + u16(MUSIC_LISTING) + u16(0) + u16(0)
     bat = long_section(0x4a, 0x1000, loop(descriptor(0x47, b'PACE PLAYOUT') + linkage)
-                       + loop(transport + loop(namespace + descriptor(0xb1, lineup) + service_list + linkage)))
-    pat = long_section(0x00, 0, b''.join(u16(c.sid) + u16(0xe000 | c.pmt_pid) for c in chans))
+                       + loop(transport + loop(namespace + descriptor(0xb1, lineup) + service_list + linkage)), version=ver)
+    pat = long_section(0x00, 0, b''.join(u16(c.sid) + u16(0xe000 | c.pmt_pid) for c in chans)
+                       + (u16(MUSIC_SID) + u16(0xe000 | MUSIC_PMT) if music else b''), version=ver)
     pmts = [(c.pmt_pid, long_section(0x02, c.sid,
              u16(0xe000 | c.video_pid) + b'\xf0\x00'
              + b'\x02' + u16(0xe000 | c.video_pid) + b'\xf0\x00'
-             + b'\x03' + u16(0xe000 | c.audio_pid) + b'\xf0\x00')) for c in chans]
+             + b'\x03' + u16(0xe000 | c.audio_pid) + b'\xf0\x00', version=ver)) for c in chans]
+    if music:
+        pmts.append((MUSIC_PMT, long_section(0x02, MUSIC_SID, u16(0xe000 | MUSIC_PID) + b'\xf0\x00'
+                                             + b'\x03' + u16(0xe000 | MUSIC_PID) + b'\xf0\x00', version=ver)))
     tables = [(0x14, tot(when)), (0x10, nit), (0x11, sdt), (0x11, bat), (0, pat)] + pmts
     index_events = []
     for dd in range(days):

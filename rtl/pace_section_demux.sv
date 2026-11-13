@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Functional application section-DMA profile, inferred from this ROM's driver.
-// Not a cycle-accurate NEC demux or a PES/MPEG decoder. Repeats are dropped
-// while completion is pending or the guest-programmed ring limit leaves
-// insufficient room. No guest consumer pointers are poked by this module.
+// Not a cycle-accurate NEC demux or a PES/MPEG decoder. Sections keep
+// filling a channel's ring while its interrupt is pending; one is dropped
+// only when the guest-programmed ring limit leaves insufficient room.
+// No guest consumer pointers are poked by this module.
 //
 // Storage: every per-channel table and the packet buffer has exactly one
 // write port and is read asynchronously, so each maps to MLAB memory while
@@ -306,7 +307,11 @@ module pace_section_demux(
      if(unit==31)state<=DECIDE;else begin unit<=unit+1'b1;state<=MATCH_START;end
     end
     DECIDE:begin
-     if(!any_match || status[2][channel] || !limit_valid || record_size>ring_free)begin
+     // A pending completion does not stop the next section: the firmware's
+     // section task (80004520) consumes every record up to the published
+     // write pointer per wake-up and bounds the ring with its limit
+     // (consumer-32), so only a full ring drops a section.
+     if(!any_match || !limit_valid || record_size>ring_free)begin
       dropped<=dropped+1'b1;used_we=1;used_wd=0;state<=BYTE;
      end else begin
       dma_position<=write_within[13:0];

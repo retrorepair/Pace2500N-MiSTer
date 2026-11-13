@@ -17,7 +17,12 @@ module pace_debug_uart #(
     // line "Tw aaaaaaaa dddddddd" between telemetry frames. Read-only tap.
     input wire ev_valid, ev_we,
     input wire [31:0] ev_addr, ev_data,
-    output reg tx=1'b1
+    // Cycle profile (pace_cpu_profile): 16 counters sent as the line
+    // "PROF c0 .. c15" right after each telemetry frame.
+    input wire [511:0] prof,
+    output reg tx=1'b1,
+    output reg prof_sent=1'b0,    // pulse: the PROF line was formed (its data sampled)
+    input wire prof_fast          // send PROF lines back to back (a frozen trace being read out)
 );
     (* ramstyle="M10K" *) reg [64:0] ev_mem[0:511];
     reg [8:0] ev_wr=0, ev_rd=0;
@@ -49,18 +54,28 @@ module pace_debug_uart #(
     reg [7:0] index=0;
     reg [3:0] bit_index=0;
     reg [9:0] frame=10'h3ff;
-    reg sending=0, byte_active=0;
+    reg sending=0, byte_active=0, prof_due=0;
     wire [7:0] next_byte=message[(BYTES-1-index)*8 +:8];
     always @(posedge clk) begin
         if(reset) begin
             tx<=1; period_count<=0; baud_count<=0;
             index<=0; bit_index<=0; sending<=0; byte_active<=0;
-            ev_wr<=0; ev_rd<=0; ev_settle<=0;
+            ev_wr<=0; ev_rd<=0; ev_settle<=0; prof_due<=0;
         end else begin
             if(ev_valid && !ev_full) ev_wr<=ev_wr+9'd1;
             ev_settle<={ev_settle[0],!ev_empty};
             // One queued MMIO event per line while no telemetry frame is going out.
-            if(!sending && period_count!=PERIOD-1 && !ev_empty && ev_settle==2'b11) begin
+            prof_sent<=0;
+            if(!sending && (prof_due || prof_fast) && period_count!=PERIOD-1) begin
+                prof_sent<=1;
+                message<={"PROF"," ",hex32(prof[0+:32])," ",hex32(prof[32+:32])," ",hex32(prof[64+:32]),
+                    " ",hex32(prof[96+:32])," ",hex32(prof[128+:32])," ",hex32(prof[160+:32]),
+                    " ",hex32(prof[192+:32])," ",hex32(prof[224+:32])," ",hex32(prof[256+:32]),
+                    " ",hex32(prof[288+:32])," ",hex32(prof[320+:32])," ",hex32(prof[352+:32]),
+                    " ",hex32(prof[384+:32])," ",hex32(prof[416+:32])," ",hex32(prof[448+:32]),
+                    " ",hex32(prof[480+:32]),8'h0d,8'h0a,{(BYTES-150){8'h20}}};
+                sending<=1; index<=0; last<=8'd149; prof_due<=0;
+            end else if(!sending && period_count!=PERIOD-1 && !ev_empty && ev_settle==2'b11) begin
                 message<={"T",(ev_q[64] ? "1" : "0")," ",hex32(ev_q[63:32])," ",hex32(ev_q[31:0]),8'h0d,8'h0a,{(BYTES-22){8'h20}}};
                 sending<=1; index<=0; last<=8'd21;
                 ev_rd<=ev_rd+9'd1; ev_settle<=0;
@@ -76,7 +91,7 @@ module pace_debug_uart #(
                         " IRQ=",hex32(interrupt_count)," GUESS=",hex32(guessed_reads),
                         " POL=",hex32({30'd0,mmio_policy}),
                         8'h0d,8'h0a};
-                    sending<=1; index<=0; last<=BYTES-1;
+                    sending<=1; index<=0; last<=BYTES-1; prof_due<=1;
                 end
             end else period_count<=period_count+1;
             if(sending) begin

@@ -57,6 +57,18 @@ class Plex:
     def items(self, section):
         return [(m['ratingKey'], m['title'], m['type']) for m in self.get(f'/library/sections/{section}/all').get('Metadata', [])]
 
+    def library_programmes(self, section, kind):
+        """Every film (movie library) or every episode (TV library) as programmes, in
+        Plex's order, with Plex's durations (no probing needed)."""
+        path = f'/library/sections/{section}/all' + ('?type=4' if kind == 'show' else '')
+        out = []
+        for m in self.get(path).get('Metadata', []):
+            if not m.get('duration'):
+                continue
+            title = (m.get('grandparentTitle') or m['title']) if kind == 'show' else m['title']
+            out.append({'title': title, 'source': f"plex:{m['ratingKey']}", 'duration': m['duration'] / 1000.0})
+        return out
+
     def episodes(self, key):
         return [(m['ratingKey'], f"S{m.get('parentIndex', 0):02d}E{m.get('index', 0):02d}  {m['title']}",
                  m.get('grandparentTitle') or m['title']) for m in self.get(f'/library/metadata/{key}/allLeaves').get('Metadata', [])]
@@ -354,7 +366,11 @@ class App(tk.Tk):
         ttk.Label(form, text='Adverts / continuity sets').grid(row=4, column=0, sticky='nw')
         self.sets_box = tk.Listbox(form, selectmode='multiple', exportselection=False, height=4, width=40)
         self.sets_box.grid(row=4, column=1, sticky='w', pady=2)
-        ttk.Button(form, text='Apply changes', command=self.apply_channel).grid(row=5, column=1, sticky='w', pady=6)
+        ttk.Label(form, text='Changes are saved as you make them.', foreground='#555').grid(row=5, column=1, sticky='w', pady=6)
+        self._showing = False
+        for v in (self.v_name, self.v_num, self.v_style, self.v_start):
+            v.trace_add('write', lambda *a: self.field_edited())
+        self.sets_box.bind('<<ListboxSelect>>', lambda e: self.field_edited())
         ttk.Label(right, text='Programmes (play in this order, repeating through the day)', style='Head.TLabel').pack(anchor='w', pady=(6, 2))
         self.prog = ttk.Treeview(right, columns=('title', 'source'), show='headings', height=12)
         self.prog.heading('title', text='Title in the guide')
@@ -388,6 +404,13 @@ class App(tk.Tk):
         c = self.current()
         if not c:
             return
+        self._showing = True
+        try:
+            self._show_channel(c)
+        finally:
+            self._showing = False
+
+    def _show_channel(self, c):
         self.v_name.set(c['name'])
         self.v_num.set(c.get('number', ''))
         self.v_style.set(STYLES.get(c.get('style', 'bbc')))
@@ -402,7 +425,15 @@ class App(tk.Tk):
         for p in c['programmes']:
             self.prog.insert('', 'end', values=(p['title'], p['source']))
 
+    def field_edited(self):
+        if self._showing or not self.current():
+            return
+        if getattr(self, '_apply_job', None):
+            self.after_cancel(self._apply_job)
+        self._apply_job = self.after(700, self.apply_channel)
+
     def apply_channel(self):
+        self._apply_job = None
         c = self.current()
         if not c:
             return
@@ -415,20 +446,23 @@ class App(tk.Tk):
         c['start'] = self.v_start.get().strip() or '06:00'
         names = self.set_names()
         c['interstitials'] = [names[i] for i in self.sets_box.curselection()]
-        self.refresh_channels(self.chan_list.curselection()[0])
-        self.save()
+        sel = self.chan_list.curselection()
+        self.refresh_channels(sel[0] if sel else None)
+        self.changed()
 
     def add_channel(self):
         n = len(self.lineup['channels'])
         self.lineup['channels'].append({'name': f'Channel {n + 1}', 'number': 101 + n, 'style': 'bbc', 'start': '06:00',
                                         'interstitials': [], 'programmes': []})
         self.refresh_channels(n)
+        self.changed()
 
     def del_channel(self):
         sel = self.chan_list.curselection()
         if sel and messagebox.askyesno(APP, 'Remove this channel from the line-up?'):
             del self.lineup['channels'][sel[0]]
             self.refresh_channels(0 if self.lineup['channels'] else None)
+            self.changed()
 
     def move_channel(self, d):
         sel = self.chan_list.curselection()
@@ -436,6 +470,7 @@ class App(tk.Tk):
             ch = self.lineup['channels']
             ch[sel[0]], ch[sel[0] + d] = ch[sel[0] + d], ch[sel[0]]
             self.refresh_channels(sel[0] + d)
+            self.changed()
 
     def add_files(self):
         c = self.current()
@@ -444,6 +479,7 @@ class App(tk.Tk):
         for f in filedialog.askopenfilenames(title='Programmes', filetypes=[('Video', VIDEO_EXT), ('All files', '*.*')]):
             c['programmes'].append({'title': Path(f).stem, 'source': Path(f).as_posix()})
         self.show_channel()
+        self.changed()
 
     def add_plex(self):
         c = self.current()
@@ -454,7 +490,8 @@ class App(tk.Tk):
             return
         try:
             PlexPicker(self, Plex(self.settings['plex_url'], self.settings['plex_token']),
-                       lambda items: (c['programmes'].extend(items), self.show_channel()))
+                       lambda items: (c['programmes'].extend(items),
+                                      self.refresh_channels(self.chan_list.curselection()[0]), self.changed()))
         except Exception as e:
             messagebox.showerror(APP, f'Plex: {e}')
 
@@ -469,12 +506,14 @@ class App(tk.Tk):
             if t:
                 c['programmes'][i]['title'] = t
                 self.show_channel()
+                self.changed()
 
     def del_prog(self):
         c, i = self.current(), self.selected_prog()
         if c and i is not None:
             del c['programmes'][i]
             self.show_channel()
+            self.changed()
 
     def move_prog(self, d):
         c, i = self.current(), self.selected_prog()
@@ -482,6 +521,7 @@ class App(tk.Tk):
             p = c['programmes']
             p[i], p[i + d] = p[i + d], p[i]
             self.show_channel()
+            self.changed()
             self.prog.selection_set(self.prog.get_children()[i + d])
 
     def new(self):
@@ -506,6 +546,27 @@ class App(tk.Tk):
         if not self.lineup_path:
             return self.save_as()
         Path(self.lineup_path).write_text(json.dumps(self.lineup, indent=1))
+
+    def changed(self):
+        """Every edit: save the line-up now (a new one goes to roms/lineup.json), and have a
+        running playout pick it up shortly (edits in quick succession reload once)."""
+        if not self.lineup_path:
+            self.lineup_path = str(pc.ROOT / 'roms' / 'lineup.json')
+            self.path_lbl.config(text=self.lineup_path)
+            self.settings['last_lineup'] = self.lineup_path
+            pc.save_settings(self.settings)
+        self.save()
+        if self.server:
+            if getattr(self, '_reload_job', None):
+                self.after_cancel(self._reload_job)
+            self._reload_job = self.after(2000, self.reload_playout)
+
+    def reload_playout(self):
+        self._reload_job = None
+        if self.server:
+            self.log('line-up changed: reloading playout')
+            self.stop_server()
+            self.after(500, self.start_server)
 
     def save_as(self):
         f = filedialog.asksaveasfilename(title='Save line-up', defaultextension='.json', initialdir=pc.ROOT / 'roms',
@@ -602,6 +663,16 @@ class App(tk.Tk):
         ids = [self.yt.item(i)['values'][2] for i in self.yt.selection()]
         if not ids:
             return
+        if getattr(self, '_ripping', False):
+            self.log('a rip is already running - wait for it to finish')
+            return
+        self._ripping = True
+        try:
+            self._yt_rip(ids)
+        finally:
+            self._ripping = False
+
+    def _yt_rip(self, ids):
         target = pc.ROOT / 'roms' / 'interstitials' / self.v_set.get().strip()
         target.mkdir(parents=True, exist_ok=True)
         ff = str(Path(self.settings['ffmpeg']).parent)
@@ -886,7 +957,10 @@ class PlexPicker(tk.Toplevel):
         self.items.bind('<<ListboxSelect>>', lambda e: self.load_eps())
         self.eps = tk.Listbox(pane, selectmode='extended', exportselection=False)
         pane.add(self.eps, weight=2)
-        ttk.Button(self, text='Add selected to the channel', command=self.add).pack(pady=6)
+        row = ttk.Frame(self)
+        row.pack(pady=6)
+        ttk.Button(row, text='Add selected to the channel', command=self.add).pack(side='left', padx=4)
+        ttk.Button(row, text='Add the whole library', command=self.add_library).pack(side='left', padx=4)
         self.sections = plex.sections()
         self.lib['values'] = [f'{t}  ({ty})' for _, t, ty in self.sections]
 
@@ -907,6 +981,17 @@ class PlexPicker(tk.Toplevel):
         self.eps.delete(0, 'end')
         for _, label, _ in self.ep_rows:
             self.eps.insert('end', label)
+
+    def add_library(self):
+        if self.lib.current() < 0:
+            messagebox.showinfo(APP, 'Choose a library first.', parent=self)
+            return
+        key, title, kind = self.sections[self.lib.current()]
+        rows = self.plex.library_programmes(key, kind)
+        what = 'episodes' if kind == 'show' else 'items'
+        if rows and messagebox.askyesno(APP, f'Add all {len(rows)} {what} from "{title}" to the channel?', parent=self):
+            self.done(rows)
+            self.destroy()
 
     def add(self):
         self.done([{'title': show, 'source': f'plex:{key}'} for i in self.eps.curselection()

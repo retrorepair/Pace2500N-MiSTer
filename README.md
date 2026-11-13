@@ -11,10 +11,14 @@ programmes.
 > notes are in `CURRENT_STATUS.md`, `handoff.md` and `re/`.
 
 **Downloads:** [Releases](https://github.com/retrorepair/Pace2500N-MiSTer/releases)
-(latest **v0.6.3**) — `Pace2500N_V063.rbf` (the core),
+(latest release **v0.6.3**) — `Pace2500N_V063.rbf` (the core),
 `Pace2500N-MiSTer-files-v0.6.3.zip` (launcher + relay) and
 `PaceChannelBuilder-v0.6.3-windows.zip` (the Windows app). The core contains no
 firmware: it runs the flash dump you supply.
+
+**v0.7.0** (not released yet; build it from source, see *Building the core*)
+replaces the CPU with a pipelined, cached VR4110 - about 15 times faster - and
+is the version this guide describes. v0.6.3 stays usable as a fallback.
 
 ## What works
 
@@ -27,10 +31,15 @@ firmware: it runs the flash dump you supply.
 | **Live channels from the PC playout server** — guide listings, channel numbers, now/next banner | **working (v0.6.1)** |
 | Live channels — picture and sound of the channel you select, changing channel | **working (v0.6.2)** — the MPEG decoder's interrupts and header registers are now modelled |
 | Core contains no firmware (boots from the flash dump it loads) — downloadable | **v0.6.3** |
+| **New CPU**: pipelined NEC VR4110 with instruction and data caches, MIPS16, 75 MHz (~70 million instructions/s, the old CPU managed ~5) | **v0.7.0** |
+| Keys respond straight away; TV Guide, Box Office and Services menus; back to the Guide from a channel | **working (v0.7.0)** |
+| Interactive | shows the firmware's "no interactive services available" (none are broadcast) |
+| Typing a channel number | "Channel Unavailable" - not yet |
 | Channel sound continuing under the TV Guide | working |
-| Plex library as a programme source | written; untested until a Plex token is entered |
+| Plex library as a programme source (single titles or whole libraries) | working (Sky Movies from Plex, v0.7.0) |
 | 7-day listings | generated; set `days` to 1 until proven on the firmware |
-| EPG background music, teletext/VBI, A/V lip-sync | not yet |
+| EPG background music | partly: with `"epg_music"` in the line-up the box tunes the "EPG Background Audio" service and plays it when you press **Sky** with no channel showing; the TV Guide itself still stops it (being worked on) |
+| Teletext/VBI, A/V lip-sync | not yet |
 
 ## How it fits together
 
@@ -59,8 +68,8 @@ Copy to the MiSTer SD card:
 
 | File | Where |
 |------|-------|
-| `Pace2500N_V063.rbf` (from Releases) | `/media/fat/_Other/` |
-| `Pace2500N_V063_Live.mgl` (in the MiSTer files zip) | `/media/fat/` |
+| `Pace2500N_V070.rbf` (built from source; v0.6.3: `Pace2500N_V063.rbf` from Releases) | `/media/fat/_Other/` |
+| `Pace2500N_V070_Live.mgl` (v0.6.3: `Pace2500N_V063_Live.mgl`, in the MiSTer files zip) | `/media/fat/` |
 | Your firmware `FLASH_U202.bin` | `/media/fat/games/Pace2500N/` |
 | Guide checkpoint `RAM.bin`, `STATE.bin` | `/media/fat/games/Pace2500N_GUIDE/` |
 
@@ -131,8 +140,12 @@ In the app:
   continuity, no adverts / ITV style: terrestrial advert breaks / Sky style:
   satellite breaks), when its broadcast day starts, and tick the advert /
   continuity sets it uses. Add programmes with *Add files...* or
-  *Add from Plex...* (pick a library, a show, then episodes). The list repeats
-  to fill the day. *Apply changes* saves.
+  *Add from Plex...* (pick a library, then a show and episodes - or **Add the
+  whole library**: every film, or every episode of a TV library). The list
+  repeats to fill the day. **Every change is saved as you make it** (the line-up
+  file is shown at the top of the tab; a new one is `roms\lineup.json`), and a
+  running playout picks it up a couple of seconds later - no Save or restart
+  needed. A channel with no programmes yet stays off air.
 - **Adverts & continuity** - search YouTube (e.g. `TVS adverts 1987`,
   `BBC1 continuity 1989`, `Sky One adverts 1994`), select results and *Rip
   selected* into a set named for the station and years. Videos you downloaded
@@ -154,10 +167,11 @@ For scripting there are command-line equivalents (`tools/pace_channels.py`,
 ## 5. Watch
 
 1. Open **Pace Channel Builder** on the PC (playout starts with it).
-2. On the MiSTer load **Pace2500N_V063_Live**. The firmware starts in the Guide.
-   After loading, the box gathers its listings while ALL CHANNELS is open:
-   the list usually fills on the second or third visit (about 1.5 minutes
-   after loading the core).
+2. On the MiSTer load **Pace2500N_V070_Live** (or `Pace2500N_V063_Live`). The
+   firmware starts in the Guide. After loading, the box gathers its listings:
+   if ALL CHANNELS says *Searching for listings*, press Back Up (Esc) and open
+   it again - with v0.7.0 the grid is there on the second visit, a couple of
+   minutes after loading.
 3. Press **TV Guide** (F1), choose **All Channels**, highlight a channel and
    press **Select** (Enter). After a few seconds (the PC starts the transcode at
    the scheduled point) the picture and sound appear.
@@ -181,12 +195,13 @@ Channel numbering in the line-up maps to the box's services: channel *n*
 Quartus Prime Lite 17.0.2 (Cyclone V).
 
 1. In the repository root: `quartus_sh --flow compile Pace2500N`. The root
-   project (`Pace2500N.qsf`, `files.qip`) builds the current core (v0.6.3).
+   project (`Pace2500N.qsf`, `files.qip`) builds the current core (v0.7.0; the
+   CPU is VHDL in `rtl/r4k/`, see `rtl/r4k/UPSTREAM.md`).
    No firmware is needed to build it: the Live core's boot-block memory is
    filled from your `FLASH_U202.bin` as the launcher loads it
    (`BOOT_LOAD(1)` in `rtl/Pace2500N_Transport.sv`, `rtl/pace_bootram.sv`).
 2. Copy `output_files/Pace2500N.rbf` to the MiSTer as
-   `/media/fat/_Other/Pace2500N_V063.rbf`.
+   `/media/fat/_Other/Pace2500N_V070.rbf`.
 
 Older development tops (`rtl/Pace2500N.sv`, `rtl/Pace2500N_Guide.sv`) still
 cold-boot from an in-fabric boot ROM: make it from your own dump with
@@ -195,6 +210,9 @@ builds contain firmware and must not be shared.
 
 Development build trees live in `builds/` (not in git). Simulation benches are
 in `sim/` (`iverilog -g2012`; e.g. `sim/tb_ts_live.sv`, `sim/tb_ts_stream.sv`).
+The v0.7.0 CPU has its own: `sim/r4k/` (GHDL, the CPU alone against a reference
+trace) and `sim/vl/` (Verilator: the CPU in the whole system with a transport
+stream, checked instruction by instruction against the old CPU; `sim/vl/build.sh`).
 
 The MPEG-2 decoder is from MiSTer_DVD (mpeg2fpga, GPL-3). The MiSTer
 framework in `sys/` is GPL; see `LICENSE`.

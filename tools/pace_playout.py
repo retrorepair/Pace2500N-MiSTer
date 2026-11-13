@@ -31,7 +31,7 @@ from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from pace_channels import RATE, load_settings, load_lineup, lineup_tables, carousel  # noqa: E402
+from pace_channels import RATE, load_settings, load_lineup, lineup_tables, carousel, MUSIC_PID, MUSIC_PMT, MUSIC_SID  # noqa: E402
 
 P = 188
 NULL = bytes([0x47, 0x1f, 0xff, 0x10]) + b'\xff' * 184
@@ -115,7 +115,9 @@ class Session:
         with Session.lock:
             Session.active[id(self)] = self
         try:
-            if self.chan is None:
+            if self.chan == 'music':
+                self.music()
+            elif self.chan is None:
                 self.guide_only()
             else:
                 self.channel()
@@ -140,6 +142,29 @@ class Session:
         refresh = time.time() + 60
         while True:
             self.send(b''.join(w.packet() for _ in range(348)))   # 64 KiB
+            if time.time() > refresh:
+                w.set_si(self.si()); refresh = time.time() + 60
+
+    def music(self):
+        """The EPG Background Audio service: the line-up's period MP2, looped, on its PID."""
+        self.srv.log(f"EPG background audio: {Path(self.srv.music).name}")
+        w = Weaver(self.si(), (MUSIC_PID,))
+        refresh = time.time() + 60
+        cmd = [self.srv.settings['ffmpeg'], '-hide_banner', '-loglevel', 'error', '-nostdin',
+               '-stream_loop', '-1', '-i', self.srv.music, '-map', '0:a:0', '-c:a', 'copy',
+               '-streamid', f'0:{MUSIC_PID}', '-mpegts_pmt_start_pid', str(MUSIC_PMT),
+               '-mpegts_service_id', str(MUSIC_SID), '-muxrate', str(RATE * 8), '-f', 'mpegts', 'pipe:1']
+        self.proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                                     creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+        buf = b''
+        while True:
+            chunk = self.proc.stdout.read(P * 348)
+            if not chunk:
+                break
+            buf += chunk
+            n = len(buf) // P * P
+            self.send(b''.join(w.packet(buf[i:i + P]) for i in range(0, n, P) if buf[i] == 0x47))
+            buf = buf[n:]
             if time.time() > refresh:
                 w.set_si(self.si()); refresh = time.time() + 60
 
@@ -193,6 +218,15 @@ class Server(ThreadingHTTPServer):
         self.lineup_path = lineup
         self.history = []
         self.chans, self.media = load_lineup(lineup, settings, self.log)
+        music = json.loads(Path(lineup).read_text()).get('epg_music')
+        self.music = None
+        if music:
+            m = Path(music) if Path(music).is_absolute() else Path(settings.get('data_root', '.')) / music
+            if m.exists():
+                self.music = str(m)
+                self.log(f'EPG background audio service on: {m.name}')
+            else:
+                self.log(f'epg_music not found: {m}')
         from pace_huffman import FirmwareHuffman
         self.codec = FirmwareHuffman.from_file(settings['huffman_ram'])
         self._si = (0, None)
@@ -204,6 +238,8 @@ class Server(ThreadingHTTPServer):
         where the firmware stops video but the channel's sound carries on -- by
         its audio PID. None = no channel (guide data only)."""
         v, a = video & 0x1fff, audio & 0x1fff
+        if self.music and v == 0x1fff and a == MUSIC_PID:
+            return 'music'
         return (next((c for c in self.chans if c.video_pid == v), None)
                 or next((c for c in self.chans if c.audio_pid == a), None))
 
@@ -222,7 +258,8 @@ class Server(ThreadingHTTPServer):
         with self._si_lock:
             stamp, si = self._si
             if si is None or abs(when - stamp) > 60:
-                tables, today = lineup_tables(when, self.codec, self.chans, int(self.settings['days']))
+                tables, today = lineup_tables(when, self.codec, self.chans, int(self.settings['days']),
+                                              music=bool(self.music))
                 si = carousel(tables, today)
                 self._si = (when, si)
             return si
@@ -260,7 +297,7 @@ class Server(ThreadingHTTPServer):
                             next_at=f'{nxt[0]//3600:02d}:{nxt[0]//60%60:02d}' if nxt else '',
                             on_air=it['kind'], source=Path(it['source']).name, offset=round(off, 1)))
         with Session.lock:
-            sessions = [dict(channel=s.chan.name if s.chan else '(guide data)', seconds=round(s.sent / RATE),
+            sessions = [dict(channel=('(EPG background audio)' if s.chan == 'music' else s.chan.name if s.chan else '(guide data)'), seconds=round(s.sent / RATE),
                              item=s.item and dict(kind=s.item['kind'], title=s.item['title'],
                                                   source=Path(s.item['source']).name))
                         for s in Session.active.values()]
@@ -290,7 +327,7 @@ class Handler(BaseHTTPRequestHandler):
             # which service a tuning means (the relay keeps its stream when unchanged)
             q = parse_qs(url.query)
             c = self.server.service(int(q.get('video', ['0x1fff'])[0], 0), int(q.get('audio', ['0x1fff'])[0], 0))
-            body = (str(c.i) if c else 'guide').encode()
+            body = ('music' if c == 'music' else str(c.i) if c else 'guide').encode()
             self.send_response(200)
             self.send_header('Content-Type', 'text/plain')
             self.end_headers()

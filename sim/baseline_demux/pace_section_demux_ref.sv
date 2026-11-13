@@ -202,7 +202,11 @@ module pace_section_demux_ref(
      if(unit==31)state<=DECIDE;else begin unit<=unit+1'b1;state<=MATCH_START;end
     end
     DECIDE:begin
-     if(!any_match || status[2][channel] || !limit_valid || record_size>ring_free)begin
+     // A pending completion does not stop the next section: the firmware's
+     // section task (80004520) consumes every record up to the published
+     // write pointer per wake-up and bounds the ring with its limit
+     // (consumer-32), so only a full ring drops a section.
+     if(!any_match || !limit_valid || record_size>ring_free)begin
       dropped<=dropped+1'b1;used[channel]<=0;state<=BYTE;
      end else begin
       dma_position<=write_within[13:0];

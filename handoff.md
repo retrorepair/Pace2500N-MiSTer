@@ -1,7 +1,58 @@
 # Pace 2500N / Sky Digital MiSTer FPGA — Project Handoff
 
 **Continuation:** Read `CURRENT_STATUS.md` first for later fixes, measured
-Quartus results and HDL regressions. The original snapshot below is retained.
+Quartus results and HDL regressions. The latest session is directly below; the original
+7 Nov snapshot further down is retained for history only (it predates everything that works).
+
+## Session 13 Nov 2026 - v0.7.0 pipelined CPU usable; EPG music and channel numbers open
+
+**State:** v0.7.0 (`_Other/Pace2500N_V070.rbf`, `Pace2500N_V070_Live.mgl`) runs the firmware
+on a KI-derived pipelined, cached VR4110 (`rtl/r4k/`, bridge `rtl/pace_r4k.sv`; plan and
+progress log in `re/CPU_PORT_PLAN.md`). On hardware: keys respond at once; TV Guide, Box
+Office, Services menus; ALL CHANNELS listings (second visit); channel play from the Guide
+(BBC1, and Sky Movies films from Plex); back to the Guide from a channel. Fit: 82% ALMs,
+80% RAM, 92% DSP; HDMI scaler path slack about -0.1 ns (not the CPU).
+
+**Bugs found and fixed in the CPU port** (all ours, not KI's): CP0 write mux inside
+`translate_off`; D-cache missing REREAD/ram_stale; PC-relative base taken from an annulled
+jump; chained-delay-slot test assuming +4 (MIPS16 is +2); IRQ taken on an annulled slot.
+
+**System sim** (`sim/vl/`): GHDL 6 converts the VHDL CPU to Verilog (`synth.sh`), Verilator
+builds `tb_sys.sv` (CPU + devices + blitter + demux + DDR model + TS feed + key sequences)
+and `tb_shadow.sv` (old CPU lockstep). Useful plusargs: `+keys=80,01 +keyat +keygap`,
+`+ts= +tsgap=64`, `+mlog=` (every device access), `+watchval=`, `+watchaddr=` (cached
+loads/stores of a word, with the 400 instructions before), `+natives` (every o-code native
+call with its o-code PC in a3). Build: `OBJ=/tmp/vl_objN bash sim/vl/build.sh nosynth` in WSL.
+
+**App / playout:** Channel Builder auto-saves (new line-up -> `roms/lineup.json`), adds whole
+Plex libraries, reloads playout; Sky Movies = 182 Plex films + the 1998 continuities. SI
+version comes from the channel set (fixed the box tuning BBC1 for a new channel). Line-up key
+`epg_music` (experiment, on in `roms/lineup_mock.json`) adds the "EPG Background Audio"
+service (SID 4152, audio 0x288, own 0xB1 record, 0x91 linkage at it) and serves the MP2.
+
+**Open, in priority order (user):**
+1. **EPG background music.** Finding today (hardware): the box DOES tune the music service as
+   its 0x91 home service - Sky key with no channel plays it (audio-only, decoded, MP2 synced) -
+   but entering the TV Guide explicitly stops that audio and resets the audio decoder, with
+   Background Music ON. So Guide music is another path; leads: AUDIO_MP HISR / AUDRAM
+   play-from-RAM driver (80001814-800025BC, EMMA B00021xx, unmodelled), and the o-code that
+   writes the 0x80477228 variable (o-code PC ~9FC96774) and the natives after it (1,0xBC),
+   (1,0x26). Details: `CURRENT_STATUS.md` (music sections). User: the music came "over dish or
+   modem". Enthusiast sources say it was the EPG Background Audio radio service on the EPG
+   data transponder, heard only in the guide menus.
+2. **Typed channel numbers -> "Channel Unavailable".** The sim run of 1-0-6 was invalid (typed
+   at the Guide menu, where digits pick menu rows); a rerun from TV mode (`+keys=80,01,00,06`,
+   log `/tmp/chan106tv.log`) was started - redo if lost.
+3. Synopsis from Plex metadata; first-visit "Searching for listings"; audio normalisation
+   (backlog item 6 in `re/CPU_PORT_PLAN.md`); HDMI scaler timing slack.
+
+**Rules (unchanged):** faithful decompilation only; no firmware, RAM images, TS files or
+`rom/bootloader_words.hex` in git or releases; Plex token only in
+`%APPDATA%\Pace2500N\settings.json`; README is the user guide.
+
+---
+
+# Original snapshot (7 Nov 2026) - historical
 
 **Snapshot:** 7 November 2026  
 **Current candidate:** `Pace2500N_RealFirmwareBoot_v042_Lean.zip` (v0.4.2)  

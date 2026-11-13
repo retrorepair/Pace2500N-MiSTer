@@ -3,10 +3,11 @@
 module emu (
 `include "sys/emu_ports.vh"
 );
-localparam CONF_STR={"Pace2500N_TS;;","F0,BIN,Load FLASH_U202.bin;","F1,BIN,Load RAM checkpoint;","F2,BIN,Load CPU state;","F3,TS,Load transport stream (64MiB max);","S0,TS,Stream transport stream / live ring;","O3,Display,Guide,Diagnostics;","O4,Diagnostic RF lock,From TS,Off;","O5,Broadcast clock (TOT),MiSTer RTC,TS file;","-;","R0,Reset (reload checkpoint);","V,0.6.3 boot block from your flash"};
+localparam CONF_STR={"Pace2500N_TS;;","F0,BIN,Load FLASH_U202.bin;","F1,BIN,Load RAM checkpoint;","F2,BIN,Load CPU state;","F3,TS,Load transport stream (64MiB max);","S0,TS,Stream transport stream / live ring;","O3,Display,Guide,Diagnostics;","O4,Diagnostic RF lock,From TS,Off;","O5,Broadcast clock (TOT),MiSTer RTC,TS file;","-;","R0,Reset (reload checkpoint);","V,0.7.0 (pipelined VR4110)"};
 wire clk_sys,clk_video,clk_mem,clk_dec,clk_dot,pll_locked;
+wire clk_cpu2x,clk_cpu1x;
 pll pll(.refclk(CLK_50M),.rst(1'b0),.outclk_0(clk_sys),.outclk_1(clk_video),
- .outclk_2(clk_mem),.outclk_3(clk_dec),.outclk_4(clk_dot),.locked(pll_locked));
+ .outclk_2(clk_mem),.outclk_3(clk_dec),.outclk_4(clk_dot),.outclk_5(clk_cpu2x),.outclk_6(clk_cpu1x),.locked(pll_locked));
 // Unused platform interfaces: MiSTer sys_top remains responsible for
 // pinout, HPS bus, and video/composite sync on the analogue board.
 assign ADC_BUS='Z;
@@ -130,19 +131,30 @@ wire [7:0] cpu_halt,model_halt,gpu_error,video_error;
 wire mips16;
 wire gpu_start,gpu_done,gpu_busy;wire [7:0] gburst;
 wire [31:0] gpu_descriptor,osd_root,gpu_count,gpu_last,serial_frames,key_frames,timer_acks,gpu_acks,video_frames,video_underruns;
-// Boot block (U202 first 128 KiB): written into the CPU's boot M10K from the
-// FLASH_U202.bin download below, so the bitstream holds no firmware.
-wire boot_load;
 wire [7:0] halt_code=cpu_halt!=0?cpu_halt:model_halt!=0?model_halt:gpu_error!=0?gpu_error:video_error;
-pace_firmware_cpu #(.EXTERNAL_MMIO(1),.CHECKPOINT_PORT(1),.RETIRE_TIMING(1),.WALL_COUNT(1),.ICACHE(1),.BOOT_LOAD(1)) cpu(
- .clk(clk_sys),.reset(core_reset),.full_flash_loaded(loaded_flash),
- .boot_load(boot_load),.boot_load_addr(ioctl_addr[16:0]),.boot_load_data(ioctl_dout),.mmio_policy(2'd1),
- .checkpoint_hold(holding),.checkpoint_wr(state_write),.checkpoint_index(ioctl_addr[8:2]),.checkpoint_data(state_data),
- .io_req(iq),.io_we(iw),.io_addr(ia),.io_wdata(id),.io_size(iz),.io_rdata(ir),.io_ready(irdy),.io_irq(irq),
- .mem_req(cq),.mem_we(cw),.mem_addr(cad),.mem_wdata(cwd),.mem_be(cbe),.mem_accept(ca),.mem_rvalid(cv),.mem_rdata(DDRAM_DOUT),
- .pc(pc),.instruction(inst),.retired(retired),.ram_writes(ram_writes),.last_ram_address(last_ram),
- .last_mmio_address(mmio_address),.last_mmio_value(mmio_value),.last_mmio_read(mmio_read),
- .mmio_writes(mmio_writes),.guessed_reads(guessed_reads),.halt_code(cpu_halt),.mips16(mips16),.interrupt_count(interrupt_count));
+// The CPU: pipelined, cached NEC VR4110 (rtl/pace_r4k.sv, rtl/r4k), 75 MHz core. It reads the
+// whole flash (boot block included) from DDR through its caches, as the real one reads U202.
+wire trace_next,trace_frozen;wire [511:0] trace_page_data;
+wire [31:0] dbg_fetch_stall,dbg_cached_stall,dbg_mem_stall,dbg_exceptions,dbg_cause,dbg_epc,dbg_badvaddr;
+wire [5:0] cpu_errors;wire [31:0] cpu_unmapped;wire [7:0] cburst;
+pace_r4k #(.COUNT_NUM(27),.COUNT_DEN(100)) cpu(.clk_sys(clk_sys),.clk1x(clk_cpu1x),.clk2x(clk_cpu2x),
+ .reset_sys(core_reset),.hold_sys(holding),.ckpt_loaded(loaded_state),
+ .state_wr(state_write),.state_index(ioctl_addr[8:2]),.state_data(state_data),.io_irq(irq),
+ .ddr_req(cq),.ddr_we(cw),.ddr_addr(cad),.ddr_wdata(cwd),.ddr_be(cbe),.ddr_burst(cburst),
+ .ddr_accept(ca),.ddr_rvalid(cv),.ddr_rdata(DDRAM_DOUT),
+ .io_req(iq),.io_we(iw),.io_addr(ia),.io_wdata(id),.io_size(iz),.io_rdata(ir),.io_ready(irdy),
+ .pc(pc),.retired(retired),.errors(cpu_errors),.unmapped(cpu_unmapped),
+ .dbg_fetch_stall(dbg_fetch_stall),.dbg_cached_stall(dbg_cached_stall),.dbg_mem_stall(dbg_mem_stall),
+ .dbg_exceptions(dbg_exceptions),.dbg_cause(dbg_cause),.dbg_epc(dbg_epc),.dbg_badvaddr(dbg_badvaddr),
+ .trace_next(trace_next),.trace_page_data(trace_page_data),
+ // the trace freezes only on the firmware's TLB-refill panic path (rtl/pace_r4k.sv)
+ .trace_trigger(1'b0),.trace_frozen(trace_frozen));
+// Telemetry: IR= the CPU's error flags, RAM= accesses outside the memory map, IRQ= exception
+// entries. (CPU error flags are not shown as a halt: halt_code switches the screen to
+// diagnostics.) PROF lines carry the panic trace (rtl/pace_r4k.sv) once it has frozen.
+assign cpu_halt=8'd0;assign inst={26'd0,cpu_errors};assign ram_writes=cpu_unmapped;
+assign last_ram=0;assign mmio_address=0;assign mmio_value=0;assign mmio_read=0;assign mmio_writes=0;
+assign guessed_reads=0;assign interrupt_count=dbg_exceptions;assign mips16=pc[0];
 pace_guide_peripherals devices(.clk(clk_sys),.reset(core_reset),.hold(holding),.retired(retired),
  .io_req(device_req && !demux_selected),.io_we(iw),.io_addr(ia),.io_wdata(id),.io_size(iz),.io_rdata(pir),.io_ready(prdy),.io_irq(irq),
  .key_valid(key_valid),.key_pressed(key_pressed),.key_code(key_code),.gpu_start(gpu_start),
@@ -273,8 +285,6 @@ wire accepted=request && !holding && !read_pending && !DDRAM_BUSY;
 wire load_memory=ioctl_download && (ioctl_index<2 || ioctl_index==3);
 wire download_store=load_memory && ioctl_wr && !DDRAM_BUSY && !read_pending && (ioctl_index!=3 || ioctl_addr<27'd67108864);
 assign ioctl_wait=load_memory ? (DDRAM_BUSY || read_pending) : 1'b0;
-// The same flash writes that go to DDR also fill the boot block.
-assign boot_load=download_store && ioctl_index==0 && ioctl_addr<27'h20000;
 assign ca=accepted && owner==0;assign ga=accepted && owner==1;assign va=accepted && owner==2;
 assign cv=DDRAM_DOUT_READY && read_pending && read_owner==0;
 assign gv=DDRAM_DOUT_READY && read_pending && read_owner==1;
@@ -285,7 +295,7 @@ always @(posedge clk_sys)begin
  if(core_reset)read_pending<=0;
  else begin
   if(DDRAM_DOUT_READY && read_pending)begin if(read_beats<=8'd1)read_pending<=0;else read_beats<=read_beats-8'd1;end
-  if(accepted && !write_request)begin read_pending<=1;read_owner<=owner;read_beats<=owner==1 ? gburst : 8'd1;end
+  if(accepted && !write_request)begin read_pending<=1;read_owner<=owner;read_beats<=owner==1 ? gburst : owner==0 ? cburst : 8'd1;end
  end
 end
 assign DDRAM_ADDR=download_store ?
@@ -294,7 +304,8 @@ assign DDRAM_ADDR=download_store ?
 assign DDRAM_DIN=download_store ? ({48'd0,ioctl_dout}<<(ioctl_addr[2:0]*8)) : owner==4?dwd:owner==5?swd:owner==1?gwd:cwd;
 assign DDRAM_BE=download_store ? (8'h03<<ioctl_addr[2:0]) : owner==4?dbe:owner==5?sbe:owner==2 || owner==3?8'hff:owner==1?gbe:cbe;
 assign DDRAM_WE=download_store || (accepted && write_request);
-assign DDRAM_BURSTCNT=(!download_store && owner==1 && !write_request) ? gburst : 8'd1;
+assign DDRAM_BURSTCNT=(!download_store && owner==1 && !write_request) ? gburst :
+                      (!download_store && owner==0 && !write_request) ? cburst : 8'd1;
 assign DDRAM_RD=accepted && !write_request;
 
 wire [7:0] monitor_r,monitor_g,monitor_b;
@@ -324,6 +335,6 @@ pace_debug_uart telemetry(.clk(clk_sys),.reset(!pll_locked),.tx(UART_TXD),
  .mmio_address({gpu_count[15:0],ts_sections[15:0]}),.mmio_value({key_count[15:0],key_frames[15:0]}),
  .mmio_read({dec_pictures[7:0],dec_vbuf,video_on,audio_on,dec_live,mp2_synced,mp2_err,dec_busy,2'd0,ves_dropped[7:0]}),.interrupt_count(interrupt_count),
  .guessed_reads(streaming ? {stream_underruns[15:0],stream_written[25:10]-stream_played[25:10]} : ts_packets),.mmio_policy(2'd1),.halt_code(halt_code),.mips16(mips16),.full_flash_loaded(loaded_flash),
- .ev_valid(trace_event),.ev_we(iw),.ev_addr(ia),.ev_data(iw ? id : (demux_selected ? dir : pir)));
+ .ev_valid(trace_event),.ev_we(iw),.ev_addr(ia),.ev_data(iw ? id : (demux_selected ? dir : pir)),.prof(trace_page_data),.prof_sent(trace_next),.prof_fast(trace_frozen));
 endmodule
 

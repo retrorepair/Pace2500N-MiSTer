@@ -1,4 +1,4 @@
-# Pace 2500N current status — 9 November 2026
+# Pace 2500N current status — 9 November 2026
 
 ## v0.5.8 (10 Nov, 23:20) - MPEG-2 video and MP2 audio from the Guide, on hardware
 
@@ -48,6 +48,61 @@ Facts established:
 Open: where the firmware takes the background audio from. Next leads: the
 A/V manager's "type 6" component path (case 5, own state at 80056D74), the
 audio-related natives in modules 1/7, and the o-code that reads the setting.
+
+12 Nov (Ghidra, this firmware): the Guide's one database question is (12,0x23) =
+`800CB770` -> `800CB69C(0x91, out)`: search the SI for descriptor 0x4A and accept it
+only with linkage_type 0x91. On a hit, `800A4040(ctx, sid, tsid, onid)` walks the box's
+own 24-byte service records (count at +0x4C, array at +0x58; record+0x10 = service id,
+record+0x14 = transport index into the table at 80164A80) and stores the matching
+record's index for the Guide, else 0xFFFFFFFF. So the 0x91 "home service" must be a
+service the box already holds a record for. The `--music-linkage` test pointed 0x91 at
+"EPG Background Audio" but gave it no record (it was in the SDT/PAT and service_list,
+not in the BAT's 0xB1 line-up, which the records come from) - the lookup missed, which
+is the not-found path that loses the listings. Today's playout points 0x91 at the first
+TV channel. Untested next step: the music service with its own 0xB1 entry (not a
+numbered guide channel), 0x91 pointing at it, its PMT carrying the MP2 audio (0x288),
+and playout serving that PID when the box asks for it; then see whether entering the
+Guide routes audio 0x288 (B000A098) - the relay's tune request would show `audio 4288`.
+
+13 Nov (v0.7.0, tested): done exactly that (line-up key `epg_music`, playout serves the MP2
+looped on 0x288 on request). Listings keep working with 0x91 pointing at the music service,
+and it is not a guide row - but the firmware never asks for 0x288. Not the mechanism.
+Every SI descriptor the firmware's code searches for (tag loaded before the SI search
+`800AD608`): 0x0A, 0x41, 0x4A, 0x4C, 0x56, 0x5F, 0xB1, 0xB2, 0xB4, 0xC0. Linkages: 0x91 (Guide
+home service, `800CB770`), 0x92 (callback `800A6E14` -> global `801068A4` -> `800A6F24`
+builds "otv" + ".transport." + N and posts {0x100, 2, name} to the application manager: the
+OpenTV download transport), 0x03 (`800CB3D8`, CA replacement). None names background audio.
+The firmware HAS a play-from-RAM MPEG audio path: Nucleus HISR "AUDIO_MP" (control block
+80107440, entry 800019D0 -> releases semaphore "AUDRAM"), driver context 8010629C (semaphore,
+three RAM buffers 801843A8/801845B8/80184250), driver code 80001814-800025BC programming the
+EMMA A/V decoder at B0002000/2008/2100/211C/2130 and B0002480/2488; reached through the
+registered "audio" device, not directly from a native. Hardware trace: entering the Guide (and
+Services) makes NO B0002xxx access at all, so the firmware does not even start background
+audio - a precondition is missing, most likely the music itself (user: it came "over dish or
+modem", i.e. a downloaded clip, presumably from the 0x92 OpenTV download transport). The
+core does not model B00021xx (audio from memory) either. Next: what the Guide checks before
+playing (the Background Music setting at 0x8047722B and what it gates), and what resource.
+
+13 Nov, later (hardware, v0.7.0, line-up `epg_music` on) - CORRECTION to the paragraph above:
+the box DOES tune the music service. The playout log shows `tune ... video 1fff audio 4288`
+(08:04, 08:25, 08:45) and the core decodes it: telemetry RD=00005400 = audio_on + mp2_synced,
+audio-only. What the UART trace shows:
+- Sky key with no channel being watched: the box returns to the 0x91 home service (now the
+  EPG Background Audio service): B000A098=4288, B000A010=0288, B000A0E0=4000, B000A104, then
+  a full audio-decoder setup (B0002000/2004/2008/2014/2080/2084/2100=1 then 0x10/2104/2110/
+  211C/2480/2490/2494). Playout starts the 2002 MP2. So 0x91 is the box's home/default service.
+- TV Guide key from there: B000A098=0288 (enable bit cleared), B000A000 0x40 pulse, B000A098=
+  1FFF, then the audio decoder is reset (B0002100=0, 2490 8800->0, 2004 bit 29 pulse,
+  2480=FFFF77FF). Nothing restarts it within 30 s. Sound Settings shows Background Music ON.
+- So in the Guide the firmware stops the home-service audio rather than playing it; the Guide
+  music must come from another path (the AUDIO_MP / AUDRAM play-from-RAM driver and B00021xx
+  remain the lead), gated by something not yet found.
+- Sim (tb_sys `+natives`, `+watchaddr`): the Guide o-code writes 1 to the 32-bit variable at
+  0x80477228 (low byte = the 0x8047722B setting) about 2 s after the TV Guide key, o-code PC
+  ~9FC96774, then reads it back; next natives are (1,0xBC) and (1,0x26). The "beep" device the
+  Guide opens is a front-panel tone message (8003406C -> 800296F0/80029724), not an audio clip.
+  From the checkpoint the sim did not reproduce the Sky-key tune of the music service (the HW
+  box had been running with the music record for an hour); hardware is the reference here.
 
 ## v0.5.6 (10 Nov) - lean demux and peripheral CSRs, deployed
 
@@ -328,364 +383,364 @@ to a real 81MHz-equivalent clock (the two must change together, otherwise
 ticks speed up with the CPU); create the private GitHub repository, excluding
 firmware dumps, RAM images, build trees and the GoRetroTv checkout.
 
-## Transport handoff implementation - v048 deployed, listings under investigationThe attached streamer handoff has been reviewed and revised in`re/TRANSPORT_INTEGRATION.md`. Native FPGA TS replay and 32-channel sectionDMA/interrupts are implemented in isolated `builds/v048_transport`. Compile gpasses reported timing: core +1.204ns, minimum +0.096ns, 75% ALMs, 387 M10Ks,50 DSPs. RBF SHA256 is`4085c2a69c1986b274da9f0830ec29b1d4aa81064ea7d95398f0f9d6803148d7`.It is deployed separately as `_Other/Pace2500N_TS.rbf`. The v047 fallback ispreserved. Build/source/ROM evidence: `re/deployment/v048_build_verified.json`.The launcher now loads flash, RAM, TS, then CPU state. Restoring CPU statebefore the TS upload caused an intermittent HALT05: ordinary upload hold resetsthe CPU decode/branch state. State-last launch passes that point. Restart throughthe MGL to change TS files; runtime hot replacement is not yet supported safely.Actual MiSTer readback confirms the entire TS file in DDR and CRC-valid C1,A2/A3, TOT, SDT/BAT and NIT records in the guest rings. Enter reaches the normalkeyboard/remote path. Hardware captures progress from ALL CHANNELS/no signalto Searching for listings. No populated rows have been verified.Longer validation exposed a guest software abort despite HALT00. Ghidra and avalidated SDK message-list census show free buffers=0, 270 queued to TASK30;the send/retry path aborts with code4C11. The producer of the queued event8messages is under investigation. `Pace2500N_Transport_Sparse.mgl` is the currentrate diagnostic: 8-second replay, table wave every2s, one fixed TOT per file.The standard and versioned-index launchers are also retained. Native long-runtrace `sim/guide_long_test.log` traps at the original software-abort entry.Protocol RTL tests pass (1802 exact DMA bytes, CRC/loss/duplicate handling,ring-full/wrap, 32 paired match units, wrong-table rejection, shared PIDs,BE status). The original boot DMA/indexed-port software tests still pass.An early native delivery run reached280M and programmed title PID36/A3,IDs0BB8/0BB9, MJDCD26. Its actual writes exposed/corrected an erroneous16-unitinterpretation in the public reference before deployment. A fresh run usesthe corrected filters plus matching synthetic OpenTV titles/B2 rows.The native Huffman encoder derives the exact tree from operator RAM. Its outputpasses the original 800BECF0 decoder running on the actual FPGA CPU model.The original 800044BC ring-length helper independently passes all three headerboundary positions. DMA now wraps individual bytes. A registered MMIO responseand packet-alignment counter replace the timing failures found in compile c.The registered-bus/circular-ring native run reached 300M instructions, consumed461 sections and acknowledged all461, no halt. A no-transport keyboard controlpasses the original21 DMA Guide redraws. The data-fed late-key runs do notredraw the menu yet. The fresh early-key/versioned-index run consumes 601 sectionsand renders ALL CHANNELS with a no-signal dialog, without programme rows.The frontend has reached native state 7/flag 1. The saved application stackcontains NVRAM/service-list routines and the favourites-rebuild bytecode loop;a longer run is needed before treating this as a persistent GUI failure.See `re/TRANSPORT_UI_FOLLOWUP.md`. A native notification trace is running.Compile e failed routing congestion (80% nominal ALMs,96% occupied LABs).Filter rules now use one M10K, removing about4800 registers. Reset/clear/seedrestore and packet tests pass. Compile g is the deployed timing-passing image.The PC scheduled localmedia producer passes real FFmpeg encode/probe/decode; this does not add MPEGdecoders to the FPGA. No historical data or placeholder web media was downloaded.Launcher: `Pace2500N_Transport.mgl`, index 3 full-day SI/OpenTV replay, distinct`_Other/Pace2500N_TS.rbf`. Transport/input validation passes; application-levelmessage exhaustion remains a blocker to populated listings.Populated OpenTV listings and protected-loader cold boot are still unresolved.
-
-## Latest hardware deployment — v047 Guide
-
-Built, deployed and loaded FPGA-only Guide checkpoint core. Both CPU and the
-runtime peripheral/graphics models are FPGA logic; no ARM software CPU.
-Actual screenshot re/deployment/v047_guide_fixed.png and full guest-RAM
-readback verify the native Guide menu. Down/Up produces4real DMA redraws;
-CPU continues beyond300M with HALT00. Timing passes (core+1.279ns,
-minimum setup+0.218ns). Load Other/Pace2500N_Guide.mgl. Keyboard/RP2040 mapping
-is KEYBOARD_REMOTE_MAP.md (F1Guide, arrows, Enter, Escape, R/G/Y/B).
-This resumes the disclosed200M diagnostic checkpoint with two RAM interventions;
-protected-loader cold boot and RF/populated listings remain unresolved.
-See re/FPGA_GUIDE_BUILD.md for final hash, corrections and evidence.
-
-## Latest software RE checkpoint
-
-
-**19:30 UTC: actual Guide menu pixels in the software diagnostic.**
-Original firmware draws the complete ten-entry TV GUIDE category menu and
-Select opens ALL CHANNELS / Searching for listings. See
-`re/GUIDE_DIAGNOSTIC_CHECKPOINT.md` and the two exported PNGs. These are guest
-framebuffer/CLUT exports, not MiSTer captures. Two explicit RAM interventions
-(native AV default return and bound root readiness) remain necessary; reports
-mark firmware_modified=true. No ROM file or FPGA build was changed.
-
-New00AC0000 packed indexed copy writes actual CPU-rasterized source pixels.
-A MIPS32 J/JAL delay-slot interrupt EPC/BD bug was fixed and replayed before
-export; final menu snapshot200M has23/23 graphics completions/acks, All Channels
-snapshot210M has44/44. Eight relevant checks pass. Same-ROM public GoRetroTv
-reference at revisionfa3a471 corroborates the hardware facts and discloses its
-own handoff/presentation interventions. The protected-loader handoff and
-populated broadcast listings remain unresolved. Earlier "no Guide" entries
-below are historical checkpoints, superseded only for this software diagnostic.
-
-
-
-**18:54 UTC continuation:** Software reaches185M instructions, issues four
-01AC0000 indexed rectangle commands, and fills two720x288 fields covering a
-720x576 screen with native palette indexDC. Layout inferred from the original
-rectangle builder, actual two-field allocations and four y-band coordinates;
-not validated on hardware. Eight real DMA completions/acknowledgements match.
-Snapshot indexfill_01 stops honestly at derivative frontend status APR001C.
-
-Explicit --lsi-extended-status-zero control supplies no-RF zeros for driver-
-accepted APR24..33 (unconfirmed silicon data), allowing frontend polling to end.
-indexfill_02 reaches210M with main/UI tasks waiting on event queues. A Guide
-keyCC is framed through real serial RX and decoded toCC/native0600; Sky80 and
-a second Guide press also run through normal key handling. Latest snapshot
-application_guide_key_02 at235M. Still only a uniform background; no Guide.
-
-Ghidra tracing now follows OpenTV event delivery. Earlier tentative clock/vsync
-labels were disproved:83E20 peeks UI events,84008 copies event data usingFBDE8
-(memcpy, not memcmp), and84050 waits for an event. Control state80106CC4=2 is
-'running'. Do not interpret those routines as a timebase or fabricate a clock
-fix. Latest code is not in the14:16 archive. Hardware remains v046 EXP.
-
-
-**18:16 UTC continuation:** Original firmware formatted the diagnostic erased
-EEPROM and wrote/read back settings. A missing MIPS32 SWL in its unaligned
-memset was implemented with LWL/LWR/SWR;36 independent Ghidra p-code cases pass,
-including every alignment, paired accesses and delay slots. CPython/PyPy
-100k-instruction CPU/RAM/peripheral differential also passes. Standalone PyPy
-was extracted under /opt/pace-pypy for longer software traces; no unrelated
-broken system packages were repaired.
-
-At100M instructions, main TASK0 waited on STXD0. Ghidra2D4C0/2CCA0 and the
-native interrupt table prove on-chip serial TX50/status60/enable70 atB2002000,
-EMMA mask10000. New optional native_serial0 profile completes the guest's
-queued600001110474 through6 real IRQs, releases its TX semaphore and supplies
-no RX/card data. Application proceeds through timeout/failure paths.
-
-B4080100..7 is another external byte-MMIO region, now classified as such;
-its device protocol remains unknown and reads still use the explicitly unsafe
-zero-MMIO experiment. This does not constitute validated emulation of that
-part. By120M instructions more than30 tasks exist and EEPROM totals19453 reads,
-3132 guest-written bytes. Longer continuation is active; still no Guide pixels.
-Latest completed snapshot: re/application_serial0_02.pkl.gz. FPGA unchanged.
-
-
-**14:48 UTC continuation (software only):** A separate functional, no-RF
-LSI512-word profile now records the observed D5/D7 controls and shared grouped
-register behavior without executing acquisition microcode or asserting lock.
-It passes frontend initialization with no provisional flat-register seeds.
-B4080000..7 is the external16550 UART (byte-lane XOR3), not a board strap;
-its original driver now initializes divisor4, FIFO and line controls normally.
-
-Original graphics DMA12 commands now fill actual guest luma/chroma buffers.
-The genuine DMA ISR80005E28 acknowledges4/4 completions in
-`re/application_graphics_03.json`. Native interrupt-table mapping is mask2,
-not `1 << logical_irq`. The only implemented GPU packet is observed solid-fill
-418F0000; unsupported packets stop. Buffers currently contain black/neutral
-video initialization, not Guide pixels.
-
-Next dependency: A0/A1 EEPROM. Absent-device control retries indefinitely;
-Ghidra confirms two-byte big-endian internal addressing. Optional diagnostic
-`--eeprom-blank` supplies erasedFF storage and retains guest writes. Capacity
-64KiB and instant writes are explicit assumptions; no original EEPROM dump is
-available. The guest now reads a16KiB settings block via its real I2C ISR.
-Latest run is still being examined. No Sky Guide output observed.
-
-All of this remains an **application-entry experiment**, not protected-loader
-handoff or an FPGA update. Current hardware stays v046 EXP, with v044 fallback.
-New graphics IRQ, fill, UART, grouped-control and EEPROM protocol checks pass,
-as does the existing end-to-end I2C ACK/NACK regression.
-
-New comparison reference: user supplied Drew1440's2500S5 teardown. It is an
-STi5512/ST20 platform, but its close-up clearly shows a separatePIC16F74 at
-U1200. Recorded as a possible peripheral/watchdog architecture comparison,
-not evidence of the2500N's chip or protocol. See
-`re/REFERENCE_2500S5_COMPARISON.md`. No model behavior changed from this lead.
-
-**14:15 UTC checkpoint:** Strict application entry RE now captures the genuine
-1024-byte frontend microprogram and stops at the next unsupported operation:
-LSI-family group5 control APR0400=D5 (`application_lsi_strict_02.json`).
-Program SHA256 `412837c684da392874a8d21e358d09baf51830e2bd6af915077abf8f18f1c094`.
-The grouped interface matches the LSI family, but the public L64724 releaseB
-manual has a smaller program/control map. Exact derivative remains unconfirmed;
-L64734 documents are saved for comparison. This is an emulator stop on unknown
-semantics, not evidence of a guest firmware failure. No microcontroller execution
-or satellite lock is asserted.
-
-Two optional **provisional flat-register** experiments seeded07 with00 andFF;
-both reach board-input readB4080000 at16,265,787 instructions. These are controls
-only: Ghidra shows the real device uses grouped/paged registers, so the strict
-grouped profile supersedes their apparent progress. Do not deploy that flat model.
-
-All relevant checks pass: extraction against actual MIPS startup, command53
-builder, I2C ACK/NACK through genuine ISR/return codes0/8, application idle
-differential, indexed demux helpers, DMA/CRC filters, exact CRC acceleration,
-grouped APR behavior and actual microprogram upload. Hardware remains unchanged.
-
-**Later continuation (~13:45 UTC):** User supplied the original archive source,
-http://colibri.bplaced.net/firmware.htm. Fresh downloads of all three ZIPs verify
-both supplied flash files and the separately published protected bootloader
-byte-for-byte. The local-copy-only12614 routine is present in the original
-publication. Archive manifest is under `re/original_archives/`.
-
-The application is now available for independent RE: genuine startup decompresses
-1,029,152 code bytes into RAM. All five initialized segments match a separate
-extractor byte-for-byte. Ghidra project `re/ghidra/PaceAppRAM` maps that code plus
-original flash aliases and uninitialized RAM. This is an **application-entry
-experiment**, not observed protected-loader handoff.18M-instruction experiment
-has687 IRQs and a main-task wait on frontend initialization. No firmware UI.
-
-Ghidra identified an I2C completion wait. A driver-derived channel0 model now
-uses the genuine IRQ/ISR path to complete the observedCA write `3f fe a6 70`;
-NACK control ends it as an error. No I2C read data or demodulator lock supplied.
-Later strict trace stops on address00; an explicit unknown-device NACK control
-reaches20M instructions and is being examined. Exact scheduler idle acceleration
-agrees with normal stepping for100k instructions. See
-`re/APPLICATION_HANDOFF_INVESTIGATION.md`, tools/ and re/application_i2c_*.
-
-Original JTAG manual's board drawing labels NEC D61032 and AT49LV1614 flash.
-Added matching NOR ID001F/00C0 while preserving the older MBM profile for
-reproduction. Fresh Atmel-profile loader run `re/boot_atmel_fresh.json` reaches
-61M instructions, both valid images, same wait path, no application entry.
-Exact physical alias decode and peripheral timings remain hypotheses. FPGA
-is unchanged v046 EXP with v044 fallback.
-
-**13:20 UTC continuation: software reaches valid application selection, but
-does not enter the application.** The serial completion blocker is resolved:
-reply opcode52 runs the genuine handler06408 and releases APeriph; generic
-ACK10 does not. UART output, active-low front-panel inputs (FFFF released),
-and an exact, optional CRC-loop accelerator let the unmodified loader validate
-both supplied application images and print `1.2.7`, `01-1-45-0`, `02-1-45-0`,
-`03-0`. See `re/application_boot_03.json` (100M interpreted instructions).
-
-Ghidra identifies a new issue: selected-image path1284A calls12614, whose actual
-ROM bytes only copy32 header bytes onto a local stack and return. Caller copies
-the selected header to A0002000, then enters permanent wait036F8. No application
-entry is observed. Investigating execution/provenance/reset contracts; no PC,
-validation result, or firmware instruction has been patched. The two older
-local project archives contain the same firmware hashes and same routine.
-Original public archives exist as offline phone-storage placeholders; attempts
-to read/copy them failed, so they have not provided independent provenance.
-
-Current FPGA remains **v046 EXP**, with v044 fallback preserved. Demux, NOR,
-serial replies, UART and later application investigations remain software only.
-Peripheral timing/profile assumptions remain explicit; sequence enforcement is
-not established. The earlier serial-blocker paragraph below is historical.
-
-Both genuine boot hardware self-tests now pass in a fresh reset-to-boot run.
-Guest-configured DMA/PSI demux generates bytes that the firmware compares and
-accepts. The firmware itself writes boot flag800081F8=0 and takes normal path
-9FC012E6, runs GPIO initialization and identifies an explicitly inferred NOR
-profile. See **re/DEMUX_SELFTEST_PASSED.md** for evidence, commands and limits.
-
-Next blocker is an external peripheral response, after genuine serial task
-transmits03011107 then03024100 under a provisional clock/peer model. No reply
-has been fabricated. Fresh run: re/demux_fresh_04.json + RAM/pickle; serial
-capture: re/serial_peer_capture_02.json. Models/tests are under tools/.
-
-Current FPGA remains **v046 EXP** (earlier timer-only hardware), with v044
-fallback preserved. These later demux/NOR/serial changes are software only.
-No application/Sky Guide boot is observed. Earlier entries below are history.
-
-## Verified checkpoint: v0.4.4
-
-The original U202 bootloader executes on the real DE10-Nano. The user supplied
-a CRT photo showing the diagnostic monitor; SSH UART and an FPGA screenshot
-confirm the same endpoint. This is early real-firmware execution, not Sky Guide.
-
-- PC BFC01E1C, instruction AB616C01, MIPS16, HALT 03, read B0000012.
-- 3,178,988 retired instructions; 1,770,706 RAM writes; 12 MMIO writes.
-- All 2 MiB of uploaded flash in FPGA-reserved DDR match the genuine U202
-  SHA-256 `32f6b2e84d0c4c4ec280a72f2d080e4b6fa5e68e8438ef712f34f97f63d38c7f`.
-- Guest RAM pointers at 80008200 remain `b0000010b0000000` under live scanout.
-- RBF SHA-256 `7fbefa9f53c9e6fdad98dd5ac467466ae473c89000235cf75e04793090f0104d`.
-- Clean Quartus 17.0.2 Lite full build: 13 min 42 sec, 0 errors.
-  13,680 / 41,910 ALMs (33%), 189 / 553 RAM blocks (34%).
-  All reported timing checks pass; minimum slack 0.216 ns; no unconstrained clocks.
-- `compile_v044_final.log`, `output_files/*.rpt` / `*.summary` are the reports.
-- `re/deployment/uart_v044_verified.log`, `ddr_v044_verified.log`,
-  `boot_monitor_v044.png`, and `crt_photo_20261107.jpg` are hardware evidence.
-
-MiSTer is reachable as `root@MiSTer` using the existing SSH key (192.168.1.103).
-The verified core is `/media/fat/_Other/Pace2500N.rbf`. The adjacent
-`Pace2500N_FullFlash.mgl` loads the genuine image from `games/Pace2500N/`.
-Global MiSTer.ini settings were preserved. Console is ttyS0; telemetry is ttyS1,
-115200 8N1. Screenshot command: `screenshot <label>` via `/dev/MiSTer_cmd`.
-The TV overscans the monitor edges but its central CPU data is readable.
-
-## Important fixes already included
-
-- Repaired stale simulation ports and checked all seven initial MMIO writes.
-- Added a PLL-derived 50 MHz core/video clock, required by shell clock selects.
-- Corrected MIPS16 LWPC/ADDIUPC bases, including jump-delay origins. The old
-  Python/RTL pair shared a PC+4 error, hence the obsolete B0000002 trace.
-- Moved guest RAM from physical 20000000 to 30000000 and flash from 22000000
-  to 32000000. Old addresses collided with scaler buffers and Linux framebuffer
-  (measured fb0 base 22001000, size 384000). v0.4.3 must not be used as current.
-- Added UART snapshots, memory-lane/backpressure, strict boot, PC-relative,
-  serial and PAL raster tests. Both project generators reproduce QSF offline
-  from bundled `sys/` and `tools/mister_platform.qsf`; shell hashes recorded.
-- Monitor caption now says 0.4.4. A quick MIF update gave an incomplete digital
-  capture, initially misdiagnosed as a ROM failure. A clean build produced the
-  identical RBF hash, and a fresh capture shows the full monitor. Archived
-  experiment files under `re/caption_update_*` are not needed for normal builds.
-
-## Active overnight work
-
-User explicitly requested eight hours of continued work, **23:02:32 UTC on
-7 Nov until 07:02:32 UTC on 8 Nov**. An active goal records that timebox.
-See `OVERNIGHT_WORK_LOG.md`. Keep working until that deadline, preserving a
-known-good checkpoint before changing the RTL. Do not infer that the task
-ends merely because v0.4.4 is verified.
-
-Current exploratory tool: `tools/pace_probe_research.py`, separate from the
-checkpoint interpreter. It corrects MIPS16 memory register roles, shift fields,
-NOT source, compact returns and implements EXTEND forms. Directed tests pass
-in `tools/test_research_mips16.py`. Strict mode matches the hardware endpoint.
-With explicitly experimental zero MMIO, it passes the former F140 blocker,
-executes 545 extended instructions, and reaches a polling loop at BFC0B118:
-B0009120 bit 0x20 must become set. Ghidra agrees with this loop. Register meaning
-is not established. Reports: `re/research_zero_02.json`, `poll_9120_ghidra.txt`.
-
-Next priorities: preserve/package v0.4.4, investigate that peripheral wait,
-add independently tested MIPS16 decoder corrections and EXTEND to a new RTL
-candidate, compare traces against software, then compile/deploy experimental
-progress without presenting guessed MMIO as accurate hardware emulation.
-The default hardware policy remains Halt. No fabricated Sky UI.
-
-## Later candidate status — 8 November, 00:04 UTC
-
-The active working RTL is now a **v046 source candidate**, not the deployed
-v044. Frozen v045 and v046_exp builds are running under builds/. All ten
-ModelSim suites pass. 260 independent Ghidra cases also pass the RTL; a 32-cycle
-HI/LO unit passes 2,028 arithmetic cases. MIPS16 register roles, shifts, moves,
-EXTEND, halfword boundary fetch, RAM execution, ERET and Count/Compare are added.
-Experimental profile is explicitly zero MMIO plus B0009120=20. v046 UART frames
-are 175 bytes and add IRQ/GUESS/POL; ordinary v044/v045 frames are 134 bytes.
-
-Software 50M instructions reaches Nucleus scheduler idle with 1,831 timer IRQs
-and real firmware tick0x725. BOOTMain waits forever on semaphore8000A820 via
-9FC069F0. Investigate the device completion path; no application boot yet.
-See OVERNIGHT_WORK_LOG.md and re/research_timed_09*. The verified default RBF
-and immutable v044 archive remain intact. Deadline remains 07:02:32 UTC.
-
-## Resumed deployment verification — 8 November, 07:27 UTC
-
-The session was paused after the overnight build launches; it resumed after
-07:20. Do not describe the intervening pause as continuous active RE work.
-Both frozen builds completed successfully: v045 at00:11:34 (19m34), v046_exp
-at00:19:30 (20m19), each0 errors/81 warnings. The full 8M-instruction RTL
-research simulation passed at00:04:43: PC9FC0DE68, IRQ110, firmware tick0x6D.
-
-**Current running hardware: v046 EXP** at /media/fat/_Other/Pace2500N_EXP.rbf.
-SHA256 f8f3a9dbf4c00ff9e367bafd9a15f098d87e99db1d251c1e1a3595e90532b9d1.
-18,316/41,910 ALMs(44%),189 RAM blocks(34%); reported timing positive,
-minimum setup0.212ns and minimum observed hold0.243ns. Strict v044 default
-RBF remains available and unchanged.
-
-MiSTer now executes the real protected boot firmware into Nucleus scheduler
-idle9FC0DE4C..68, with rising retire count and timer IRQs, HALT00, FLASH1,
-policy1. This uses guessed zero MMIO +B0009120 bit5 and approximate50MHz Count.
-Full2MiB DDR flash hash matches U202. RAM confirms increasing kernel tick
-8000842C (0x23A3 then0x434C), empty ready queues, and BOOTMain TCB80013AE0
-with saved wait routine9FC1117D and suspend record802AAC34, matching software.
-The device completion/semaphore wait at9FC069F0/8000A820 remains the blocker.
-No full application boot, firmware UI, or Sky Guide is observed.
-
-Initial experimental MGL relative path failed because the core's game directory
-Pace2500N_EXP did not exist; old DDR contents still matched and did not prove a
-new upload. Using the absolute /media/fat/games/Pace2500N/FLASH_U202.bin path
-fixed it: actual upload/reset seen, FLASH1, full DDR SHA verified again.
-Temporary test f0 autoload config was removed. EXP MGL now uses absolute path.
-
-Evidence: re/deployment/v046_exp_verified.log, scheduler_v046_exp_verified.log,
-boot_monitor_v046_exp_fullflash.png. Both normal and accelerated 50M software
-runs match all registers/CP0/PC, all16MiB RAM, interrupt events and ticks;
-46,075,952 idle instructions safely skipped in the accelerated run.
-
-### Rendering caveat found during final screenshot inspection
-
-The pre-upload EXP screenshot has full monitor labels. Both post-full-flash
-captures show live numeric columns but omit static text labels. UART remains
-healthy, FLASH1, scheduler/tick data verified via read-only DDR mapping. Do not
-claim complete post-upload monitor rendering or CRT confirmation. The same
-kind of incomplete capture appeared earlier on v044 but its cause is still
-unproven; here it repeats after upload and needs investigation. Static labels
-are diagnostic ROM content, not genuine firmware UI. Current hardware CPU
-progress is verified independently of this visual issue.
-
-Sealed candidate archive: ../Pace2500N_v046_exp_sources_rbf.zip
-SHA256 d0ac7838b88fa186d8208f33b3838e81768aff4c051e8f9c7e47f8093e6b37aa.
-The archive predates this final rendering caveat; see its adjacent NOTES.md.
-
-## Ghidra follow-up: original event/timer blocker passed in software
-
-See re/EMMA_TIMER_BLOCKER.md for address-by-address evidence and commands.
-A new research-only tools/pace_probe_emma_timer.py models channel0 of B000Dxxx,
-local status/W1C ack, EMMA bit0x40 and CPU IP2. Genuine firmware ISR/HISR wakes
-BOOTMain naturally: original semaphore obtain returns0 at9FC069F6, then event
-initialization completes. Verified with two synthetic timer clock ratios. No
-semaphore/PC/boot flag forcing. 8M steps yield173 real ISR acknowledgements and
-substantially more instruction coverage. Directed model tests pass.
-
-Next observed wait: APeriph8000A6D0 via9FC0630C. Its send fails channel gate
-80013CCC=0; Ghidra finds initializer9FC03910 under normal path9FC03688. Current
-BOOTMain takes another path because800081F8=1; trace its provenance next.
-Hardware remains v046 EXP. New peripheral behavior is not yet in RTL/deployed.
-
-## Continued Ghidra work: boot flag and embedded transport self-test
-
-See re/BOOT_FLAG_AND_TRANSPORT_SELFTEST.md. Observed800081F8=1 is written at
-BFC004FC from BFC0B444, which combines two hardware self-tests. A narrow
-research FIFO data-port model now makes the first genuine self-test pass:
-240 pattern writes/reads, return0. The second still times out and returns1;
-no boot flags/PC/semaphores were forced.
-
-Extracted six genuine TS packets and both expected DMA buffers from U202.
-Independent PSI reassembly and CRC verification reconstruct both buffers
-byte-for-byte:184 bytes and180 bytes. Deliberate CRC-bad sections are excluded.
-Trailer meaning and PID routing remain ambiguous; documented precisely.
-Next: infer indexed register/filter/DMA configuration so the genuine second
-self-test can validate data produced by an actual configured demux model.
-Hardware remains unchanged v046 EXP. This is new software evidence only.
+## Transport handoff implementation - v048 deployed, listings under investigationThe attached streamer handoff has been reviewed and revised in`re/TRANSPORT_INTEGRATION.md`. Native FPGA TS replay and 32-channel sectionDMA/interrupts are implemented in isolated `builds/v048_transport`. Compile gpasses reported timing: core +1.204ns, minimum +0.096ns, 75% ALMs, 387 M10Ks,50 DSPs. RBF SHA256 is`4085c2a69c1986b274da9f0830ec29b1d4aa81064ea7d95398f0f9d6803148d7`.It is deployed separately as `_Other/Pace2500N_TS.rbf`. The v047 fallback ispreserved. Build/source/ROM evidence: `re/deployment/v048_build_verified.json`.The launcher now loads flash, RAM, TS, then CPU state. Restoring CPU statebefore the TS upload caused an intermittent HALT05: ordinary upload hold resetsthe CPU decode/branch state. State-last launch passes that point. Restart throughthe MGL to change TS files; runtime hot replacement is not yet supported safely.Actual MiSTer readback confirms the entire TS file in DDR and CRC-valid C1,A2/A3, TOT, SDT/BAT and NIT records in the guest rings. Enter reaches the normalkeyboard/remote path. Hardware captures progress from ALL CHANNELS/no signalto Searching for listings. No populated rows have been verified.Longer validation exposed a guest software abort despite HALT00. Ghidra and avalidated SDK message-list census show free buffers=0, 270 queued to TASK30;the send/retry path aborts with code4C11. The producer of the queued event8messages is under investigation. `Pace2500N_Transport_Sparse.mgl` is the currentrate diagnostic: 8-second replay, table wave every2s, one fixed TOT per file.The standard and versioned-index launchers are also retained. Native long-runtrace `sim/guide_long_test.log` traps at the original software-abort entry.Protocol RTL tests pass (1802 exact DMA bytes, CRC/loss/duplicate handling,ring-full/wrap, 32 paired match units, wrong-table rejection, shared PIDs,BE status). The original boot DMA/indexed-port software tests still pass.An early native delivery run reached280M and programmed title PID36/A3,IDs0BB8/0BB9, MJDCD26. Its actual writes exposed/corrected an erroneous16-unitinterpretation in the public reference before deployment. A fresh run usesthe corrected filters plus matching synthetic OpenTV titles/B2 rows.The native Huffman encoder derives the exact tree from operator RAM. Its outputpasses the original 800BECF0 decoder running on the actual FPGA CPU model.The original 800044BC ring-length helper independently passes all three headerboundary positions. DMA now wraps individual bytes. A registered MMIO responseand packet-alignment counter replace the timing failures found in compile c.The registered-bus/circular-ring native run reached 300M instructions, consumed461 sections and acknowledged all461, no halt. A no-transport keyboard controlpasses the original21 DMA Guide redraws. The data-fed late-key runs do notredraw the menu yet. The fresh early-key/versioned-index run consumes 601 sectionsand renders ALL CHANNELS with a no-signal dialog, without programme rows.The frontend has reached native state 7/flag 1. The saved application stackcontains NVRAM/service-list routines and the favourites-rebuild bytecode loop;a longer run is needed before treating this as a persistent GUI failure.See `re/TRANSPORT_UI_FOLLOWUP.md`. A native notification trace is running.Compile e failed routing congestion (80% nominal ALMs,96% occupied LABs).Filter rules now use one M10K, removing about4800 registers. Reset/clear/seedrestore and packet tests pass. Compile g is the deployed timing-passing image.The PC scheduled localmedia producer passes real FFmpeg encode/probe/decode; this does not add MPEGdecoders to the FPGA. No historical data or placeholder web media was downloaded.Launcher: `Pace2500N_Transport.mgl`, index 3 full-day SI/OpenTV replay, distinct`_Other/Pace2500N_TS.rbf`. Transport/input validation passes; application-levelmessage exhaustion remains a blocker to populated listings.Populated OpenTV listings and protected-loader cold boot are still unresolved.
+
+## Latest hardware deployment — v047 Guide
+
+Built, deployed and loaded FPGA-only Guide checkpoint core. Both CPU and the
+runtime peripheral/graphics models are FPGA logic; no ARM software CPU.
+Actual screenshot re/deployment/v047_guide_fixed.png and full guest-RAM
+readback verify the native Guide menu. Down/Up produces4real DMA redraws;
+CPU continues beyond300M with HALT00. Timing passes (core+1.279ns,
+minimum setup+0.218ns). Load Other/Pace2500N_Guide.mgl. Keyboard/RP2040 mapping
+is KEYBOARD_REMOTE_MAP.md (F1Guide, arrows, Enter, Escape, R/G/Y/B).
+This resumes the disclosed200M diagnostic checkpoint with two RAM interventions;
+protected-loader cold boot and RF/populated listings remain unresolved.
+See re/FPGA_GUIDE_BUILD.md for final hash, corrections and evidence.
+
+## Latest software RE checkpoint
+
+
+**19:30 UTC: actual Guide menu pixels in the software diagnostic.**
+Original firmware draws the complete ten-entry TV GUIDE category menu and
+Select opens ALL CHANNELS / Searching for listings. See
+`re/GUIDE_DIAGNOSTIC_CHECKPOINT.md` and the two exported PNGs. These are guest
+framebuffer/CLUT exports, not MiSTer captures. Two explicit RAM interventions
+(native AV default return and bound root readiness) remain necessary; reports
+mark firmware_modified=true. No ROM file or FPGA build was changed.
+
+New00AC0000 packed indexed copy writes actual CPU-rasterized source pixels.
+A MIPS32 J/JAL delay-slot interrupt EPC/BD bug was fixed and replayed before
+export; final menu snapshot200M has23/23 graphics completions/acks, All Channels
+snapshot210M has44/44. Eight relevant checks pass. Same-ROM public GoRetroTv
+reference at revisionfa3a471 corroborates the hardware facts and discloses its
+own handoff/presentation interventions. The protected-loader handoff and
+populated broadcast listings remain unresolved. Earlier "no Guide" entries
+below are historical checkpoints, superseded only for this software diagnostic.
+
+
+
+**18:54 UTC continuation:** Software reaches185M instructions, issues four
+01AC0000 indexed rectangle commands, and fills two720x288 fields covering a
+720x576 screen with native palette indexDC. Layout inferred from the original
+rectangle builder, actual two-field allocations and four y-band coordinates;
+not validated on hardware. Eight real DMA completions/acknowledgements match.
+Snapshot indexfill_01 stops honestly at derivative frontend status APR001C.
+
+Explicit --lsi-extended-status-zero control supplies no-RF zeros for driver-
+accepted APR24..33 (unconfirmed silicon data), allowing frontend polling to end.
+indexfill_02 reaches210M with main/UI tasks waiting on event queues. A Guide
+keyCC is framed through real serial RX and decoded toCC/native0600; Sky80 and
+a second Guide press also run through normal key handling. Latest snapshot
+application_guide_key_02 at235M. Still only a uniform background; no Guide.
+
+Ghidra tracing now follows OpenTV event delivery. Earlier tentative clock/vsync
+labels were disproved:83E20 peeks UI events,84008 copies event data usingFBDE8
+(memcpy, not memcmp), and84050 waits for an event. Control state80106CC4=2 is
+'running'. Do not interpret those routines as a timebase or fabricate a clock
+fix. Latest code is not in the14:16 archive. Hardware remains v046 EXP.
+
+
+**18:16 UTC continuation:** Original firmware formatted the diagnostic erased
+EEPROM and wrote/read back settings. A missing MIPS32 SWL in its unaligned
+memset was implemented with LWL/LWR/SWR;36 independent Ghidra p-code cases pass,
+including every alignment, paired accesses and delay slots. CPython/PyPy
+100k-instruction CPU/RAM/peripheral differential also passes. Standalone PyPy
+was extracted under /opt/pace-pypy for longer software traces; no unrelated
+broken system packages were repaired.
+
+At100M instructions, main TASK0 waited on STXD0. Ghidra2D4C0/2CCA0 and the
+native interrupt table prove on-chip serial TX50/status60/enable70 atB2002000,
+EMMA mask10000. New optional native_serial0 profile completes the guest's
+queued600001110474 through6 real IRQs, releases its TX semaphore and supplies
+no RX/card data. Application proceeds through timeout/failure paths.
+
+B4080100..7 is another external byte-MMIO region, now classified as such;
+its device protocol remains unknown and reads still use the explicitly unsafe
+zero-MMIO experiment. This does not constitute validated emulation of that
+part. By120M instructions more than30 tasks exist and EEPROM totals19453 reads,
+3132 guest-written bytes. Longer continuation is active; still no Guide pixels.
+Latest completed snapshot: re/application_serial0_02.pkl.gz. FPGA unchanged.
+
+
+**14:48 UTC continuation (software only):** A separate functional, no-RF
+LSI512-word profile now records the observed D5/D7 controls and shared grouped
+register behavior without executing acquisition microcode or asserting lock.
+It passes frontend initialization with no provisional flat-register seeds.
+B4080000..7 is the external16550 UART (byte-lane XOR3), not a board strap;
+its original driver now initializes divisor4, FIFO and line controls normally.
+
+Original graphics DMA12 commands now fill actual guest luma/chroma buffers.
+The genuine DMA ISR80005E28 acknowledges4/4 completions in
+`re/application_graphics_03.json`. Native interrupt-table mapping is mask2,
+not `1 << logical_irq`. The only implemented GPU packet is observed solid-fill
+418F0000; unsupported packets stop. Buffers currently contain black/neutral
+video initialization, not Guide pixels.
+
+Next dependency: A0/A1 EEPROM. Absent-device control retries indefinitely;
+Ghidra confirms two-byte big-endian internal addressing. Optional diagnostic
+`--eeprom-blank` supplies erasedFF storage and retains guest writes. Capacity
+64KiB and instant writes are explicit assumptions; no original EEPROM dump is
+available. The guest now reads a16KiB settings block via its real I2C ISR.
+Latest run is still being examined. No Sky Guide output observed.
+
+All of this remains an **application-entry experiment**, not protected-loader
+handoff or an FPGA update. Current hardware stays v046 EXP, with v044 fallback.
+New graphics IRQ, fill, UART, grouped-control and EEPROM protocol checks pass,
+as does the existing end-to-end I2C ACK/NACK regression.
+
+New comparison reference: user supplied Drew1440's2500S5 teardown. It is an
+STi5512/ST20 platform, but its close-up clearly shows a separatePIC16F74 at
+U1200. Recorded as a possible peripheral/watchdog architecture comparison,
+not evidence of the2500N's chip or protocol. See
+`re/REFERENCE_2500S5_COMPARISON.md`. No model behavior changed from this lead.
+
+**14:15 UTC checkpoint:** Strict application entry RE now captures the genuine
+1024-byte frontend microprogram and stops at the next unsupported operation:
+LSI-family group5 control APR0400=D5 (`application_lsi_strict_02.json`).
+Program SHA256 `412837c684da392874a8d21e358d09baf51830e2bd6af915077abf8f18f1c094`.
+The grouped interface matches the LSI family, but the public L64724 releaseB
+manual has a smaller program/control map. Exact derivative remains unconfirmed;
+L64734 documents are saved for comparison. This is an emulator stop on unknown
+semantics, not evidence of a guest firmware failure. No microcontroller execution
+or satellite lock is asserted.
+
+Two optional **provisional flat-register** experiments seeded07 with00 andFF;
+both reach board-input readB4080000 at16,265,787 instructions. These are controls
+only: Ghidra shows the real device uses grouped/paged registers, so the strict
+grouped profile supersedes their apparent progress. Do not deploy that flat model.
+
+All relevant checks pass: extraction against actual MIPS startup, command53
+builder, I2C ACK/NACK through genuine ISR/return codes0/8, application idle
+differential, indexed demux helpers, DMA/CRC filters, exact CRC acceleration,
+grouped APR behavior and actual microprogram upload. Hardware remains unchanged.
+
+**Later continuation (~13:45 UTC):** User supplied the original archive source,
+http://colibri.bplaced.net/firmware.htm. Fresh downloads of all three ZIPs verify
+both supplied flash files and the separately published protected bootloader
+byte-for-byte. The local-copy-only12614 routine is present in the original
+publication. Archive manifest is under `re/original_archives/`.
+
+The application is now available for independent RE: genuine startup decompresses
+1,029,152 code bytes into RAM. All five initialized segments match a separate
+extractor byte-for-byte. Ghidra project `re/ghidra/PaceAppRAM` maps that code plus
+original flash aliases and uninitialized RAM. This is an **application-entry
+experiment**, not observed protected-loader handoff.18M-instruction experiment
+has687 IRQs and a main-task wait on frontend initialization. No firmware UI.
+
+Ghidra identified an I2C completion wait. A driver-derived channel0 model now
+uses the genuine IRQ/ISR path to complete the observedCA write `3f fe a6 70`;
+NACK control ends it as an error. No I2C read data or demodulator lock supplied.
+Later strict trace stops on address00; an explicit unknown-device NACK control
+reaches20M instructions and is being examined. Exact scheduler idle acceleration
+agrees with normal stepping for100k instructions. See
+`re/APPLICATION_HANDOFF_INVESTIGATION.md`, tools/ and re/application_i2c_*.
+
+Original JTAG manual's board drawing labels NEC D61032 and AT49LV1614 flash.
+Added matching NOR ID001F/00C0 while preserving the older MBM profile for
+reproduction. Fresh Atmel-profile loader run `re/boot_atmel_fresh.json` reaches
+61M instructions, both valid images, same wait path, no application entry.
+Exact physical alias decode and peripheral timings remain hypotheses. FPGA
+is unchanged v046 EXP with v044 fallback.
+
+**13:20 UTC continuation: software reaches valid application selection, but
+does not enter the application.** The serial completion blocker is resolved:
+reply opcode52 runs the genuine handler06408 and releases APeriph; generic
+ACK10 does not. UART output, active-low front-panel inputs (FFFF released),
+and an exact, optional CRC-loop accelerator let the unmodified loader validate
+both supplied application images and print `1.2.7`, `01-1-45-0`, `02-1-45-0`,
+`03-0`. See `re/application_boot_03.json` (100M interpreted instructions).
+
+Ghidra identifies a new issue: selected-image path1284A calls12614, whose actual
+ROM bytes only copy32 header bytes onto a local stack and return. Caller copies
+the selected header to A0002000, then enters permanent wait036F8. No application
+entry is observed. Investigating execution/provenance/reset contracts; no PC,
+validation result, or firmware instruction has been patched. The two older
+local project archives contain the same firmware hashes and same routine.
+Original public archives exist as offline phone-storage placeholders; attempts
+to read/copy them failed, so they have not provided independent provenance.
+
+Current FPGA remains **v046 EXP**, with v044 fallback preserved. Demux, NOR,
+serial replies, UART and later application investigations remain software only.
+Peripheral timing/profile assumptions remain explicit; sequence enforcement is
+not established. The earlier serial-blocker paragraph below is historical.
+
+Both genuine boot hardware self-tests now pass in a fresh reset-to-boot run.
+Guest-configured DMA/PSI demux generates bytes that the firmware compares and
+accepts. The firmware itself writes boot flag800081F8=0 and takes normal path
+9FC012E6, runs GPIO initialization and identifies an explicitly inferred NOR
+profile. See **re/DEMUX_SELFTEST_PASSED.md** for evidence, commands and limits.
+
+Next blocker is an external peripheral response, after genuine serial task
+transmits03011107 then03024100 under a provisional clock/peer model. No reply
+has been fabricated. Fresh run: re/demux_fresh_04.json + RAM/pickle; serial
+capture: re/serial_peer_capture_02.json. Models/tests are under tools/.
+
+Current FPGA remains **v046 EXP** (earlier timer-only hardware), with v044
+fallback preserved. These later demux/NOR/serial changes are software only.
+No application/Sky Guide boot is observed. Earlier entries below are history.
+
+## Verified checkpoint: v0.4.4
+
+The original U202 bootloader executes on the real DE10-Nano. The user supplied
+a CRT photo showing the diagnostic monitor; SSH UART and an FPGA screenshot
+confirm the same endpoint. This is early real-firmware execution, not Sky Guide.
+
+- PC BFC01E1C, instruction AB616C01, MIPS16, HALT 03, read B0000012.
+- 3,178,988 retired instructions; 1,770,706 RAM writes; 12 MMIO writes.
+- All 2 MiB of uploaded flash in FPGA-reserved DDR match the genuine U202
+  SHA-256 `32f6b2e84d0c4c4ec280a72f2d080e4b6fa5e68e8438ef712f34f97f63d38c7f`.
+- Guest RAM pointers at 80008200 remain `b0000010b0000000` under live scanout.
+- RBF SHA-256 `7fbefa9f53c9e6fdad98dd5ac467466ae473c89000235cf75e04793090f0104d`.
+- Clean Quartus 17.0.2 Lite full build: 13 min 42 sec, 0 errors.
+  13,680 / 41,910 ALMs (33%), 189 / 553 RAM blocks (34%).
+  All reported timing checks pass; minimum slack 0.216 ns; no unconstrained clocks.
+- `compile_v044_final.log`, `output_files/*.rpt` / `*.summary` are the reports.
+- `re/deployment/uart_v044_verified.log`, `ddr_v044_verified.log`,
+  `boot_monitor_v044.png`, and `crt_photo_20261107.jpg` are hardware evidence.
+
+MiSTer is reachable as `root@MiSTer` using the existing SSH key (192.168.1.103).
+The verified core is `/media/fat/_Other/Pace2500N.rbf`. The adjacent
+`Pace2500N_FullFlash.mgl` loads the genuine image from `games/Pace2500N/`.
+Global MiSTer.ini settings were preserved. Console is ttyS0; telemetry is ttyS1,
+115200 8N1. Screenshot command: `screenshot <label>` via `/dev/MiSTer_cmd`.
+The TV overscans the monitor edges but its central CPU data is readable.
+
+## Important fixes already included
+
+- Repaired stale simulation ports and checked all seven initial MMIO writes.
+- Added a PLL-derived 50 MHz core/video clock, required by shell clock selects.
+- Corrected MIPS16 LWPC/ADDIUPC bases, including jump-delay origins. The old
+  Python/RTL pair shared a PC+4 error, hence the obsolete B0000002 trace.
+- Moved guest RAM from physical 20000000 to 30000000 and flash from 22000000
+  to 32000000. Old addresses collided with scaler buffers and Linux framebuffer
+  (measured fb0 base 22001000, size 384000). v0.4.3 must not be used as current.
+- Added UART snapshots, memory-lane/backpressure, strict boot, PC-relative,
+  serial and PAL raster tests. Both project generators reproduce QSF offline
+  from bundled `sys/` and `tools/mister_platform.qsf`; shell hashes recorded.
+- Monitor caption now says 0.4.4. A quick MIF update gave an incomplete digital
+  capture, initially misdiagnosed as a ROM failure. A clean build produced the
+  identical RBF hash, and a fresh capture shows the full monitor. Archived
+  experiment files under `re/caption_update_*` are not needed for normal builds.
+
+## Active overnight work
+
+User explicitly requested eight hours of continued work, **23:02:32 UTC on
+7 Nov until 07:02:32 UTC on 8 Nov**. An active goal records that timebox.
+See `OVERNIGHT_WORK_LOG.md`. Keep working until that deadline, preserving a
+known-good checkpoint before changing the RTL. Do not infer that the task
+ends merely because v0.4.4 is verified.
+
+Current exploratory tool: `tools/pace_probe_research.py`, separate from the
+checkpoint interpreter. It corrects MIPS16 memory register roles, shift fields,
+NOT source, compact returns and implements EXTEND forms. Directed tests pass
+in `tools/test_research_mips16.py`. Strict mode matches the hardware endpoint.
+With explicitly experimental zero MMIO, it passes the former F140 blocker,
+executes 545 extended instructions, and reaches a polling loop at BFC0B118:
+B0009120 bit 0x20 must become set. Ghidra agrees with this loop. Register meaning
+is not established. Reports: `re/research_zero_02.json`, `poll_9120_ghidra.txt`.
+
+Next priorities: preserve/package v0.4.4, investigate that peripheral wait,
+add independently tested MIPS16 decoder corrections and EXTEND to a new RTL
+candidate, compare traces against software, then compile/deploy experimental
+progress without presenting guessed MMIO as accurate hardware emulation.
+The default hardware policy remains Halt. No fabricated Sky UI.
+
+## Later candidate status — 8 November, 00:04 UTC
+
+The active working RTL is now a **v046 source candidate**, not the deployed
+v044. Frozen v045 and v046_exp builds are running under builds/. All ten
+ModelSim suites pass. 260 independent Ghidra cases also pass the RTL; a 32-cycle
+HI/LO unit passes 2,028 arithmetic cases. MIPS16 register roles, shifts, moves,
+EXTEND, halfword boundary fetch, RAM execution, ERET and Count/Compare are added.
+Experimental profile is explicitly zero MMIO plus B0009120=20. v046 UART frames
+are 175 bytes and add IRQ/GUESS/POL; ordinary v044/v045 frames are 134 bytes.
+
+Software 50M instructions reaches Nucleus scheduler idle with 1,831 timer IRQs
+and real firmware tick0x725. BOOTMain waits forever on semaphore8000A820 via
+9FC069F0. Investigate the device completion path; no application boot yet.
+See OVERNIGHT_WORK_LOG.md and re/research_timed_09*. The verified default RBF
+and immutable v044 archive remain intact. Deadline remains 07:02:32 UTC.
+
+## Resumed deployment verification — 8 November, 07:27 UTC
+
+The session was paused after the overnight build launches; it resumed after
+07:20. Do not describe the intervening pause as continuous active RE work.
+Both frozen builds completed successfully: v045 at00:11:34 (19m34), v046_exp
+at00:19:30 (20m19), each0 errors/81 warnings. The full 8M-instruction RTL
+research simulation passed at00:04:43: PC9FC0DE68, IRQ110, firmware tick0x6D.
+
+**Current running hardware: v046 EXP** at /media/fat/_Other/Pace2500N_EXP.rbf.
+SHA256 f8f3a9dbf4c00ff9e367bafd9a15f098d87e99db1d251c1e1a3595e90532b9d1.
+18,316/41,910 ALMs(44%),189 RAM blocks(34%); reported timing positive,
+minimum setup0.212ns and minimum observed hold0.243ns. Strict v044 default
+RBF remains available and unchanged.
+
+MiSTer now executes the real protected boot firmware into Nucleus scheduler
+idle9FC0DE4C..68, with rising retire count and timer IRQs, HALT00, FLASH1,
+policy1. This uses guessed zero MMIO +B0009120 bit5 and approximate50MHz Count.
+Full2MiB DDR flash hash matches U202. RAM confirms increasing kernel tick
+8000842C (0x23A3 then0x434C), empty ready queues, and BOOTMain TCB80013AE0
+with saved wait routine9FC1117D and suspend record802AAC34, matching software.
+The device completion/semaphore wait at9FC069F0/8000A820 remains the blocker.
+No full application boot, firmware UI, or Sky Guide is observed.
+
+Initial experimental MGL relative path failed because the core's game directory
+Pace2500N_EXP did not exist; old DDR contents still matched and did not prove a
+new upload. Using the absolute /media/fat/games/Pace2500N/FLASH_U202.bin path
+fixed it: actual upload/reset seen, FLASH1, full DDR SHA verified again.
+Temporary test f0 autoload config was removed. EXP MGL now uses absolute path.
+
+Evidence: re/deployment/v046_exp_verified.log, scheduler_v046_exp_verified.log,
+boot_monitor_v046_exp_fullflash.png. Both normal and accelerated 50M software
+runs match all registers/CP0/PC, all16MiB RAM, interrupt events and ticks;
+46,075,952 idle instructions safely skipped in the accelerated run.
+
+### Rendering caveat found during final screenshot inspection
+
+The pre-upload EXP screenshot has full monitor labels. Both post-full-flash
+captures show live numeric columns but omit static text labels. UART remains
+healthy, FLASH1, scheduler/tick data verified via read-only DDR mapping. Do not
+claim complete post-upload monitor rendering or CRT confirmation. The same
+kind of incomplete capture appeared earlier on v044 but its cause is still
+unproven; here it repeats after upload and needs investigation. Static labels
+are diagnostic ROM content, not genuine firmware UI. Current hardware CPU
+progress is verified independently of this visual issue.
+
+Sealed candidate archive: ../Pace2500N_v046_exp_sources_rbf.zip
+SHA256 d0ac7838b88fa186d8208f33b3838e81768aff4c051e8f9c7e47f8093e6b37aa.
+The archive predates this final rendering caveat; see its adjacent NOTES.md.
+
+## Ghidra follow-up: original event/timer blocker passed in software
+
+See re/EMMA_TIMER_BLOCKER.md for address-by-address evidence and commands.
+A new research-only tools/pace_probe_emma_timer.py models channel0 of B000Dxxx,
+local status/W1C ack, EMMA bit0x40 and CPU IP2. Genuine firmware ISR/HISR wakes
+BOOTMain naturally: original semaphore obtain returns0 at9FC069F6, then event
+initialization completes. Verified with two synthetic timer clock ratios. No
+semaphore/PC/boot flag forcing. 8M steps yield173 real ISR acknowledgements and
+substantially more instruction coverage. Directed model tests pass.
+
+Next observed wait: APeriph8000A6D0 via9FC0630C. Its send fails channel gate
+80013CCC=0; Ghidra finds initializer9FC03910 under normal path9FC03688. Current
+BOOTMain takes another path because800081F8=1; trace its provenance next.
+Hardware remains v046 EXP. New peripheral behavior is not yet in RTL/deployed.
+
+## Continued Ghidra work: boot flag and embedded transport self-test
+
+See re/BOOT_FLAG_AND_TRANSPORT_SELFTEST.md. Observed800081F8=1 is written at
+BFC004FC from BFC0B444, which combines two hardware self-tests. A narrow
+research FIFO data-port model now makes the first genuine self-test pass:
+240 pattern writes/reads, return0. The second still times out and returns1;
+no boot flags/PC/semaphores were forced.
+
+Extracted six genuine TS packets and both expected DMA buffers from U202.
+Independent PSI reassembly and CRC verification reconstruct both buffers
+byte-for-byte:184 bytes and180 bytes. Deliberate CRC-bad sections are excluded.
+Trailer meaning and PID routing remain ambiguous; documented precisely.
+Next: infer indexed register/filter/DMA configuration so the genuine second
+self-test can validate data produced by an actual configured demux model.
+Hardware remains unchanged v046 EXP. This is new software evidence only.
 
 ## HANDOFF 10 Nov late - A/V decoders, work in progress (usage limit reached mid-task)
 
@@ -808,3 +863,36 @@ Built with `rom/bootloader_words.hex` absent. Fit as v0.6.2: 545/553 M10K, 75% A
 - Neither core fills the listings without ALL CHANNELS being opened (180 s idle: none).
 - Relay: mid-zap hold 2 s -> 5 s; the firmware's both-PIDs-off gap is up to ~3 s. Zaps now go
   straight 4200 -> 4210 -> 4220 with no restart in between (log 17:02-17:03).
+
+## 11 Nov 2026 (evening) — why listings need repeat visits: CPU speed (work in progress, not released)
+
+- **Cause found.** Pressing TV Guide (F1) makes the Guide set its title/index filters (PIDs 0x33
+  today, 0x34 tomorrow, 0x52 index; UART trace) and gather listings in the background. On our CPU
+  that takes 30-60 s. Opening ALL CHANNELS before it finishes shows "Searching for listings / Please
+  wait", which is never refreshed until the screen is reopened. Cold start, F1, wait in the menu
+  60 s, then ALL CHANNELS once: listings 0.4 s after Select (30 s: still searching). One visit and
+  waiting 3 min on ALL CHANNELS: never fills. Message pool not exhausted (TASK30 queue empty while
+  searching; `tools/inspect_sdk_messages.py` on live RAM).
+- **Demux fix (faithful, in the working tree; did not cure this).** `pace_section_demux` dropped a
+  completed section while the channel's previous completion was unacknowledged. The firmware's
+  section task 80004520 consumes every record up to the published write pointer per wake-up and
+  bounds the ring with limit = consumer-32, so only a full ring drops. Removed the pending
+  condition (also in `sim/baseline_demux`). `sim/tb_transport.sv` updated for the replay's
+  streaming ports (it had timed out since v0.5.9); passes before and after.
+- **CPU profile on hardware** (`rtl/pace_cpu_profile.sv`, PROF line on the debug UART, read by a
+  MiSTer-side script): 5.9 M instr/s, 8.5 clocks/instruction at 50 MHz, idle and while gathering.
+  2.0 fetch+boundary, 2.0 I-cache lookup, 1.0 execute, 3.4 DDR3 wait for RAM loads (24 loads per
+  100 instructions, ~14 clocks each; no D-cache), I-cache misses 0.1, stores 0.05, flash loads ~0.
+  NEC rates the real CPU at 66-100 MIPS: we are 10-16x slower, while the firmware's timers run in
+  real time.
+- **Plan (user decision): replace the CPU with a pipelined, cached MIPS** based on the KI MiSTer
+  core's CPU (github.com/MiSTer-devel/Arcade-KillerInstinct_MiSTer, GPL-3.0; from Robert Peip's
+  N64 VR4300). Needs MIPS16, VR4110 cache geometry (16 KiB I, 8 KiB D, direct-mapped, 16-byte
+  lines), no FPU, DDR3 instead of KI's SDRAM, our MMIO/checkpoint ports.
+- **Sizing** (KI CPU alone, FPU removed, SDRAM fast path tied off, virtual pins, 5CSEBA6U23I7):
+  6,943 ALMs / 40 M10K / 18 DSP (7,473 ALMs with KI's performance settings). Our CPU is 5,883 ALMs /
+  145 M10K (128 of them the boot block, which a cached CPU reads from flash as the real one does),
+  so the design would be ~80% ALMs and ~440 M10K. Timing standalone: -3.06 ns at 100 MHz with KI's
+  settings (0-85 C), i.e. ~77 MHz; worst paths are the pipeline's writeback/forward -> stall1 and
+  branch -> I-cache fill. With default settings the worst path was KI's 2-way D-cache MRU (gone
+  with the VR4110's direct-mapped D-cache).
