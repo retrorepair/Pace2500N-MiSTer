@@ -56,6 +56,17 @@ Quartus results and HDL regressions. The latest session is directly below; the o
   every 600 ms, and today's listings about every second. Three wraps
   recovered all 189 home sections with valid CRCs and zero continuity
   errors through the live multiplexer, including all seven guide dates.
+- Repeat test with the released playout showed the first grid still searching
+  42 seconds after Select and fully populated at 52 seconds. The local-file
+  control loaded all transport data before CPU resume and reproduced the
+  same frontend milestones as live playout: state 7 and NIT acquisition at
+  about 42 seconds, command 5 at about 63 seconds, and the normal tune at about
+  74 seconds after launcher invocation. The updated app and network are
+  therefore not responsible for that interval. Ghidra resolves frontend
+  command 5 to the mailbox write in `0x8002FD68`, called via `0x8002F474`.
+  An alternate checkpoint with installed receiver settings (DTON/DTTS/INST)
+  took command 6 into a different scan path and had no lock within 95 seconds.
+  The stock checkpoint and published launcher remain the hardware baseline.
 - PC playout now applies FFmpeg loudness levelling to both Plex and local
   sources. Channel target is -24 LUFS, Guide is -34 LUFS, true peak
   target is -3 dBTP before MP2 encoding. In the October 2002 clip the
@@ -73,6 +84,11 @@ Quartus results and HDL regressions. The latest session is directly below; the o
   registering the selected source line ahead of the multiply. Seed 4 passed
   HDMI at +0.112 ns but missed a CPU setup path by 0.329 ns. The 0.7.4 release
   uses the original hardware-tested core, as requested.
+- Published [v0.7.4](https://github.com/retrorepair/Pace2500N-MiSTer/releases/tag/v0.7.4)
+  at source commit `31ee306`. GitHub asset digests matched the local archives,
+  and the RBF digest matched the copy on MiSTer. Production port 8250 and the
+  MiSTer relay use the released playout code. The cold acquisition is still
+  open, followed by Information-button Plex synopses and the app workflow.
 
 ## Session 13 Nov 2026 - v0.7.0 pipelined CPU usable; EPG music and channel numbers open
 
