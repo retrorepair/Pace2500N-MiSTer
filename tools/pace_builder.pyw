@@ -148,6 +148,8 @@ class App(tk.Tk):
         nb.pack(fill='both', expand=True, padx=6, pady=6)
         self.tab_playout(nb)
         self.tab_channels(nb)
+        self.radio = RadioPanel(nb, self)
+        nb.add(self.radio, text='  Music & Radio  ')
         self.tab_interstitials(nb)
         self.tab_schedule(nb)
         self.tab_settings(nb)
@@ -392,6 +394,7 @@ class App(tk.Tk):
         for c in d['channels']:
             self.now_tv.insert('', 'end', values=(c['number'], c['name'], c['now'], f"{c['next_at']}  {c['next']}",
                                                   f"{c['on_air']}: {c['source']}"))
+        self.radio.show_tracks(d['radio'])
         streams = d['streaming']
         if streams:
             text = 'Box connected - streaming: ' + ', '.join(f"{s['channel']} ({s['seconds']} s)" for s in streams)
@@ -415,6 +418,7 @@ class App(tk.Tk):
         self.music_lbl.pack(side='left', padx=6)
         ttk.Button(music, text='Choose audio…', command=self.choose_music).pack(side='left', padx=3)
         ttk.Button(music, text='Clear', command=self.clear_music).pack(side='left')
+        ttk.Button(top, text='Music & Radio…', command=lambda: nb.select(self.radio)).pack(side='right', padx=2)
         self.music_path_lbl = ttk.Label(f, foreground='#555', wraplength=1030)
         self.music_path_lbl.pack(fill='x', padx=6)
         body = ttk.Panedwindow(f, orient='horizontal')
@@ -616,6 +620,7 @@ class App(tk.Tk):
         self.path_lbl.config(text='(unsaved)')
         self.refresh_channels()
         self.show_music()
+        self.radio.refresh()
 
     def show_music(self):
         music = self.lineup.get('epg_music')
@@ -662,6 +667,7 @@ class App(tk.Tk):
             pc.save_settings(self.settings)
         self.refresh_channels(0 if self.lineup['channels'] else None)
         self.show_music()
+        self.radio.refresh()
         if self.server_thread:
             self.reload_playout()
 
@@ -1095,6 +1101,119 @@ class App(tk.Tk):
         self.stop_server()
         if not self.server_thread:
             self.close_window()
+
+
+class RadioPanel(ttk.Frame):
+    """Edit the internet radio services stored in the current line-up."""
+
+    def __init__(self, parent, app):
+        super().__init__(parent, padding=12)
+        self.app = app
+        self.table = ttk.Treeview(self, columns=('number', 'name', 'now'), show='headings', height=10)
+        for col, label, width in (('number', 'Channel', 68), ('name', 'Station', 220), ('now', 'Now playing', 540)):
+            self.table.heading(col, text=label)
+            self.table.column(col, width=width, stretch=(col == 'now'))
+        scroll = ttk.Scrollbar(self, orient='vertical', command=self.table.yview)
+        self.table.configure(yscrollcommand=scroll.set)
+        self.table.grid(row=0, column=0, sticky='nsew')
+        scroll.grid(row=0, column=1, sticky='ns')
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight=1)
+        self.table.bind('<<TreeviewSelect>>', self.select_station)
+        form = ttk.Frame(self)
+        form.grid(row=1, column=0, sticky='ew', pady=(8, 4))
+        form.columnconfigure(1, weight=1)
+        self.number, self.name, self.url = (tk.StringVar(self) for _ in range(3))
+        for row, (label, value) in enumerate((('Channel (800–899)', self.number), ('Station name', self.name),
+                                               ('Direct stream URL', self.url))):
+            ttk.Label(form, text=label).grid(row=row, column=0, sticky='w', padx=(0, 8), pady=3)
+            ttk.Entry(form, textvariable=value).grid(row=row, column=1, sticky='ew', pady=3)
+        actions = ttk.Frame(self)
+        actions.grid(row=2, column=0, sticky='ew', pady=(4, 0))
+        for label, command in (('New', self.new_station), ('Save station', self.save_station),
+                               ('Remove selected', self.remove_stations), ('Add starter stations', self.add_presets)):
+            ttk.Button(actions, text=label, command=command).pack(side='left', padx=(0, 5))
+        self.refresh()
+
+    def stations(self):
+        return self.app.lineup.get('radio', [])
+
+    def tv_numbers(self):
+        return {str(channel.get('number', '')).strip() for channel in self.app.lineup['channels']}
+
+    def refresh(self, select=None):
+        self.table.delete(*self.table.get_children())
+        for i, station in enumerate(self.stations()):
+            if isinstance(station, dict):
+                self.table.insert('', 'end', iid=str(i), values=(station.get('number', ''), station.get('name', ''), ''))
+        if select is None:
+            self.new_station()
+        else:
+            self.table.selection_set(str(select))
+
+    def new_station(self):
+        self.table.selection_remove(self.table.selection())
+        used = self.tv_numbers() | {str(s.get('number', '')).strip() for s in self.stations() if isinstance(s, dict)}
+        self.number.set(next((str(n) for n in range(800, 900) if str(n) not in used), ''))
+        self.name.set('')
+        self.url.set('')
+
+    def select_station(self, _event):
+        selection = self.table.selection()
+        if len(selection) == 1:
+            self.number.set(self.table.set(selection[0], 'number'))
+            self.name.set(self.table.set(selection[0], 'name'))
+            self.url.set(self.stations()[int(selection[0])].get('url', ''))
+
+    def show_tracks(self, stations):
+        tracks = {(str(s['number']), s['name']): s['now'] for s in stations}
+        for row in self.table.get_children():
+            number = self.table.set(row, 'number')
+            name = self.table.set(row, 'name')
+            self.table.set(row, 'now', tracks.get((number, name), ''))
+
+    def save_station(self):
+        selection = self.table.selection()
+        if len(selection) > 1:
+            messagebox.showinfo(APP, 'Select one station to edit or choose New.', parent=self)
+            return
+        stations = list(self.stations())
+        index = int(selection[0]) if selection else len(stations)
+        try:
+            station = pc.RadioStation(dict(number=self.number.get(), name=self.name.get(), url=self.url.get()))
+            used = self.tv_numbers() | {str(s.get('number', '')).strip() for i, s in enumerate(stations)
+                                        if i != index and isinstance(s, dict)}
+            if str(station.number) in used:
+                raise ValueError('Channel number already in use.')
+        except ValueError as exc:
+            messagebox.showerror(APP, str(exc), parent=self)
+            return
+        stations[index:index + 1] = [dict(number=station.number, name=station.name, url=station.url)]
+        self.save(stations, select=index)
+
+    def remove_stations(self):
+        selected = {int(i) for i in self.table.selection()}
+        if selected:
+            self.save([station for i, station in enumerate(self.stations()) if i not in selected])
+
+    def add_presets(self):
+        stations = list(self.stations())
+        numbers = self.tv_numbers() | {str(s.get('number', '')).strip() for s in stations if isinstance(s, dict)}
+        urls = {s.get('url') for s in stations if isinstance(s, dict) and isinstance(s.get('url'), str)}
+        presets = json.loads((HERE / 'radio.example.json').read_text(encoding='utf-8'))
+        for station in presets:
+            if str(station['number']) not in numbers and station['url'] not in urls:
+                stations.append(station)
+        if len(stations) == len(self.stations()):
+            messagebox.showinfo(APP, 'No starter stations to add. They are already listed or their channel numbers are in use.',
+                                parent=self)
+        else:
+            self.save(stations)
+
+    def save(self, stations, select=None):
+        self.app.lineup['radio'] = stations
+        self.app.changed()
+        self.refresh(select)
 
 
 class PlexPicker(tk.Toplevel):

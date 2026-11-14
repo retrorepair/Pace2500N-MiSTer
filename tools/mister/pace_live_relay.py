@@ -31,6 +31,7 @@ import argparse, configparser, fcntl, mmap, os, select, socket, struct, sys, tim
 
 CHUNK = 8192
 HOME_FREQ = 0x01177800
+RADIO_PIDS = range(0x0700, 0x0764)  # numbered services 800–899 (pace_channels.RadioStation)
 HEAD = 1024
 LOG = '/tmp/pace_live_relay.log'
 
@@ -240,7 +241,9 @@ def step(ring, guest, server, up, tuned, want, want_since, last_seq, alive_at, r
         current = (0x1fff, 0x4288, HOME_FREQ)
     else:
         video = st['video'] if st['video'] & 0x4000 and not epg else 0x1fff
-        current = (video, 0x1fff, freq)
+        radio = st['audio'] & 0x4000 and (st['audio'] & 0x1fff) in RADIO_PIDS and not epg
+        audio = st['audio'] if video == 0x1fff and radio else 0x1fff
+        current = (video, audio, freq)
     if current != want:
         want, want_since = current, now
 

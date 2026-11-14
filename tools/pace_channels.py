@@ -32,6 +32,7 @@ import argparse, hashlib, json, math, os, random, re, subprocess, sys, tempfile,
 from datetime import date, datetime, timedelta, timezone
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import urlsplit
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent              # data folder (line-ups, roms/); the app sets it from settings
@@ -505,6 +506,8 @@ def read_lineup(path):
         raise ValueError('expected a line-up JSON object with a "channels" list')
     if cfg.get('epg_music') is not None and not isinstance(cfg['epg_music'], str):
         raise ValueError('epg_music must be a file path')
+    if not isinstance(cfg.get('radio', []), list):
+        raise ValueError('radio must be a list of stations')
     for i, channel in enumerate(cfg['channels'], 1):
         if not isinstance(channel, dict) or not isinstance(channel.get('name'), str):
             raise ValueError(f'channel {i} needs a name')
@@ -518,6 +521,54 @@ def read_lineup(path):
             if not isinstance(p, dict) or not all(isinstance(p.get(k), str) and p[k] for k in ('title', 'source')):
                 raise ValueError(f'channel {i}, programme {j} needs a title and source')
     return cfg
+
+
+class RadioStation:
+    """A numbered DVB radio service backed by a direct internet audio stream."""
+
+    def __init__(self, cfg):
+        self.name = cfg['name'].strip()
+        self.number = int(cfg['number'])
+        self.url = cfg['url'].strip()
+        url = urlsplit(self.url)
+        if not self.name or not 800 <= self.number <= 899:
+            raise ValueError('radio needs a name and a number between 800 and 899')
+        if url.scheme not in ('http', 'https') or not url.hostname:
+            raise ValueError('radio needs a direct HTTP or HTTPS audio-stream URL')
+        self.i = self.number
+        offset = self.number - 800
+        self.sid, self.listing = 0x1600 + offset, 0x0e00 + offset
+        self.pmt_pid, self.audio_pid = 0x1200 + offset, 0x0700 + offset
+
+    def events_utc(self, _day, sod=None, title=''):
+        # The stream supplies a current track, with no reliable duration or
+        # future schedule. Display it in the current half-hour Guide cell.
+        slot = sod // 1800 * 1800 if title else None
+        events = []
+        for block in range(0, 86400, 21600):
+            cuts = [block, block + 21600]
+            if slot is not None and block <= slot < block + 21600:
+                cuts.extend((slot, slot + 1800))
+            cuts = sorted(set(cuts))
+            events.extend((start, end - start, title if start == slot else 'Live Radio', '')
+                          for start, end in zip(cuts, cuts[1:]))
+        return events
+
+
+def load_radio(cfg, log):
+    stations = []
+    numbers = {str(c.get('number', '')).strip() for c in cfg['channels']}
+    for i, item in enumerate(cfg.get('radio', []), 1):
+        try:
+            station = RadioStation(item)
+            if str(station.number) in numbers:
+                raise ValueError('channel number already in use')
+        except (AttributeError, KeyError, TypeError, ValueError) as exc:
+            log(f'Radio station {i} skipped: {exc}')
+            continue
+        stations.append(station)
+        numbers.add(str(station.number))
+    return sorted(stations, key=lambda station: station.number)
 
 
 def load_lineup(path, settings, log=print, *, cfg=None):
@@ -612,76 +663,109 @@ def record_groups(records, size, budget):
     return groups
 
 
-def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID):
-    """Guide data as sent on transport `on` (one transport, HOME, unless music is on)."""
+def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID, stations=(), radio_titles=None, radio_version=0):
+    """Guide data on the home transport and, when split, on the TV/radio transport."""
     when = datetime.fromtimestamp(int(now), timezone.utc)
-    split = bool(music)
+    sod = int(now) % 86400
+    radio_titles = radio_titles or {}
+    split = bool(music or stations)
     if not split:
         on = HOME_TSID
     # The service tables' version_number follows the channel set, as a broadcaster's does:
     # a box keeps the service list it has (the Guide checkpoint holds one) until the version
     # changes. 1-31, so a line-up never matches the version-0 tables the checkpoint was made with.
     shape = repr([(c.sid, c.number, c.listing, c.name, c.pmt_pid, c.video_pid, c.audio_pid) for c in chans]
-                 + (['split', MUSIC_SID, 0x90] if music else []))
+                 + (['split', MUSIC_SID, 0x90] if music else [])
+                 + [(s.sid, s.number, s.listing, s.name) for s in stations])
     ver = 1 + int(hashlib.md5(shape.encode()).hexdigest(), 16) % 31
     # The first B2 byte is the number of six-hour listing blocks available
     # from the current block. The grid uses it to bound both right and +24h.
     schedule_blocks = days * 4 - when.hour // 6
     sdt_ver = (ver - 1 + schedule_blocks) % 31 + 1
+    radio_version = (radio_version + int(now) // 1800) % 32
+    if stations:
+        sdt_ver = (sdt_ver - 1 + radio_version) % 31 + 1
     namespace = bytes.fromhex('5f0400000002')
     # per transport: [(service id, service type, its 0xB1 entry)]. B1 entry: service id, type,
     # channel id, channel number (shown by the guide), then the field carrying the guide-visible
-    # flags 6; the radio service has no number (it is not a guide row)
-    tv = [(c.sid, 1, u16(c.sid) + b'\x01' + u16(c.listing) + u16(c.number) + u16(c.number << 4 | 6))
-          for c in chans]
-    radio = ([(MUSIC_SID, 2, u16(MUSIC_SID) + b'\x02' + u16(MUSIC_LISTING) + u16(0) + u16(0))]
+    # flags 6. The background audio service alone has no guide number.
+    def numbered(service, kind):
+        return (service.sid, kind, u16(service.sid) + bytes((kind,)) + u16(service.listing)
+                + u16(service.number) + u16(service.number << 4 | 6))
+
+    tv = [numbered(c, 1) for c in chans]
+    live_radio = [numbered(s, 2) for s in stations]
+    background = ([(MUSIC_SID, 2, u16(MUSIC_SID) + b'\x02' + u16(MUSIC_LISTING) + u16(0) + u16(0))]
              if music else [])
-    transports = [(HOME_TSID, radio), (CHAN_TSID, tv)] if split else [(HOME_TSID, tv)]
-    by_sid = {c.sid: c for c in chans}
+    transports = [(HOME_TSID, background), (CHAN_TSID, tv + live_radio)] if split else [(HOME_TSID, tv)]
+    services_to_list = [*chans, *stations]
+    by_sid = {c.sid: c for c in services_to_list}
 
     def ts_id(tsid):
         return u16(tsid) + u16(ONID)
 
     def service_list(services):
-        return descriptor(0x41, b''.join(u16(sid) + bytes((kind,)) for sid, kind, _ in services))
+        entries = [u16(sid) + bytes((kind,)) for sid, kind, _ in services]
+        groups = record_groups(entries, len, 255) or [[]]
+        return b''.join(descriptor(0x41, b''.join(group)) for group in groups)
 
     nit = long_section(0x40, ONID, loop(descriptor(0x40, b'PACE PLAYOUT'))
                        + loop(b''.join(ts_id(t) + loop(descriptor(0x43, bytes.fromhex(SATELLITE[t]))
                                                        + service_list(sv)) for t, sv in transports)),
                        version=ver)
 
-    def sdt_section(table, tsid, services):
-        body = u16(ONID) + b'\xff'
-        for sid, _, _ in services:
+    def sdt_sections(table, tsid, services):
+        header = u16(ONID) + b'\xff'
+        records = []
+        for sid, kind, _ in services:
             if sid == MUSIC_SID:
                 name = b'EPG Background Audio'
                 desc = namespace + descriptor(0x48, b'\x02\x05BSkyB' + bytes((len(name),)) + name)
             else:
                 c = by_sid[sid]
                 name = c.name.encode('latin-1', 'replace')[:40]
-                desc = namespace + descriptor(0x48, b'\x01\x05PLAYO' + bytes((len(name),)) + name)
-                it, _, _ = c.at(now)
-                current = it['title'] or next((t for s, l, t, _ in c.events_utc(when.date())
-                                               if s <= now % 86400 < s + l), c.name)
-                desc += descriptor(0xb2, bytes((schedule_blocks, 0, 3 << 5))
+                desc = namespace + descriptor(0x48, bytes((kind,)) + b'\x05PLAYO' + bytes((len(name),)) + name)
+                if kind == 2:
+                    current, genre = radio_titles.get(c.number, 'Live Radio'), 4
+                else:
+                    it, _, _ = c.at(now)
+                    current = it['title'] or next((t for s, l, t, _ in c.events_utc(when.date())
+                                                   if s <= now % 86400 < s + l), c.name)
+                    genre = 3
+                desc += descriptor(0xb2, bytes((schedule_blocks, 0, genre << 5))
                                    + codec.encode(guide_text(codec, current, 200)))
-            body += u16(sid) + b'\xfc' + u16(0x8000 | len(desc)) + desc
-        return long_section(table, tsid, body, version=sdt_ver)
+            records.append(u16(sid) + b'\xfc' + u16(0x8000 | len(desc)) + desc)
+        groups = record_groups(records, len, 1012 - len(header)) or [[]]
+        return [long_section(table, tsid, header + b''.join(group), version=sdt_ver,
+                             section=i, last=len(groups) - 1) for i, group in enumerate(groups)]
 
     # SDT "actual" for the transport this stream is, SDT "other" for the rest (all on PID 0x11)
-    sdts = [sdt_section(0x42 if t == on else 0x46, t, sv) for t, sv in transports]
+    sdts = [section for t, sv in transports
+            for section in sdt_sections(0x42 if t == on else 0x46, t, sv)]
     # 0x91: the box's home service (where Sky with no channel, and boot, go) - the first TV
     # channel. 0x90: the EPG background audio. With Background Music on (setting SSBM) the
     # Guide asks the SI for linkage type 0x90 - native (12,0x24) = 800CB74C -> 800CB69C(0x90),
     # the same lookup (12,0x23) does for 0x91 - so the music service is named by a 0x90 linkage.
-    linkage = (descriptor(0x4a, ts_id(CHAN_TSID if split else HOME_TSID) + u16(chans[0].sid) + b'\x91')
-               if chans else b'')
+    linkage = (descriptor(0x4a, ts_id(CHAN_TSID if split else HOME_TSID) + u16(services_to_list[0].sid) + b'\x91')
+               if services_to_list else b'')
     if music:
         linkage += descriptor(0x4a, ts_id(HOME_TSID) + u16(MUSIC_SID) + b'\x90')
-    bat = long_section(0x4a, 0x1000, loop(descriptor(0x47, b'PACE PLAYOUT') + linkage)
-                       + loop(b''.join(ts_id(t) + loop(namespace + descriptor(0xb1, b'\xff\xff' + b''.join(e for *_, e in sv))
-                                                       + service_list(sv) + linkage)
-                                       for t, sv in transports)), version=ver)
+    bouquet = loop(descriptor(0x47, b'PACE PLAYOUT') + linkage)
+    bat_budget = 1012 - len(bouquet) - 2
+    bat_transports = []
+    for tsid, services in transports:
+        # A B1 takes up to 28 nine-byte entries. Repeat the transport and its
+        # private namespace in each section when the line-up fills the loop.
+        groups = record_groups(services, lambda _: 12,
+                               bat_budget - 6 - len(namespace) - len(linkage) - 14) or [[]]
+        for group in groups:
+            entries = [entry for _, _, entry in group]
+            b1s = record_groups(entries, len, 253) or [[]]
+            desc = b''.join(descriptor(0xb1, b'\xff\xff' + b''.join(b1)) for b1 in b1s)
+            bat_transports.append(ts_id(tsid) + loop(namespace + desc + service_list(group) + linkage))
+    bat_groups = record_groups(bat_transports, len, bat_budget)
+    bats = [long_section(0x4a, 0x1000, bouquet + loop(b''.join(group)), version=ver,
+                         section=i, last=len(bat_groups) - 1) for i, group in enumerate(bat_groups)]
     here = dict(transports)[on]
 
     def pmt_pid(sid):
@@ -689,29 +773,28 @@ def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID):
 
     pat = long_section(0x00, on, b''.join(u16(sid) + u16(0xe000 | pmt_pid(sid)) for sid, _, _ in here), version=ver)
     pmts = []
-    for sid, _, _ in here:
-        if sid == MUSIC_SID:
-            pmts.append((MUSIC_PMT, long_section(0x02, MUSIC_SID, u16(0xe000 | MUSIC_PID) + b'\xf0\x00'
-                                                 + b'\x03' + u16(0xe000 | MUSIC_PID) + b'\xf0\x00', version=ver)))
-        else:
-            c = by_sid[sid]
-            pmts.append((c.pmt_pid, long_section(0x02, c.sid,
-                         u16(0xe000 | c.video_pid) + b'\xf0\x00'
-                         + b'\x02' + u16(0xe000 | c.video_pid) + b'\xf0\x00'
-                         + b'\x03' + u16(0xe000 | c.audio_pid) + b'\xf0\x00', version=ver)))
-    tables = [(0x14, tot(when)), (0x10, nit)] + [(0x11, x) for x in sdts] + [(0x11, bat), (0, pat)] + pmts
+    for sid, kind, _ in here:
+        audio = MUSIC_PID if sid == MUSIC_SID else by_sid[sid].audio_pid
+        video = by_sid[sid].video_pid if kind == 1 else None
+        streams = b'\x03' + u16(0xe000 | audio) + b'\xf0\x00'
+        if video is not None:
+            streams = b'\x02' + u16(0xe000 | video) + b'\xf0\x00' + streams
+        body = u16(0xe000 | (video if video is not None else audio)) + b'\xf0\x00' + streams
+        pmts.append((pmt_pid(sid), long_section(0x02, sid, body, version=ver)))
+    tables = [(0x14, tot(when)), (0x10, nit)] + [(0x11, x) for x in sdts + bats] + [(0, pat)] + pmts
     index_events = []
     # The full guide (every day, synopses, the A-Z/genre index) is on the home transponder only;
     # another transponder carries just the programmes around now - Sky's other transponders
     # had "a couple of hours of Now and Next" for the banner, the 7 days needed the EPG one.
     full = on == HOME_TSID
-    sod = int(now) % 86400
     for dd in range(days if full else 1):
         d = when.date() + timedelta(days=dd)
         mjd = (d - EPOCH).days
-        for c in chans:
-            schedule = c.events_utc(d)
-            events = [(dd * 1000 + n + 1, s, l, guide_text(codec, t, 200))
+        for c in services_to_list:
+            radio = isinstance(c, RadioStation)
+            title = radio_titles.get(c.number, '') if radio and dd == 0 else ''
+            schedule = c.events_utc(d, sod, title) if radio else c.events_utc(d)
+            events = [(dd * 1000 + (s // 1800 if radio else n) + 1, s, l, guide_text(codec, t, 200))
                       for n, (s, l, t, _) in enumerate(schedule)]
             synopses = [guide_text(codec, sm, 255) if full else '' for *_, sm in schedule]
             if not full:     # now and next: the event on air and the one after it
@@ -721,14 +804,15 @@ def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID):
             for ev, sm in zip(events, synopses):
                 groups.setdefault(ev[1] // 21600, []).append((ev, sm))
                 if dd == 0 and full:
-                    index_events.append((c.listing, ev))
+                    index_events.append((c.listing, ev, 4 if radio else 3))
             for block, group in groups.items():
                 titles = [ev for ev, _ in group]
                 # A long section has 1012 bytes of payload, two reserved for MJD.
                 chunks = record_groups(titles, lambda e: 13 + len(codec.encode(e[3])), 1010)
                 for i, chunk in enumerate(chunks):
                     tables.append((0x30 | (mjd & 7), title_section(0xa0 | block, c.listing, mjd, chunk,
-                                                                  codec, i, len(chunks) - 1)))
+                                                                  codec, i, len(chunks) - 1,
+                                                                  version=radio_version if radio and dd == 0 else 0)))
                 # OpenTV summaries: same channel id / day / block addressing as the titles,
                 # table 0xA8-0xAB on PID 0x40-0x47, descriptor 0xB9 per event id; a section
                 # holds as many as fit (a synopsis is up to 255 coded bytes)
@@ -746,10 +830,12 @@ def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID):
             tables.append((0x52, long_section(0xc1, extension, b''.join(chunk), section=i, last=len(chunks) - 1)))
 
     for letter in range(ord('A'), ord('Z') + 1) if full else ():
-        add_index(letter, (index_record(l, e) for l, e in index_events if e[3][:1].upper() == chr(letter)))
-    for genre in (0, 3) if full else ():
+        add_index(letter, (index_record(l, e) for l, e, _ in index_events if e[3][:1].upper() == chr(letter)))
+    genres = (0, 3, 4) if stations else (0, 3)
+    for genre in genres if full else ():
         for block in range(4):
-            add_index(0x100 | block << 6 | genre, (index_record(l, e) for l, e in index_events if e[1] // 21600 == block))
+            add_index(0x100 | block << 6 | genre, (index_record(l, e) for l, e, g in index_events
+                                                   if e[1] // 21600 == block and genre in (0, g)))
     today_pid = 0x30 | ((when.date() - EPOCH).days & 7)
     return tables, today_pid
 

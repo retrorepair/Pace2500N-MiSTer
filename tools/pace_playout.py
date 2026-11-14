@@ -33,8 +33,10 @@ from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from pace_channels import (RATE, load_settings, load_lineup, read_lineup, redact, lineup_tables, carousel,  # noqa: E402
+from pace_channels import (RATE, RadioStation, load_radio, load_settings, load_lineup, read_lineup, redact,
+                           lineup_tables, carousel,  # noqa: E402
                            MUSIC_PID, MUSIC_PMT, MUSIC_SID, HOME_TSID, CHAN_TSID, transport_of)
+from pace_radio import RadioMetadata
 
 P = 188
 NULL = bytes([0x47, 0x1f, 0xff, 0x10]) + b'\xff' * 184
@@ -72,6 +74,7 @@ class Weaver:
 
     def set_si(self, si):
         """Start the updated carousel at the current point in the output."""
+        self.si_data = si
         self.base = self.slot * P / RATE
         self.si = [(i * P / SI_RATE, si[i * P:(i + 1) * P]) for i in range(len(si) // P)
                    if pid_of(si[i * P:(i + 1) * P]) != 0x1fff]
@@ -109,7 +112,8 @@ class Session:
         self.sent = 0
         self.item = None
         self.stopped = threading.Event()
-        self.refresh = time.monotonic() + 60
+        self.si_interval = 5 if self.srv.stations else 60
+        self.refresh = time.monotonic() + self.si_interval
 
     def schedule_time(self):
         """The time on air of the next byte (what the box will show when it plays it)."""
@@ -141,8 +145,10 @@ class Session:
 
     def update_si(self, weaver):
         if time.monotonic() >= self.refresh:
-            weaver.set_si(self.si())
-            self.refresh = time.monotonic() + 60
+            data = self.si()
+            if data is not weaver.si_data:
+                weaver.set_si(data)
+            self.refresh = time.monotonic() + self.si_interval
 
     def run(self):
         with self.srv.session_lock:
@@ -155,6 +161,8 @@ class Session:
                 self.music()
             elif self.chan is None:
                 self.guide_only()
+            elif isinstance(self.chan, RadioStation):
+                self.radio()
             else:
                 self.channel()
         except ClientDisconnected as e:
@@ -255,6 +263,30 @@ class Session:
             self.srv.log(f'EPG background audio interrupted: {e}')
         self.stuff(w)
 
+    def radio(self):
+        station = self.chan
+        self.srv.log(f'{station.name}: opening live radio')
+        w = Weaver(self.si(), (station.audio_pid,))
+        cmd = [self.srv.settings['ffmpeg'], '-hide_banner', '-loglevel', 'error', '-nostdin',
+               '-rw_timeout', '6000000', '-probesize', '32768', '-analyzeduration', '1000000',
+               '-protocol_whitelist', 'http,https,tcp,tls,crypto',
+               '-i', station.url, '-map', '0:a:0', '-af', normalised_audio(TV_LUFS),
+               '-c:a', 'mp2', '-ar', '48000', '-ac', '2', '-b:a', f'{AUDIO_KBPS}k',
+               '-streamid', f'0:{station.audio_pid}', '-mpegts_pmt_start_pid', str(station.pmt_pid),
+               '-mpegts_service_id', str(station.sid), '-muxrate', str(RATE * 8),
+               '-f', 'mpegts', 'pipe:1']
+        while not self.stopped.is_set():
+            try:
+                self.transcode(cmd, w)
+            except ClientDisconnected:
+                raise
+            except (OSError, RuntimeError, subprocess.SubprocessError):
+                pass
+            self.srv.log(f'{station.name}: radio stream ended, reconnecting')
+            self.stuff(w, self.sent + RATE // P * P)
+            if self.stopped.wait(1):
+                return
+
     def channel(self):
         c = self.chan
         w = Weaver(self.si(), (c.video_pid, c.audio_pid))
@@ -300,6 +332,8 @@ class Server(ThreadingHTTPServer):
         cfg = read_lineup(lineup)
         self.chans, self.media = load_lineup(lineup, settings, self.log, cfg=cfg)
         self.by_video = {c.video_pid: c for c in self.chans}
+        self.stations = load_radio(cfg, self.log)
+        self.by_audio = {station.audio_pid: station for station in self.stations}
         music = cfg.get('epg_music')
         self.music = None
         if music:
@@ -317,9 +351,12 @@ class Server(ThreadingHTTPServer):
         self.codec = FirmwareHuffman.from_file(settings['huffman_ram'])
         self._si = {}
         self._si_lock = threading.Lock()
+        self._radio_titles, self._radio_version = {}, 0
         super().__init__(('0.0.0.0', port), Handler)
+        self.radio_metadata = RadioMetadata(self.stations)
 
     def server_close(self):
+        self.radio_metadata.stop.set()
         with self.session_lock:
             self.closing = True
             for session in self.sessions:
@@ -353,8 +390,10 @@ class Server(ThreadingHTTPServer):
             with self.session_lock:
                 self.requests.discard(request)
 
-    def tune(self, video, freq):
+    def tune(self, video, freq, audio=0x1fff):
         channel = self.by_video.get(video & 0x1fff)
+        if channel is None:
+            channel = self.by_audio.get(audio & 0x1fff)
         on = transport_of(freq) if freq else CHAN_TSID if channel else HOME_TSID
         if on == HOME_TSID:
             return ('music' if self.music else None), on
@@ -373,10 +412,17 @@ class Server(ThreadingHTTPServer):
         if override:
             return Path(override).read_bytes()
         with self._si_lock:
+            titles = self.radio_metadata.snapshot()
+            if titles != self._radio_titles:
+                self._radio_titles = titles
+                self._radio_version += 1
+                self._si.clear()
             stamp, si = self._si.get(on, (0, None))
-            if si is None or abs(when - stamp) > 60 or int(when) // 86400 != int(stamp) // 86400:
+            slot_changed = self.stations and int(when) // 1800 != int(stamp) // 1800
+            if si is None or slot_changed or abs(when - stamp) > 60 or int(when) // 86400 != int(stamp) // 86400:
                 tables, today = lineup_tables(when, self.codec, self.chans, int(self.settings['days']),
-                                              music=True, on=on)
+                                              music=True, on=on, stations=self.stations, radio_titles=titles,
+                                              radio_version=self._radio_version)
                 si = carousel(tables, today)
                 self._si[on] = (when, si)
             return si
@@ -426,7 +472,9 @@ class Server(ThreadingHTTPServer):
                              item=s.item and dict(kind=s.item['kind'], title=s.item['title'],
                                                   source=Path(s.item['source']).name))
                         for s in self.sessions]
-        return dict(utc=datetime.now(timezone.utc).strftime('%H:%M:%S'), channels=out, streaming=sessions,
+        tracks = self.radio_metadata.snapshot()
+        radio = [dict(number=s.number, name=s.name, now=tracks.get(s.number, '')) for s in self.stations]
+        return dict(utc=datetime.now(timezone.utc).strftime('%H:%M:%S'), channels=out, radio=radio, streaming=sessions,
                     log=list(self.history.copy())[-15:])
 
 
@@ -450,7 +498,7 @@ class Handler(BaseHTTPRequestHandler):
             except ValueError:
                 self.send_error(400, 'Invalid tuning')
                 return
-            channel, on = self.server.tune(video, freq)
+            channel, on = self.server.tune(video, freq, audio)
             ident = 'music' if channel == 'music' else str(channel.i) if channel else 'guide'
             if url.path == '/service':
                 self.send_response(200)

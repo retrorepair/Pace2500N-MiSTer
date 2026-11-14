@@ -1,0 +1,11 @@
+[
+  {"number": 801, "name": "Radio Paradise", "url": "https://stream.radioparadise.com/mp3-128"},
+  {"number": 802, "name": "RP Rock", "url": "https://stream.radioparadise.com/rock-128"},
+  {"number": 803, "name": "RP Mellow", "url": "https://stream.radioparadise.com/mellow-128"},
+  {"number": 804, "name": "Groove Salad", "url": "https://ice2.somafm.com/groovesalad-128-mp3"},
+  {"number": 805, "name": "Groove Classic", "url": "https://ice2.somafm.com/gsclassic-128-mp3"},
+  {"number": 806, "name": "Undrgrnd 80s", "url": "https://ice2.somafm.com/u80s-128-mp3"},
+  {"number": 807, "name": "Secret Agent", "url": "https://ice2.somafm.com/secretagent-128-mp3"},
+  {"number": 808, "name": "Drone Zone", "url": "https://ice2.somafm.com/dronezone-128-mp3"},
+  {"number": 809, "name": "Left Coast 70s", "url": "https://ice2.somafm.com/seventies-128-mp3"}
+]

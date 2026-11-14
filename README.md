@@ -11,9 +11,9 @@ programmes.
 > notes are in `CURRENT_STATUS.md`, `handoff.md` and `re/`.
 
 **Downloads:** [Releases](https://github.com/retrorepair/Pace2500N-MiSTer/releases)
-(**v0.7.4**) — `Pace2500N_V074.rbf` (the core),
-`Pace2500N-MiSTer-files-v0.7.4.zip` (launcher and relay) and
-`PaceChannelBuilder-v0.7.4-windows.zip` (the Windows app). Supply your own
+(**v0.7.5**) — `Pace2500N_V074.rbf` (the v0.7.4 core),
+`Pace2500N-MiSTer-files-v0.7.5.zip` (launcher and relay) and
+`PaceChannelBuilder-v0.7.5-windows.zip` (the Windows app). Supply your own
 firmware and Guide checkpoint.
 
 ## What works
@@ -79,7 +79,7 @@ box is built into it.
 A normal Windows program - nothing else to install (Python, ffmpeg and yt-dlp
 are inside its folder).
 
-- **Get it:** unzip `PaceChannelBuilder-v0.7.4-windows.zip` from
+- **Get it:** unzip `PaceChannelBuilder-v0.7.5-windows.zip` from
   [Releases](https://github.com/retrorepair/Pace2500N-MiSTer/releases) anywhere
   (e.g. `C:\PaceChannelBuilder`) and run `PaceChannelBuilder.exe`. Keep the
   whole folder together. Windows SmartScreen may warn the first time (the exe
@@ -110,7 +110,7 @@ PyInstaller on the build machine only; close the app first).
 
 ## 3. Install the relay on the MiSTer (once)
 
-The two files are in the `relay` folder of the MiSTer files zip (or
+The two files are in the MiSTer files zip (or
 `tools/mister/` in the source). From that folder on the PC (`MISTER` is the
 MiSTer's address; the last address is your PC's LAN address, which the app's
 Playout tab shows):
@@ -154,12 +154,23 @@ In the app:
   it, *Exclude / include* drops anything that is not an advert, ident or
   continuity. Breaks use runs of spots exactly as they were broadcast, and never
   run across an excluded or over-long segment (e.g. a programme excerpt).
+- **Internet radio** - open the **Music & Radio** tab. Choose *Add starter
+  stations* for channels 801–809, or *New* to enter a channel number in
+  800–899, a station name and a direct HTTP(S) audio-stream URL. *Save station*
+  adds it to the current line-up. On the MiSTer, use **TV Guide → Music &
+  Radio** (F1, then 7) or enter the channel number. The updated Playout app
+  and MiSTer relay send audio to the existing v0.7.4 core when you tune a
+  station. The app polls the stream for ICY metadata while playout is running.
+  A station's current track appears in the app and in the Guide's current
+  slot. Reopen Music & Radio to refresh the firmware's grid. Other slots and
+  stations without track metadata show *Live Radio*.
 - **Schedule** - *Show today's guide* lists exactly what the box will show.
   *Find natural breaks* (once per programme, slow) moves ITV/Sky centre breaks
   to the programme's own fade-to-black points.
 
 For scripting there are command-line equivalents (`tools/pace_channels.py`,
 `tools/pace_playout.py`); a sample line-up is `tools/lineup.example.json`.
+`tools/radio.example.json` is a sample value for the line-up's `radio` field.
 
 ## 5. Watch
 

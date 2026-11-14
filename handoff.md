@@ -4,6 +4,31 @@
 Quartus results and HDL regressions. The latest session is directly below; the original
 7 Nov snapshot further down is retained for history only (it predates everything that works).
 
+## Session 14 Nov 2026 - internet radio
+
+- Music & Radio uses private SDT descriptor `0xB2` with genre 4. Numbered
+  DVB audio services have type 2 in BAT/SDT and audio-only MP2 PMTs on
+  12207 MHz. The Guide and its background music still use 11778 MHz.
+- The relay forwards live radio from the firmware's audio route on
+  PIDs `0x0700–0x0763`. PC playout transcodes the selected public stream to
+  48 kHz stereo MP2 at the television loudness target. Channel Builder saves
+  stations in the line-up's `radio` array. The preset list is opt-in.
+- v0.7.4 displayed stations 801–809 in the firmware's Music & Radio grid.
+  The tuner held lock on 801 for a 70-second run and switched to 802 via the
+  grid. A ring capture from the installed setup contained decodable stereo
+  MP2 at 48 kHz on `0x0701`. The box returned to BBC1 from All Channels and
+  resumed Guide music on re-entry. Local screenshots and ring telemetry are
+  in `re/deployment/radio/`.
+  The installed Channel Builder and relay were updated. The active line-up
+  has all nine starter stations. No FPGA rebuild is required.
+- Early guide acquisition is deferred. Radio listings use a generic
+  `Live Radio` title when there is no current track metadata or when browsing
+  future slots. v0.7.5 reads `StreamTitle` from ICY metadata off-air and
+  updates the current half-hour's OpenTV titles plus the SDT current title.
+  The live test showed all nine tracks in the Channel Builder Music & Radio
+  tab and the MiSTer grid. Reopening the grid picked up new tracks. The
+  firmware can keep the previous titles while the grid is open.
+
 ## Session 14 Nov 2026 - 0.7.4 live playout and first-open listings
 
 - Hardware validation used the local MiSTer. The user confirmed that the compressed

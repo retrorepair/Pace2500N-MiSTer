@@ -57,7 +57,7 @@ def tot(when):
     return with_crc(b'\x73' + u16(0x7000 | (len(body) + 4)) + body)
 
 
-def title_section(table, listing, mjd, events, codec, section=0, last=0):
+def title_section(table, listing, mjd, events, codec, section=0, last=0, version=0):
     records = bytearray()
     for event_id, start, duration, title in events:
         if start % 2 or duration % 2 or not 0 <= start < 86400 or not 0 < duration <= 86400:
@@ -66,7 +66,7 @@ def title_section(table, listing, mjd, events, codec, section=0, last=0):
         desc = descriptor(0xb5, body)
         # packet_length counts AFTER the four-byte event/length header.
         records += u16(event_id) + u16(0xf000 | len(desc)) + desc
-    return long_section(table, listing, u16(mjd) + records, section=section, last=last)
+    return long_section(table, listing, u16(mjd) + records, version=version, section=section, last=last)
 
 
 def summary_section(table, listing, mjd, summaries, section=0, last=0):
