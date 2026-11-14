@@ -66,7 +66,13 @@ Quartus results and HDL regressions. The latest session is directly below; the o
   command 5 to the mailbox write in `0x8002FD68`, called via `0x8002F474`.
   An alternate checkpoint with installed receiver settings (DTON/DTTS/INST)
   took command 6 into a different scan path and had no lock within 95 seconds.
-  The stock checkpoint and published launcher remain the hardware baseline.
+  A disposable flash copy shortening five 20-second OpenTV timer constants
+  left the normal tune at 74 seconds. Shortening the separate 50-second
+  retry timer to 35 seconds moved the tune only about one second. Read-only
+  RAM sampling showed frontend task state 7 and its acquisition flag set
+  through the long pause. Trace the native client that publishes or stops
+  that frontend state before testing more table or timer changes.
+  The stock flash, checkpoint and launcher remain the hardware baseline.
 - PC playout now applies FFmpeg loudness levelling to both Plex and local
   sources. Channel target is -24 LUFS, Guide is -34 LUFS, true peak
   target is -3 dBTP before MP2 encoding. In the October 2002 clip the
