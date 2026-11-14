@@ -909,3 +909,47 @@ op 12) for a service on another transport; the relay reads the tuned frequency f
 (0x801631B4, BCD) and passes `freq=` so playout sends that transport. Measured: TV Guide on Sky
 Movies -> `tune ... video 1fff audio 4288 at 11778.00 MHz`, playout streams the 2002 music; Sky ->
 back to 12207 / Sky Movies. Typed channel numbers still "Channel Unavailable" (separate).
+# 13 November 2026 — live playout and Guide investigation
+
+- Channel Builder validates saved line-ups, skips unavailable programmes, and
+  cancels active HTTP/FFmpeg sessions before reopening the playout listener.
+  The Channels tab can select or clear a background audio file. The installed
+  app uses the project data root and keeps the existing line-up.
+- The home transport stays on 11778 MHz with the original 0x90 service
+  linkage, including when the audio asset is missing. The relay reads the
+  firmware's AV mode at 0x80161D50 and SSBM at 0x80477228. The live ring's
+  optional AV1 header at byte 24 conveys EPG mode and music availability.
+  v071 is deployed separately from v070. Hardware stayed on one home stream
+  across TV Guide, All Channels, Box Office, Services, and Interactive. Sky
+  returned to BBC1 on 12207 MHz. The live ring also reported EPG mode with
+  audio disabled while tuned to 11778 MHz against a music-free test line-up.
+  TimeQuest reported an HDMI setup slack of -0.013 ns.
+- The PC carousel now sends every future title section. A packet-level test
+  recovered all seven MJD dates for all four channels and validated the CRCs.
+  The firmware's native parser at 0x800CB000 copies the first SDT 0xB2 byte
+  into each row at +8. Guide o-code 0x9FC7A29A computes the latest window
+  start from that field in six-hour blocks. With the old constant 1, the
+  grid stopped at the end of the current block even with future sections
+  cached. The installed app now advertises the actual remaining blocks
+  through the end of its configured horizon and changes the SDT version as
+  the block advances. On MiSTer the live grid paged from Friday 13 November
+  to Thursday 19 November, populated all four channels, then stopped at the
+  last 90-minute window. Rows beyond the native cache may show "searching
+  for listings" while the firmware requests their sections. Hardware
+  captures are in `re/deployment/`, named `*pace071-production-*.png`.
+- The original 720×576 MPEG-2 Guide still is in the U202 flash at file
+  offsets 0xB4F48–0xB8FD3 inclusive. The checkpoint and running guest contain
+  identical bytes at 0x80471300. Decoded locally in
+  `re/deployment/epg_flash_still_v071.png`, it contains the original Sky
+  Guide logo, blue gradient, and swooshes. The decoder's guest-memory still
+  path and OSD composition need to be traced before displaying it in-core.
+  Ghidra independently confirms that native (12,0x25) asks for service
+  linkage 0x94, but does not establish that linkage as the source of this
+  artwork.
+- Native (3,0x3C) can submit a still in memory through AV manager command
+  0x23. The MPEG provider at 0x80020450 fills 8 KiB staging buffers and
+  0x8000F890 submits them to EMMA DMA channel 5. On the current checkpoint
+  the Guide leaves that DMA channel idle. The v072 candidate uses a
+  checkpoint-specific read of the resident resource and the FPGA MPEG
+  decoder. It keys the observed flat Guide fill indices to the resulting
+  video plane. The original menus, text, and selection remain firmware-drawn.

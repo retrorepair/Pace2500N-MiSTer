@@ -16,7 +16,9 @@
 module pace_mpeg_video(
  input wire clk_sys,clk_dec,clk_mem,clk_dot,
  input wire reset,                 // asynchronous, active high
+ input wire flush,                 // clk_sys level, held for the source handover
  input wire enable,                // clk_sys level: decode and show video
+ input wire still,
  // elementary stream, clk_sys
  input wire [7:0] es_data,input wire es_valid,output wire es_ready,
  // DDR3 (Avalon-MM, clk_mem)
@@ -59,7 +61,7 @@ module pace_mpeg_video(
  end
  // ---- stream feed
  wire [7:0] dec_data;wire dec_mark,dec_valid;
- vidfeed_cdc feed(.rst_n(reset_n),.wr_clk(clk_sys),.wr_data({1'b0,es_data}),.wr_valid(es_valid),.wr_ready(es_ready),
+ vidfeed_cdc feed(.rst_n(reset_n && !flush),.wr_clk(clk_sys),.wr_data({1'b0,es_data}),.wr_valid(es_valid),.wr_ready(es_ready),
   .rd_clk(clk_dec),.rd_data({dec_mark,dec_data}),.rd_valid(dec_valid),.rd_ready(!busy));
  // ---- 90 kHz tick: clk_dot/300, crossed to clk_dec by a toggle.
  reg [8:0] stc_div=0;reg stc_tog=0;
@@ -73,8 +75,8 @@ module pace_mpeg_video(
   else begin stc_t1<=stc_tog;stc_t2<=stc_t1;stc_t3<=stc_t2;end
  wire stc_tick=stc_t2^stc_t3;
  // ---- enable -> decoder flush (held while video is off), clk_dec
- reg en1=0,en2=0;
- always @(posedge clk_dec)begin en1<=enable;en2<=en1;end
+ reg en1=0,en2=0,still1=0,still2=0;
+ always @(posedge clk_dec)begin en1<=enable && !flush;en2<=en1;still1<=still;still2<=still1;end
  // ---- raster programming walk (PAL 576i), after the decoder's own reset.
  localparam [3:0] REG_WR_HOR=4'h1,REG_WR_HOR_SYNC=4'h2,REG_WR_VER=4'h3,REG_WR_VER_SYNC=4'h4,
                   REG_WR_VID_MODE=4'h5,REG_WR_TRICK=4'hb;
@@ -118,7 +120,7 @@ module pace_mpeg_video(
   .pace_seq_evt(d_seq),.pace_gop_evt(d_gop),.pace_pic_evt(d_pic),.pace_time_code(d_tc),.pace_picture_structure(d_ps),
   .ref_prefetch_en(1'b1),.frame_drop_en(1'b1),
   .dbg_frames_late(frames_late),.dbg_frames_dropped(),.dbg_pickups(pickups),.dbg_drop_costs(),.dbg_vbuf_fill(vbuf_fill),
-  .video_live(video_live),.pickup_hold(1'b0),.pause(1'b0),.step_req(1'b0),.freeze_wd(1'b0),
+  .video_live(video_live),.pickup_hold(1'b0),.pause(1'b0),.step_req(1'b0),.freeze_wd(still2),
   .vbuf_flush(!en2),.soft_flush(!en2),
   .disp_vscale_mode(2'd0),.disp_vscale_en(1'b0),.disp_hcrop_en(1'b0),.disp_hfill_en(1'b0),
   .film24(1'b0),.film_det_ntsc(),.film_det_pal(),.blend_en(1'b0),.blend_act(),.bob_en(1'b0),.bob_act());

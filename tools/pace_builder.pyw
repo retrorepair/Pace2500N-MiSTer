@@ -46,10 +46,10 @@ class Plex:
         self.url, self.token = url.rstrip('/'), token
 
     def get(self, path):
-        sep = '&' if '?' in path else '?'
-        req = urllib.request.Request(f'{self.url}{path}{sep}X-Plex-Token={self.token}',
-                                     headers={'Accept': 'application/json'})
-        return json.load(urllib.request.urlopen(req, timeout=15))['MediaContainer']
+        req = urllib.request.Request(f'{self.url}{path}',
+                                     headers={'Accept': 'application/json', 'X-Plex-Token': self.token})
+        with urllib.request.urlopen(req, timeout=15) as response:
+            return json.load(response)['MediaContainer']
 
     def sections(self):
         return [(d['key'], d['title'], d['type']) for d in self.get('/library/sections').get('Directory', [])]
@@ -128,18 +128,22 @@ class App(tk.Tk):
             pass
         ttk.Style(self).configure('Big.TButton', font=('Segoe UI', 12, 'bold'), padding=10)
         ttk.Style(self).configure('Head.TLabel', font=('Segoe UI', 13, 'bold'))
-        self.settings = pc.load_settings()
+        self.log_q = queue.Queue(maxsize=300)
+        self.ui_q = queue.SimpleQueue()
+        self.server = None
+        self.start_diagnostics()
+        self.settings = pc.load_settings(self.log)
         self.settings.setdefault('plex_client_id', str(uuid.uuid4()))
         if not self.settings.get('data_root'):
             self.settings['data_root'] = str(pc.ROOT)
-        pc.save_settings(self.settings)
         self.lineup_path = None
         self.lineup = {'channels': []}
-        self.server = None
         self.server_thread = None
+        self.server_stop = None
+        self.restart_playout = False
+        self.closing = False
+        self.status_pending = False
         self.signing_in = False
-        self.log_q = queue.Queue()
-        self.start_diagnostics()
         nb = ttk.Notebook(self)
         nb.pack(fill='both', expand=True, padx=6, pady=6)
         self.tab_playout(nb)
@@ -150,7 +154,7 @@ class App(tk.Tk):
         self.protocol('WM_DELETE_WINDOW', self.quit_app)
         last = self.settings.get('last_lineup')
         if last and Path(last).exists():
-            self.load(last)
+            self.load(last, startup=True)
         self.after(200, self.pump)
         self.after(1000, self.refresh_now)
         if self.settings.get('autostart', True) and self.lineup_path and '--selftest' not in sys.argv:
@@ -169,6 +173,7 @@ class App(tk.Tk):
             path.replace(path.with_suffix('.old.log'))
         self.log_file = open(path, 'a', buffering=1, encoding='utf-8')
         self.log_lock = threading.Lock()
+        self.diagnostics_stop = threading.Event()
         faulthandler.enable(file=self.log_file, all_threads=True)
         self.file_log(f'==== {APP} started (pid {os.getpid()})')
 
@@ -180,56 +185,86 @@ class App(tk.Tk):
 
         def watchdog():
             missed = 0
-            while True:
-                time.sleep(5)
+            while not self.diagnostics_stop.wait(5):
                 srv = self.server
                 if not srv:
                     missed = 0
                     continue
                 try:
-                    urllib.request.urlopen(f"http://127.0.0.1:{srv.server_address[1]}/service", timeout=15).read()
+                    with urllib.request.urlopen(f"http://127.0.0.1:{srv.server_address[1]}/service", timeout=5) as response:
+                        response.read()
                     missed = 0
                 except Exception as e:
+                    if self.server is not srv or (self.server_stop and self.server_stop.is_set()):
+                        continue
                     missed += 1
                     self.log(f'WATCHDOG: playout did not answer ({e}); thread stacks written to app.log')
                     if missed <= 3:
                         with self.log_lock:
-                            self.log_file.write(f'---- thread stacks {time.strftime("%H:%M:%S")}' + chr(10))
-                            faulthandler.dump_traceback(file=self.log_file, all_threads=True)
-                            self.log_file.flush()
+                            if not self.log_file.closed:
+                                self.log_file.write(f'---- thread stacks {time.strftime("%H:%M:%S")}' + chr(10))
+                                faulthandler.dump_traceback(file=self.log_file, all_threads=True)
+                                self.log_file.flush()
         threading.Thread(target=watchdog, name='watchdog', daemon=True).start()
 
     def file_log(self, line):
         with self.log_lock:
-            self.log_file.write(line + chr(10))
+            if not self.log_file.closed:
+                self.log_file.write(pc.redact(line) + chr(10))
+
+    def close_window(self):
+        import faulthandler
+        self.diagnostics_stop.set()
+        with self.log_lock:
+            faulthandler.disable()
+            self.log_file.close()
+        self.destroy()
 
     # ------------------------------------------------------------ plumbing
     def log(self, msg):
+        msg = pc.redact(msg)
         if not msg[:2].isdigit():
             msg = time.strftime('%H:%M:%S ') + msg
         self.file_log(msg)
-        self.log_q.put(msg)
+        try:
+            self.log_q.put_nowait(msg)
+        except queue.Full:
+            pass
 
     def ui(self, fn):
         """Run fn on the Tk thread (background work must not touch widgets)."""
-        self.log_q.put(fn)
+        self.ui_q.put(fn)
 
     def pump(self):
-        while not self.log_q.empty():
-            item = self.log_q.get()
-            if callable(item):
-                item()
-                continue
-            self.logbox.insert('end', item + '\n')
+        self.after(150, self.pump)
+        for _ in range(30):
+            try:
+                callback = self.ui_q.get_nowait()
+            except queue.Empty:
+                break
+            try:
+                callback()
+            except Exception:
+                self.report_callback_exception(*sys.exc_info())
+            if self.closing and not self.server_thread:
+                return
+        lines = []
+        for _ in range(80):
+            try:
+                lines.append(self.log_q.get_nowait())
+            except queue.Empty:
+                break
+        if lines:
+            self.logbox.insert('end', '\n'.join(lines) + '\n')
+            self.logbox.delete('1.0', 'end-1500lines')
             self.logbox.see('end')
-        self.after(200, self.pump)
 
     def background(self, fn, *args):
         def run():
             try:
                 fn(*args)
             except Exception as e:  # report, keep the app alive
-                msg = str(e)
+                msg = pc.redact(e)
                 self.log(f'error: {msg}')
                 self.ui(lambda: messagebox.showerror(APP, msg))
         threading.Thread(target=run, daemon=True).start()
@@ -264,68 +299,105 @@ class App(tk.Tk):
         self.logbox.pack(fill='both', expand=True)
 
     def toggle_server(self):
-        if self.server:
+        if self.server_thread:
             self.stop_server()
         else:
             self.start_server()
 
     def start_server(self):
+        if self.server_thread or self.closing:
+            return
         if not self.lineup_path:
             messagebox.showinfo(APP, 'Create or open a line-up on the Channels tab first.')
             return
-        if not Path(self.settings.get('huffman_ram', '')).exists():
+        if not Path(self.settings.get('huffman_ram', '')).is_file():
             messagebox.showerror(APP, 'The firmware RAM image (for guide text) is not set or missing - see Settings.')
             return
-        self.save()
-        self.btn_play.config(state='disabled')
+        path, settings = self.lineup_path, dict(self.settings)
+        stop = self.server_stop = threading.Event()
+        self.btn_play.config(state='normal', text='Cancel start')
         self.status_lbl.config(text='Starting...', foreground='#a60')
 
         def run():
+            srv = None
             try:
-                srv = pace_playout.Server(int(self.settings['port']), self.lineup_path, self.settings, log=self.log)
+                srv = pace_playout.Server(settings['port'], path, settings, log=self.log)
+                srv.timeout = 0.25
+                self.server = srv
+                self.log(f"playout running on port {srv.server_address[1]} with {len(srv.chans)} channel(s)")
+                self.ui(lambda: self.show_running(stop))
+                while not stop.is_set():
+                    srv.handle_request()
             except Exception as e:
-                self.log(f'playout could not start: {e}')
-                self.ui(lambda: (self.btn_play.config(state='normal'),
-                                 self.status_lbl.config(text='Stopped', foreground='#a00')))
-                return
-            self.server = srv
-            self.log(f"playout running on port {srv.server_address[1]} with {len(srv.chans)} channel(s)")
-            self.ui(lambda: (self.btn_play.config(state='normal', text='Stop playout'),
-                             self.status_lbl.config(text='Running', foreground='#060')))
-            srv.serve_forever()
+                self.log(f'playout failed: {e}')
+            finally:
+                if srv:
+                    srv.server_close()
+                    self.log('playout stopped')
+                self.server = None
+                self.ui(self.playout_stopped)
         self.server_thread = threading.Thread(target=run, daemon=True)
         self.server_thread.start()
 
+    def show_running(self, stop):
+        if not stop.is_set():
+            self.btn_play.config(state='normal', text='Stop playout')
+            self.status_lbl.config(text='Running', foreground='#060')
+
     def stop_server(self):
-        srv, self.server = self.server, None
-        if srv:
-            threading.Thread(target=lambda: (srv.shutdown(), srv.server_close()), daemon=True).start()
-            self.log('playout stopped')
-        self.btn_play.config(text='Start playout')
+        self.restart_playout = False
+        if getattr(self, '_reload_job', None):
+            self.after_cancel(self._reload_job)
+            self._reload_job = None
+        if self.server_stop:
+            self.server_stop.set()
+            self.btn_play.config(state='disabled')
+            self.status_lbl.config(text='Stopping...', foreground='#a60')
+
+    def playout_stopped(self):
+        self.server_thread = self.server_stop = None
+        if self.closing:
+            self.close_window()
+            return
+        self.btn_play.config(state='normal', text='Start playout')
         self.status_lbl.config(text='Stopped', foreground='#a00')
+        self.streaming_lbl.config(text='')
+        if self.restart_playout:
+            self.restart_playout = False
+            self.start_server()
 
     def refresh_now(self):
-        if self.server:
-            try:
-                d = self.server.now()
-                self.now_tv.delete(*self.now_tv.get_children())
-                for c in d['channels']:
-                    self.now_tv.insert('', 'end', values=(c['number'], c['name'], c['now'], f"{c['next_at']}  {c['next']}",
-                                                          f"{c['on_air']}: {c['source']}"))
-                st = d['streaming']
-                last = getattr(self.server, 'last_box', None)
-                if st:
-                    text = 'Box connected - streaming: ' + '; '.join(f"{s['channel']} ({s['seconds']} s)" for s in st)
-                elif last:
-                    text = (f'Box not connected (last connected {time.strftime("%H:%M:%S", time.localtime(last[0]))} '
-                            f'from {last[1]}). Is the Pace core running on the MiSTer?')
-                else:
-                    text = ('The box has not connected yet. Load the Pace core on the MiSTer; if it still does not '
-                            'connect, check relay.ini on the MiSTer points at this PC and Windows Firewall allows this app.')
-                self.streaming_lbl.config(text=text, foreground='#060' if st else '#a60')
-            except Exception as e:
-                self.streaming_lbl.config(text=f'status: {e}')
         self.after(2000, self.refresh_now)
+        srv = self.server
+        if not srv or self.status_pending or self.closing:
+            return
+        self.status_pending = True
+
+        def read():
+            try:
+                d = srv.now()
+            except Exception as e:
+                d = pc.redact(e)
+            self.ui(lambda: self.show_status(srv, d))
+        threading.Thread(target=read, name='playout status', daemon=True).start()
+
+    def show_status(self, srv, d):
+        self.status_pending = False
+        if self.server is not srv:
+            return
+        if isinstance(d, str):
+            self.streaming_lbl.config(text=f'Status unavailable: {d}')
+            return
+        self.now_tv.delete(*self.now_tv.get_children())
+        for c in d['channels']:
+            self.now_tv.insert('', 'end', values=(c['number'], c['name'], c['now'], f"{c['next_at']}  {c['next']}",
+                                                  f"{c['on_air']}: {c['source']}"))
+        streams = d['streaming']
+        if streams:
+            text = 'Box connected - streaming: ' + ', '.join(f"{s['channel']} ({s['seconds']} s)" for s in streams)
+        else:
+            text = 'Waiting for the MiSTer relay to tune a service.'
+        self.streaming_lbl.config(text=text, foreground='#060' if streams else '#a60')
 
     # ------------------------------------------------------------ channels
     def tab_channels(self, nb):
@@ -337,6 +409,14 @@ class App(tk.Tk):
             ttk.Button(top, text=text, command=cmd).pack(side='left', padx=2)
         self.path_lbl = ttk.Label(top, text='(unsaved)', foreground='#555')
         self.path_lbl.pack(side='left', padx=10)
+        music = ttk.Frame(f)
+        music.pack(fill='x', pady=4)
+        self.music_lbl = ttk.Label(music, text='EPG background audio is off')
+        self.music_lbl.pack(side='left', padx=6)
+        ttk.Button(music, text='Choose audio…', command=self.choose_music).pack(side='left', padx=3)
+        ttk.Button(music, text='Clear', command=self.clear_music).pack(side='left')
+        self.music_path_lbl = ttk.Label(f, foreground='#555', wraplength=1030)
+        self.music_path_lbl.pack(fill='x', padx=6)
         body = ttk.Panedwindow(f, orient='horizontal')
         body.pack(fill='both', expand=True, pady=6)
         left = ttk.Frame(body)
@@ -402,6 +482,7 @@ class App(tk.Tk):
             self.show_channel()
 
     def show_channel(self):
+        self.cancel_channel_edit()
         c = self.current()
         if not c:
             return
@@ -429,9 +510,13 @@ class App(tk.Tk):
     def field_edited(self):
         if self._showing or not self.current():
             return
+        self.cancel_channel_edit()
+        self._apply_job = self.after(700, self.apply_channel)
+
+    def cancel_channel_edit(self):
         if getattr(self, '_apply_job', None):
             self.after_cancel(self._apply_job)
-        self._apply_job = self.after(700, self.apply_channel)
+            self._apply_job = None
 
     def apply_channel(self):
         self._apply_job = None
@@ -526,61 +611,92 @@ class App(tk.Tk):
             self.prog.selection_set(self.prog.get_children()[i + d])
 
     def new(self):
+        self.cancel_channel_edit()
         self.lineup, self.lineup_path = {'channels': []}, None
         self.path_lbl.config(text='(unsaved)')
         self.refresh_channels()
+        self.show_music()
+
+    def show_music(self):
+        music = self.lineup.get('epg_music')
+        path = pc.ROOT / music if music else None
+        available = path and path.is_file()
+        self.music_lbl.config(text='EPG background audio is off' if not path else
+                                   'EPG background audio selected' if available else 'EPG background audio file is missing')
+        self.music_path_lbl.config(text=str(path) if path else '')
+
+    def choose_music(self):
+        file = filedialog.askopenfilename(title='Choose EPG background audio', initialdir=pc.ROOT / 'roms' / 'music',
+                                          filetypes=[('Audio', '*.mp2 *.mp3 *.wav *.flac *.m4a *.ogg'), ('All files', '*')])
+        if file:
+            path = Path(file)
+            self.lineup['epg_music'] = path.relative_to(pc.ROOT).as_posix() if path.is_relative_to(pc.ROOT) else str(path)
+            self.show_music()
+            self.changed()
+
+    def clear_music(self):
+        if self.lineup.pop('epg_music', None):
+            self.show_music()
+            self.changed()
 
     def open(self):
         f = filedialog.askopenfilename(title='Open line-up', filetypes=[('Line-up', '*.json')], initialdir=pc.ROOT / 'roms')
         if f:
             self.load(f)
 
-    def load(self, f):
+    def load(self, f, startup=False):
         try:
-            lineup = json.loads(Path(f).read_text())
-            if not isinstance(lineup, dict) or not isinstance(lineup.get('channels'), list):
-                raise ValueError('it has no "channels" list, so it is not a channel line-up')
+            lineup = pc.read_lineup(f)
         except Exception as e:
             # never refuse to open over a bad file: say which file and why, start with no line-up
             self.log(f'could not open line-up {f}: {e}')
-            messagebox.showerror(APP, f'Could not open the line-up\n{f}\n\n{e}\n\nUse Open... on the Channels tab to pick another.')
+            if not startup:
+                messagebox.showerror(APP, f'Could not open the line-up\n{f}\n\n{e}')
             return
+        self.cancel_channel_edit()
         self.lineup = lineup
         self.lineup_path = f
         self.path_lbl.config(text=f)
         self.settings['last_lineup'] = f
-        pc.save_settings(self.settings)
+        if not startup:
+            pc.save_settings(self.settings)
         self.refresh_channels(0 if self.lineup['channels'] else None)
+        self.show_music()
+        if self.server_thread:
+            self.reload_playout()
 
     def save(self):
         if not self.lineup_path:
             return self.save_as()
         # write a temp file and swap it in, so the app closing mid-save can't leave a broken line-up
-        p = Path(self.lineup_path)
-        tmp = p.with_name(p.name + '.saving')
-        tmp.write_text(json.dumps(self.lineup, indent=1))
-        os.replace(tmp, p)
+        pc.write_json(self.lineup_path, self.lineup, indent=1)
 
     def changed(self):
         """Every edit: save the line-up now (a new one goes to roms/lineup.json), and have a
         running playout pick it up shortly (edits in quick succession reload once)."""
         if not self.lineup_path:
-            self.lineup_path = str(pc.ROOT / 'roms' / 'lineup.json')
+            folder = pc.ROOT / 'roms'
+            path = folder / 'lineup.json'
+            n = 2
+            while path.exists():
+                path = folder / f'lineup-{n}.json'
+                n += 1
+            self.lineup_path = str(path)
             self.path_lbl.config(text=self.lineup_path)
             self.settings['last_lineup'] = self.lineup_path
-            pc.save_settings(self.settings)
         self.save()
-        if self.server:
+        pc.save_settings(self.settings)
+        if self.server_thread and (not self.server_stop.is_set() or self.restart_playout):
             if getattr(self, '_reload_job', None):
                 self.after_cancel(self._reload_job)
             self._reload_job = self.after(2000, self.reload_playout)
 
     def reload_playout(self):
         self._reload_job = None
-        if self.server:
+        if self.server_thread:
             self.log('line-up changed: reloading playout')
             self.stop_server()
-            self.after(500, self.start_server)
+            self.restart_playout = True
 
     def save_as(self):
         f = filedialog.asksaveasfilename(title='Save line-up', defaultextension='.json', initialdir=pc.ROOT / 'roms',
@@ -604,10 +720,10 @@ class App(tk.Tk):
         self.v_query, self.v_set = tk.StringVar(value='TVS adverts 1987'), tk.StringVar(value='itv_1987_89')
         ttk.Label(row, text='Search YouTube for').pack(side='left')
         ttk.Entry(row, textvariable=self.v_query, width=36).pack(side='left', padx=4)
-        ttk.Button(row, text='Search', command=lambda: self.background(self.yt_search)).pack(side='left')
+        ttk.Button(row, text='Search', command=lambda: self.background(self.yt_search, self.v_query.get().strip())).pack(side='left')
         ttk.Label(row, text='   Rip into set').pack(side='left')
         ttk.Entry(row, textvariable=self.v_set, width=18).pack(side='left', padx=4)
-        ttk.Button(row, text='Rip selected', command=lambda: self.background(self.yt_rip)).pack(side='left')
+        ttk.Button(row, text='Rip selected', command=self.yt_rip).pack(side='left')
         self.yt = ttk.Treeview(f, columns=('len', 'title', 'id'), show='headings', height=9, selectmode='extended')
         for col, t, w in (('len', 'Length', 70), ('title', 'Title', 760), ('id', 'Video', 120)):
             self.yt.heading(col, text=t)
@@ -656,11 +772,10 @@ class App(tk.Tk):
                 return p
         return 'yt-dlp'
 
-    def yt_search(self):
-        q = self.v_query.get().strip()
+    def yt_search(self, q):
         self.log(f'YouTube search: {q}')
         out = subprocess.run([self.ytdlp(), '--flat-playlist', '--print', '%(id)s|%(duration)s|%(title)s', f'ytsearch20:{q}'],
-                             capture_output=True, text=True, creationflags=NO_WINDOW)
+                             capture_output=True, text=True, creationflags=NO_WINDOW, timeout=90, check=True)
         rows = [line.split('|', 2) for line in out.stdout.splitlines() if line.count('|') >= 2]
 
         def fill():
@@ -681,20 +796,28 @@ class App(tk.Tk):
             self.log('a rip is already running - wait for it to finish')
             return
         self._ripping = True
-        try:
-            self._yt_rip(ids)
-        finally:
+        name = self.v_set.get().strip()
+        if not name or name in ('.', '..') or Path(name).name != name or ':' in name:
             self._ripping = False
-
-    def _yt_rip(self, ids):
-        target = pc.ROOT / 'roms' / 'interstitials' / self.v_set.get().strip()
-        target.mkdir(parents=True, exist_ok=True)
+            messagebox.showerror(APP, 'Enter a folder name for the set.')
+            return
+        target = pc.ROOT / 'roms' / 'interstitials' / name
         ff = str(Path(self.settings['ffmpeg']).parent)
+        self.background(self._yt_rip, ids, target, ff)
+
+    def _yt_rip(self, ids, target, ff):
+        try:
+            self.rip_videos(ids, target, ff)
+        finally:
+            self.ui(lambda: setattr(self, '_ripping', False))
+
+    def rip_videos(self, ids, target, ff):
+        target.mkdir(parents=True, exist_ok=True)
         for vid in ids:
             self.log(f'ripping {vid} into {target.name}')
             subprocess.run([self.ytdlp(), '--ffmpeg-location', ff, '-f', 'bv*[height<=576]+ba/b', '--merge-output-format', 'mkv',
                             '--write-info-json', '--no-playlist', '-o', str(target / '%(id)s.%(ext)s'), str(vid)],
-                           capture_output=True, creationflags=NO_WINDOW)
+                           capture_output=True, creationflags=NO_WINDOW, timeout=900, check=True)
         self.log('rip finished; finding spots...')
         self.ui(self.refresh_sets)
         self.analyse(target)
@@ -858,7 +981,7 @@ class App(tk.Tk):
         row.grid(row=2, column=0, columnspan=3, sticky='w', pady=4)
         self.btn_plex = ttk.Button(row, text='Sign in with Plex...', style='Big.TButton', command=self.plex_sign_in)
         self.btn_plex.pack(side='left')
-        ttk.Button(row, text='Test connection', command=lambda: self.background(self.test_plex)).pack(side='left', padx=6)
+        ttk.Button(row, text='Test connection', command=self.test_plex).pack(side='left', padx=6)
         ttk.Button(row, text='Sign out', command=self.plex_sign_out).pack(side='left')
         ttk.Label(f, text='Plex server address').grid(row=3, column=0, sticky='w')
         self.v_plex_url = tk.StringVar(value=self.settings.get('plex_url', ''))
@@ -924,33 +1047,54 @@ class App(tk.Tk):
         self.show_plex_state()
 
     def test_plex(self):
-        self.ui(self.save_settings)
-        time.sleep(0.3)
-        secs = Plex(self.settings['plex_url'], self.settings['plex_token']).sections()
+        url, token = self.v_plex_url.get().strip(), self.settings.get('plex_token')
+        if not url or not token:
+            messagebox.showinfo(APP, 'Sign in and enter the Plex server address first.')
+            return
+        self.background(self.read_plex_status, Plex(url, token))
+
+    def read_plex_status(self, plex):
+        secs = plex.sections()
         msg = 'Plex libraries: ' + ', '.join(t for _, t, _ in secs)
         self.log(msg)
         self.ui(lambda: messagebox.showinfo(APP, msg))
 
     def save_settings(self):
-        self.settings['plex_url'] = self.v_plex_url.get().strip().rstrip('/')
-        self.settings['autostart'] = bool(self.v_autostart.get())
-        for k, v in self.v_paths.items():
-            val = v.get().strip()
-            self.settings[k] = int(val) if k in ('port', 'days') and val.isdigit() else val
-        pc.save_settings(self.settings)
-        pc.load_settings()                 # applies the data folder
+        settings = {**self.settings, **{k: v.get().strip() for k, v in self.v_paths.items()}}
+        settings.update(plex_url=self.v_plex_url.get().strip().rstrip('/'), autostart=bool(self.v_autostart.get()))
+        try:
+            settings['port'], settings['days'] = int(settings['port']), int(settings['days'])
+            if not 1 <= settings['port'] <= 65535 or not 1 <= settings['days'] <= 8:
+                raise ValueError
+        except ValueError:
+            messagebox.showerror(APP, 'Enter a port from 1 to 65535 and 1 to 8 days of listings.')
+            return
+        if not Path(settings['data_root']).is_dir():
+            messagebox.showerror(APP, 'Choose an existing data folder.')
+            return
+        old_root = Path(self.settings['data_root'])
+        if Path(settings['library_cache']) == old_root / 'roms' / 'library_cache.json':
+            settings['library_cache'] = str(Path(settings['data_root']) / 'roms' / 'library_cache.json')
+        pc.save_settings(settings)
+        self.settings = pc.load_settings(self.log)
         self.show_plex_state()
+        self.show_music()
         self.refresh_sets()
         self.log('settings saved')
+        if self.server_thread:
+            self.reload_playout()
 
     def quit_app(self):
-        if self.server and '--selftest' not in sys.argv and not messagebox.askyesno(
+        if self.server_thread and '--selftest' not in sys.argv and not messagebox.askyesno(
                 APP, 'Playout is running - closing the app stops your channels on the box.' + chr(10) * 2 + 'Close anyway?'):
             return
         self.file_log('==== closed by the user' if '--selftest' not in sys.argv else '==== selftest done')
         self.signing_in = False
+        self.closing = True
+        self.cancel_channel_edit()
         self.stop_server()
-        self.destroy()
+        if not self.server_thread:
+            self.close_window()
 
 
 class PlexPicker(tk.Toplevel):
@@ -959,7 +1103,9 @@ class PlexPicker(tk.Toplevel):
         super().__init__(app)
         self.title('Add from Plex')
         self.geometry('820x560')
-        self.plex, self.done = plex, done
+        self.app, self.plex, self.done = app, plex, done
+        self.sections, self.item_rows, self.ep_rows = [], [], []
+        self.request = 0
         ttk.Label(self, text='Library').pack(anchor='w', padx=8, pady=(8, 0))
         self.lib = ttk.Combobox(self, state='readonly', width=50)
         self.lib.pack(anchor='w', padx=8, pady=4)
@@ -975,23 +1121,58 @@ class PlexPicker(tk.Toplevel):
         row.pack(pady=6)
         ttk.Button(row, text='Add selected to the channel', command=self.add).pack(side='left', padx=4)
         ttk.Button(row, text='Add the whole library', command=self.add_library).pack(side='left', padx=4)
-        self.sections = plex.sections()
-        self.lib['values'] = [f'{t}  ({ty})' for _, t, ty in self.sections]
+        self.fetch(plex.sections, self.show_sections)
+
+    def fetch(self, work, show):
+        self.request += 1
+        request = self.request
+
+        def run():
+            try:
+                result = work()
+            except Exception as e:
+                error = pc.redact(e)
+                self.app.log(f'Plex: {error}')
+                self.app.ui(lambda: finish(lambda: messagebox.showerror(APP, error, parent=self)))
+            else:
+                self.app.ui(lambda: finish(lambda: show(result)))
+
+        def finish(update):
+            if self.winfo_exists() and request == self.request:
+                update()
+
+        threading.Thread(target=run, name='Plex library', daemon=True).start()
+
+    def show_sections(self, sections):
+        self.sections = sections
+        self.lib['values'] = [f'{t}  ({ty})' for _, t, ty in sections]
 
     def load_items(self):
-        self.item_rows = self.plex.items(self.sections[self.lib.current()][0])
+        selected = self.lib.current()
+        if selected < 0:
+            return
+        key = self.sections[selected][0]
+        self.item_rows, self.ep_rows = [], []
         self.items.delete(0, 'end')
-        for _, t, _ in self.item_rows:
-            self.items.insert('end', t)
-        self.ep_rows = []
         self.eps.delete(0, 'end')
+        self.fetch(lambda: self.plex.items(key), self.show_items)
+
+    def show_items(self, items):
+        self.item_rows = items
+        for _, title, _ in items:
+            self.items.insert('end', title)
 
     def load_eps(self):
         sel = self.items.curselection()
         if not sel:
             return
         key, title, ty = self.item_rows[sel[0]]
-        self.ep_rows = self.plex.episodes(key) if ty == 'show' else [(key, title, title)]
+        self.ep_rows = []
+        self.eps.delete(0, 'end')
+        self.fetch(lambda: self.plex.episodes(key) if ty == 'show' else [(key, title, title)], self.show_episodes)
+
+    def show_episodes(self, episodes):
+        self.ep_rows = episodes
         self.eps.delete(0, 'end')
         for _, label, _ in self.ep_rows:
             self.eps.insert('end', label)
@@ -1001,13 +1182,17 @@ class PlexPicker(tk.Toplevel):
             messagebox.showinfo(APP, 'Choose a library first.', parent=self)
             return
         key, title, kind = self.sections[self.lib.current()]
-        rows = self.plex.library_programmes(key, kind)
         what = 'episodes' if kind == 'show' else 'items'
-        if rows and messagebox.askyesno(APP, f'Add all {len(rows)} {what} from "{title}" to the channel?', parent=self):
-            self.done(rows)
-            self.destroy()
+
+        def add_rows(rows):
+            if rows and messagebox.askyesno(APP, f'Add all {len(rows)} {what} from "{title}" to the channel?', parent=self):
+                self.done(rows)
+                self.destroy()
+        self.fetch(lambda: self.plex.library_programmes(key, kind), add_rows)
 
     def add(self):
+        if not self.eps.curselection():
+            return
         self.done([{'title': show, 'source': f'plex:{key}'} for i in self.eps.curselection()
                    for key, _, show in [self.ep_rows[i]]])
         self.destroy()
@@ -1036,7 +1221,10 @@ def selftest(out):
         res['error'] = str(e)
     res['log'] = app.logbox.get('1.0', 'end').splitlines()[-8:]
     app.quit_app()
-    Path(out).write_text(json.dumps(res, indent=1))
+    while app.server_thread:
+        app.update()
+        time.sleep(0.05)
+    pc.write_json(out, res, indent=1)
 
 
 if __name__ == '__main__':

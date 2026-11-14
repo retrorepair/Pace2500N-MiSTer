@@ -24,7 +24,8 @@ module pace_guide_video601 (
  output reg [23:0] rgb=0,
  // 1 = no OSD pixel here: CLUT entry 0x0000 (the value the firmware uses for
  // its cleared plane in live viewing), or no OSD line available.
- output reg key=1
+ output reg key=1,
+ output reg background=0
 );
  localparam IDLE=0,REQUEST=1,WAIT_DATA=2,PALETTE_WRITE=3;
  // ---------------- shared memories (write clk, read vclk) ----------------
@@ -51,6 +52,7 @@ module pace_guide_video601 (
  reg [95:0] pal_q=0;reg [1:0] sel2=0;reg show2=0;
  reg [4:0] ctrl1=5'b01100,ctrl2=5'b01100; // {ce,visible,hs,vs,field}
  wire [7:0] pixel_index=line_q[lane_q*8+:8];
+ reg background_q=0;
  always @(posedge vclk)begin
   vreset_s<={vreset_s[0],reset};
   done0_s<={done0_s[1:0],done0_toggle};done1_s<={done1_s[1:0],done1_toggle};
@@ -59,6 +61,10 @@ module pace_guide_video601 (
   line_q<=line_ram[line_word];lane_q<=x[2:0];show1<=vpal_s[1] && line_ok;
   ctrl1<={ce,visible,hs,vs,field};
   pal_q<=palette_ram[pixel_index[7:2]];key_q<=key_ram[pixel_index[7:2]];sel2<=pixel_index[1:0];show2<=show1;ctrl2<=ctrl1;
+  // Flat fills of the firmware's main Guide surfaces. Foreground text,
+  // highlights and menu bars keep their original palette entries.
+  background_q<=pixel_index==8'hdc || pixel_index==8'h65 || pixel_index==8'h6d || pixel_index==8'h81;
+  background<=show2 && background_q;
   rgb<=show2?pal_q[sel2*24+:24]:24'd0;key<=show2 ? key_q[sel2] : 1'b1;
   {out_ce,out_visible,out_hs,out_vs,out_field}<=ctrl2;
   if(vreset)begin

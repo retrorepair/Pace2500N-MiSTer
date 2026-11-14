@@ -4,6 +4,76 @@
 Quartus results and HDL regressions. The latest session is directly below; the original
 7 Nov snapshot further down is retained for history only (it predates everything that works).
 
+## Session 14 Nov 2026 - 0.7.4 live playout and first-open listings
+
+- Hardware validation used the local MiSTer. The user confirmed that the compressed
+  `Pace2500N_V074.rbf` and `Pace2500N_V074_Live.mgl` show the blue gradient and
+  corner Sky Guide logo and behave like 0.7.1. Sky One ran on the hardware for
+  over three hours across programme and break boundaries, ending when the core
+  was deliberately reloaded for the listings measurements. 0.7.1 is the fallback.
+- The 0.7.2 trace showed tuner lock dropping before the firmware cleared its
+  A/V routes while transport bytes were still advancing. The ten-second cycle
+  was the firmware retry. The compressed 0.7.3 test stopped with E2 at
+  `0x80024831` in the serial interrupt path, with invalid frame length reported
+  by the FPGA serial model. The first 0.7.3 test also had an RBF packaging error.
+  0.7.4 uses the 75 MHz CPU clock, preserves raster timing during the MPEG
+  decoder soft flush, completes outstanding DDR bursts, and keeps artwork video
+  parser events out of the guest MPEG status. A single root cause for 0.7.3
+  has yet to be confirmed.
+- Build 0.7.4 used Quartus seed 4 with fitter physical combo synthesis and
+  combo-for-area disabled. TimeQuest at 100 C reported +0.231 ns CPU setup
+  slack and -1.946 ns on the HDMI scaler clock. Hardware validation was on
+  the user's CRT. Keep the HDMI timing result with any release candidate.
+- The home transponder is 11778 MHz. Guide music continues across Guide,
+  listings, Box Office, Services and Interactive. A line-up without an audio
+  file still tunes to 11778 MHz and drops TV audio. The full seven-day schedule
+  was seen on hardware through the final 90-minute slot for all four channels.
+  The SDT 0xB2 byte at the start of the private descriptor counts six-hour
+  blocks from the current block.
+- 0.7.4 can populate All Channels on its first cold visit without a second
+  keypress. The baseline test took about 50 seconds after Select at roughly
+  28 seconds after launch. Once acquired, the TV-to-Guide grid displayed all
+  four rows in the first two-second capture. A faster SI carousel fetched the
+  NIT, SDT and initial title filters around five seconds sooner, but a roughly
+  30-second guest wait still separated the initial title filters and the
+  normal 11778 MHz acquisition. With no keypresses after loading the core,
+  the guest tuned to 11778 MHz by about 75 seconds in one run. First-ever
+  All Channels at 84 seconds showed all four rows in the two-second capture.
+  Changing the transport IDs or the home-service linkage did not shorten
+  the cold wait. Evidence is in `re/deployment` locally. The
+  October 2002 reference opened Sports around 16 seconds into the clip,
+  displayed names around 17 seconds and titles around 19 seconds.
+- Production runs Channel Builder playout on the PC at port 8250 and the
+  ARM-side relay at `/media/fat/linux/pace/pace_live_relay.py`. Use a second
+  test server on 8251 and restore the production relay after A/B tests.
+  The running Windows app uses the existing Pace2500N settings and line-up.
+  The updated app passed its packaged self-test against a copy of the
+  settings and is running from the existing `dist/PaceChannelBuilder`
+  folder on port 8250. The tested executable was installed after the old
+  process exited, and the relay resumed Sky One. Keep local firmware,
+  media, credentials and deployment captures out of Git.
+- The updated carousel repeats PAT/PMT every 200 ms, the service tables
+  every 600 ms, and today's listings about every second. Three wraps
+  recovered all 189 home sections with valid CRCs and zero continuity
+  errors through the live multiplexer, including all seven guide dates.
+- PC playout now applies FFmpeg loudness levelling to both Plex and local
+  sources. Channel target is -24 LUFS, Guide is -34 LUFS, true peak
+  target is -3 dBTP before MP2 encoding. In the October 2002 clip the
+  channel excerpts measured -24.9 and -24.4 LUFS and the very quiet Guide
+  interval measured -48.7 LUFS. The source 2002 MP2 averaged -11.2 LUFS.
+  The Guide target keeps music audible in the live mix. The four 24-second
+  PC transport captures measured -25.1 to -23.6 LUFS. Guide measured
+  -34.3 LUFS. Sources without an audio stream retain the silence fallback.
+  On MiSTer, the audio test held one home transport session with its music
+  flag across All Channels, Box Office and Services. TV playback resumed
+  after leaving the Guide. Evidence is in `re/deployment/*pace074-level*`.
+- TimeQuest traced the 0.7.4 HDMI setup violation to the bob-deinterlacing
+  line selection and stride multiply in `sys/ascal.vhd` (`o_vacpt` to
+  `o_adrs_pre`). A separate fit in `../Pace2500N_build075_scaler` tests
+  registering the selected source line ahead of the multiply. Seed 4 passed
+  HDMI at +0.112 ns but missed a CPU setup path by 0.329 ns. The 0.7.4 release
+  uses the original hardware-tested core, as requested.
+
 ## Session 13 Nov 2026 - v0.7.0 pipelined CPU usable; EPG music and channel numbers open
 
 **State:** v0.7.0 (`_Other/Pace2500N_V070.rbf`, `Pace2500N_V070_Live.mgl`) runs the firmware

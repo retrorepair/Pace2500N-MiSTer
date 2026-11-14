@@ -148,7 +148,7 @@ pace_r4k #(.COUNT_NUM(27),.COUNT_DEN(100)) cpu(.clk_sys(clk_sys),.clk1x(clk_cpu1
  .dbg_exceptions(dbg_exceptions),.dbg_cause(dbg_cause),.dbg_epc(dbg_epc),.dbg_badvaddr(dbg_badvaddr),
  .trace_next(trace_next),.trace_page_data(trace_page_data),
  // the trace freezes only on the firmware's TLB-refill panic path (rtl/pace_r4k.sv)
- .trace_trigger(1'b0),.trace_frozen(trace_frozen));
+ .trace_trigger(model_halt==8'he2),.trace_frozen(trace_frozen));
 // Telemetry: IR= the CPU's error flags, RAM= accesses outside the memory map, IRQ= exception
 // entries. (CPU error flags are not shown as a halt: halt_code switches the screen to
 // diagnostics.) PROF lines carry the panic trace (rtl/pace_r4k.sv) once it has frozen.
@@ -168,6 +168,7 @@ pace_guide_blitter gpu(.clk(clk_sys),.reset(core_reset),.hold(holding),.start(gp
  .mem_accept(ga),.mem_rvalid(gv),.mem_rdata(DDRAM_DOUT));
 
 wire [31:0] stream_written,stream_played,stream_loops,stream_underruns;
+wire epg_mode,epg_music;
 wire sq,sa;wire [28:0] sad;wire [63:0] swd;wire [7:0] sbe;
 wire [16:0] utc_seconds;wire utc_valid;wire [39:0] stream_start;
 pace_ts_stream ts_stream(.clk(clk_sys),.reset(core_reset),.now_seconds(utc_seconds),.now_valid(utc_valid),
@@ -175,7 +176,7 @@ pace_ts_stream ts_stream(.clk(clk_sys),.reset(core_reset),.now_seconds(utc_secon
  .sd_lba(sd_lba),.sd_blk_cnt(sd_blk_cnt),.sd_rd(sd_rd),.sd_wr(sd_wr),.sd_ack(sd_ack),
  .sd_buff_addr(sd_buff_addr),.sd_buff_dout(sd_buff_dout),.sd_buff_wr(sd_buff_wr),.sd_buff_din(sd_buff_din),
  .video_pid(av_video),.audio_pid(av_audio),.underruns(stream_underruns),.boundary(ts_boundary),
- .resync(stream_resync),.live(stream_live),
+ .resync(stream_resync),.live(stream_live),.epg_mode(epg_mode),.epg_music(epg_music),
  .played(stream_played),.active(streaming),.restart(stream_restart),.written(stream_written),.loops(stream_loops),.start_byte(stream_start),
  .mem_req(sq),.mem_addr(sad),.mem_wdata(swd),.mem_be(sbe),.mem_accept(sa));
 // Pre-fill 512 KiB of the ring (0.67 s) before playing a stream, so network
@@ -207,20 +208,46 @@ pace_section_demux demux(.clk(clk_sys),.reset(core_reset),.stream_reset(stream_l
 // ---- MPEG A/V: the elementary streams on the PIDs the firmware routes to the
 // EMMA's A/V decoder (B000A094 video, B000A098 audio, bit 14 = on).
 // (av_video/av_audio are declared with the transport wiring above)
-wire video_on=av_video[14] && !holding;
-wire audio_on=av_audio[14] && !holding;
+wire video_on=av_video[14] && !epg_mode && !holding;
+// Keep the home service on the decoder throughout the firmware's EPG mode.
+// Before the home service arrives (or when it has no music), mute TV audio.
+wire [12:0] audio_route=epg_mode ? 13'h0288 : av_audio[12:0];
+wire audio_on=(epg_mode ? epg_music : av_audio[14]) && !holding;
+reg [12:0] previous_audio_route=13'h1fff;
+always @(posedge clk_sys)previous_audio_route<=audio_route;
+wire audio_reset=core_reset || stream_loading || stream_restart || !audio_on ||
+                 previous_audio_route!=audio_route;
 wire [7:0] ves_data,aes_data;wire ves_valid,ves_ready,aes_valid,aes_full;
+wire still_q,still_a,still_v;
+wire [28:0] still_addr;
+wire [7:0] still_data;
+wire still_valid,still_present,decoder_ready;
+wire still_enable=epg_mode && !holding;
+reg still_enable_q=0;
+reg [7:0] flush_count=0;
+wire decoder_flush=still_enable!=still_enable_q || flush_count!=0;
+always @(posedge clk_sys)begin
+ still_enable_q<=still_enable;
+ if(core_reset)flush_count<=0;
+ else if(still_enable!=still_enable_q)flush_count<=8'd255;
+ else if(flush_count!=0)flush_count<=flush_count-1'b1;
+end
+pace_guide_still guide_still(.clk(clk_sys),.reset(core_reset),.enable(still_enable),
+ .mem_req(still_q),.mem_addr(still_addr),.mem_accept(still_a),.mem_rvalid(still_v),.mem_rdata(DDRAM_DOUT),
+ .data(still_data),.valid(still_valid),.ready(decoder_ready && !decoder_flush),.present(still_present));
+assign ves_ready=decoder_ready && !still_enable && !decoder_flush;
 wire [31:0] ves_bytes,aes_bytes;wire [15:0] ves_dropped,aes_dropped;
 pace_av_pes #(.FIFO_BITS(10)) av_pes(.clk(clk_sys),.reset(core_reset || stream_loading || stream_restart),.ts_strobe(ts_valid && ts_ready),.ts_data(ts_data),
- .video_pid(av_video[12:0]),.audio_pid(av_audio[12:0]),.video_on(video_on),.audio_on(audio_on),
+ .video_pid(av_video[12:0]),.audio_pid(audio_route),.video_on(video_on),.audio_on(audio_on && !audio_reset),
  .video_data(ves_data),.video_valid(ves_valid),.video_ready(ves_ready),
  .audio_data(aes_data),.audio_valid(aes_valid),.audio_ready(!aes_full),
  .video_bytes(ves_bytes),.audio_bytes(aes_bytes),.video_dropped(ves_dropped),.audio_dropped(aes_dropped));
 wire [7:0] dec_r,dec_g,dec_b;wire dec_en,dec_hs,dec_vs;wire [11:0] dec_h,dec_v;
 wire dec_live,dec_busy;wire [15:0] dec_pictures,dec_pickups,dec_late;wire [7:0] dec_vbuf;wire [13:0] dec_hsize,dec_vsize;
 pace_mpeg_video mpeg_video(.clk_sys(clk_sys),.clk_dec(clk_dec),.clk_mem(clk_mem),.clk_dot(clk_dot),
- .reset(!pll_locked || RESET),.enable(video_on),
- .es_data(ves_data),.es_valid(ves_valid),.es_ready(ves_ready),
+ .reset(!pll_locked || RESET),.flush(decoder_flush),.enable(video_on || still_enable),.still(still_enable),
+ .es_data(still_enable ? still_data : ves_data),
+ .es_valid(!decoder_flush && (still_enable ? still_valid : ves_valid)),.es_ready(decoder_ready),
  .ddr_addr(DDRAM2_ADDR),.ddr_burstcnt(DDRAM2_BURSTCNT),.ddr_read(DDRAM2_RD),.ddr_write(DDRAM2_WE),
  .ddr_wdata(DDRAM2_DIN),.ddr_be(DDRAM2_BE),.ddr_rdata(DDRAM2_DOUT),.ddr_rvalid(DDRAM2_DOUT_READY),.ddr_waitrequest(DDRAM2_BUSY),
  .r(dec_r),.g(dec_g),.b(dec_b),.pixel_en(dec_en),.hs(dec_hs),.vs(dec_vs),.h_pos(dec_h),.v_pos(dec_v),
@@ -231,7 +258,9 @@ pace_mpeg_video mpeg_video(.clk_sys(clk_sys),.clk_dec(clk_dec),.clk_mem(clk_mem)
 pace_mpeg_status mpeg_status(.clk(clk_sys),.reset(core_reset),
  .access(device_req && device_ready && !holding && !demux_selected),.we(iw),.addr(ia),.wdata(id),
  .hit(mpeg_hit),.rdata(mpeg_rdata),.irq(mpeg_irq),
- .seq_evt(dec_seq_evt),.gop_evt(dec_gop_evt),.pic_evt(dec_pic_evt),.field_evt(dec_field_evt),
+ // The host-injected Guide backdrop is unrelated to the guest's broadcast ES.
+ .seq_evt(dec_seq_evt && video_on),.gop_evt(dec_gop_evt && video_on),
+ .pic_evt(dec_pic_evt && video_on),.field_evt(dec_field_evt),
  .seq_hsize(dec_seq_h),.seq_vsize(dec_seq_v),.seq_aspect(dec_seq_ar),.gop_time_code(dec_gop_tc),.pic_structure(dec_pic_ps));
 assign DDRAM2_CLK=clk_mem;
 // MPEG-1 Layer II audio, 48 kHz from the core clock (the replayed broadcast is
@@ -245,11 +274,11 @@ end
 wire signed [15:0] pcm_l,pcm_r;wire mp2_synced,mp2_err;
 // PCM FIFO 2^10 pairs (21 ms): the broadcast is paced in real time, so the
 // FIFO only absorbs frame-decode bursts (block RAM budget).
-mp2_decode #(.PCM_AW(10)) mp2(.clk(clk_sys),.rst(core_reset || !audio_on),.wr_en(aes_valid && !aes_full),.wr_data(aes_data),.full(aes_full),
+mp2_decode #(.PCM_AW(10)) mp2(.clk(clk_sys),.rst(audio_reset),.wr_en(aes_valid && !aes_full),.wr_data(aes_data),.full(aes_full),
  .aud_ce(aud_ce),.audio_l(pcm_l),.audio_r(pcm_r),.aud_valid(),.synced(mp2_synced),.err_unsupported(mp2_err),
  .fs_o(),.dbg_s_nz(),.dbg_pcm_nz(),.cp_step(1'b0),.cp_q());
-assign AUDIO_L=audio_on && mp2_synced ? pcm_l : 16'd0;
-assign AUDIO_R=audio_on && mp2_synced ? pcm_r : 16'd0;
+assign AUDIO_L=!audio_reset && mp2_synced ? pcm_l : 16'd0;
+assign AUDIO_R=!audio_reset && mp2_synced ? pcm_r : 16'd0;
 assign AUDIO_S=1'b1;
 
 wire [9:0] x,y;wire shown,hs,vs,field,ce;
@@ -262,25 +291,31 @@ pace_guide_video601 scanout(.clk(clk_sys),.reset(core_reset),.hold(holding),.osd
  .error(video_error),.frames(video_frames),.underruns(video_underruns),
  .mem_req(vq),.mem_addr(vad),.mem_accept(va),.mem_rvalid(vv),.mem_rdata(DDRAM_DOUT),
  .vclk(clk_video),.x(x),.y(y),.ce(ce),.visible(shown),.hs(hs),.vs(vs),.field(field),
- .out_ce(video_ce),.out_visible(video_de),.out_hs(video_hs),.out_vs(video_vs),.out_field(video_field),.rgb(frame_rgb),.key(osd_key));
+ .out_ce(video_ce),.out_visible(video_de),.out_hs(video_hs),.out_vs(video_vs),.out_field(video_field),
+ .rgb(frame_rgb),.key(osd_key),.background(osd_background));
 // Decoded video under the OSD. While the firmware has video routed, the OSD
 // raster follows the decoder's raster (same 625-line timing).
-wire osd_key;wire [23:0] mixed_rgb;
-reg [2:0] video_on_s=0,live_s=0;
-always @(posedge clk_video)begin video_on_s<={video_on_s[1:0],video_on};live_s<={live_s[1:0],dec_live};end
-wire video_on_v=video_on_s[2];
+wire osd_key,osd_background;wire [23:0] mixed_rgb;
+reg [2:0] video_on_s=0,still_on_s=0,live_s=0;
+always @(posedge clk_video)begin
+ video_on_s<={video_on_s[1:0],video_on};
+ still_on_s<={still_on_s[1:0],still_enable && still_present};
+ live_s<={live_s[1:0],dec_live};
+end
+wire show_still=still_on_s[2] && live_s[2];
+wire video_on_v=video_on_s[2] || show_still;
 pace_video_mix mixer(.clk_video(clk_video),.dec_r(dec_r),.dec_g(dec_g),.dec_b(dec_b),.dec_en(dec_en),.dec_vs(dec_vs),.dec_v(dec_v),
  .show_video(video_on_v && live_s[2]),.sync(raster_sync),.sync_field(raster_sync_field),
- .osd_rgb(frame_rgb),.osd_key(osd_key),.osd_de(video_de),.rgb(mixed_rgb),.dbg_en(),.dbg_rgb());
+ .osd_rgb(frame_rgb),.osd_key(osd_key || (show_still && osd_background)),.osd_de(video_de),.rgb(mixed_rgb),.dbg_en(),.dbg_rgb());
 
 // One outstanding read; it stays owned until its last beat. Only the blitter
 // issues multi-beat bursts (source rows), every other master reads 1 beat.
 reg [7:0] read_beats=0;
 // Video, graphics, section writes, replay reads, CPU. Transport is rate limited.
 reg read_pending=0;reg [2:0] read_owner=0;
-wire [2:0] owner=vq?3'd2:gq?3'd1:dq?3'd4:tq?3'd3:sq?3'd5:3'd0;
-wire request=vq || gq || dq || tq || sq || cq;
-wire write_request=owner==2 || owner==3?1'b0:owner==4 || owner==5?1'b1:owner==1?gw:cw;
+wire [2:0] owner=vq?3'd2:gq?3'd1:dq?3'd4:tq?3'd3:sq?3'd5:still_q?3'd6:3'd0;
+wire request=vq || gq || dq || tq || sq || still_q || cq;
+wire write_request=owner==4 || owner==5 || (owner==1 && gw) || (owner==0 && cw);
 wire accepted=request && !holding && !read_pending && !DDRAM_BUSY;
 wire load_memory=ioctl_download && (ioctl_index<2 || ioctl_index==3);
 wire download_store=load_memory && ioctl_wr && !DDRAM_BUSY && !read_pending && (ioctl_index!=3 || ioctl_addr<27'd67108864);
@@ -291,6 +326,8 @@ assign gv=DDRAM_DOUT_READY && read_pending && read_owner==1;
 assign vv=DDRAM_DOUT_READY && read_pending && read_owner==2;
 assign ta=accepted && owner==3;assign da=accepted && owner==4;assign sa=accepted && owner==5;
 assign tv=DDRAM_DOUT_READY && read_pending && read_owner==3;
+assign still_a=accepted && owner==6;
+assign still_v=DDRAM_DOUT_READY && read_pending && read_owner==6;
 always @(posedge clk_sys)begin
  if(core_reset)read_pending<=0;
  else begin
@@ -300,9 +337,9 @@ always @(posedge clk_sys)begin
 end
 assign DDRAM_ADDR=download_store ?
  (ioctl_index==0 ? 29'h06400000+{8'd0,ioctl_addr[20:3]} : ioctl_index==3?29'h06600000+{5'd0,ioctl_addr[26:3]}:29'h06000000+{5'd0,ioctl_addr[23:3]}) :
- owner==2?vad:owner==1?gad:owner==4?dad:owner==3?tad:owner==5?sad:cad;
+ owner==2?vad:owner==1?gad:owner==4?dad:owner==3?tad:owner==5?sad:owner==6?still_addr:cad;
 assign DDRAM_DIN=download_store ? ({48'd0,ioctl_dout}<<(ioctl_addr[2:0]*8)) : owner==4?dwd:owner==5?swd:owner==1?gwd:cwd;
-assign DDRAM_BE=download_store ? (8'h03<<ioctl_addr[2:0]) : owner==4?dbe:owner==5?sbe:owner==2 || owner==3?8'hff:owner==1?gbe:cbe;
+assign DDRAM_BE=download_store ? (8'h03<<ioctl_addr[2:0]) : owner==4?dbe:owner==5?sbe:owner==0?cbe:owner==1?gbe:8'hff;
 assign DDRAM_WE=download_store || (accepted && write_request);
 assign DDRAM_BURSTCNT=(!download_store && owner==1 && !write_request) ? gburst :
                       (!download_store && owner==0 && !write_request) ? cburst : 8'd1;
@@ -329,7 +366,8 @@ assign LED_USER=halt_code!=0?field:retired[21];
 // (B0002xxx, B0008xxx) and demux writes outside the busy section-ring set.
 wire trace_demux=demux_selected && iw && ia[11:0]!=12'h0b8 && ia[11:0]!=12'h124 && ia[11:0]!=12'h128 &&
                  ia[11:0]!=12'h144 && ia[11:0]!=12'h148 && ia[11:4]!=8'h0d;
-wire trace_event=device_req && device_ready && !holding && (ia[31:12]==20'hb0002 || ia[31:12]==20'hb0008 || trace_demux);
+wire trace_serial=ia[31:12]==20'hb2009 || (iw && ia==32'hb200a000);
+wire trace_event=device_req && device_ready && !holding && (ia[31:12]==20'hb0002 || ia[31:12]==20'hb0008 || trace_demux || trace_serial);
 pace_debug_uart telemetry(.clk(clk_sys),.reset(!pll_locked),.tx(UART_TXD),
  .pc(pc),.instruction(inst),.retired(retired),.ram_writes(ram_writes),
  .mmio_address({gpu_count[15:0],ts_sections[15:0]}),.mmio_value({key_count[15:0],key_frames[15:0]}),

@@ -10,7 +10,8 @@ video PID belongs to a channel in the line-up, the server works out what that
 channel is showing right now, transcodes it from its source with ffmpeg
 (MPEG-2 720x576i + MPEG-1 Layer II 48 kHz, the formats the box decodes) and
 sends it as a 6.25 Mbit/s transport stream with the line-up's guide data
-woven in. Otherwise (the Guide, no channel) it sends the guide data alone.
+woven in. The home transponder carries the full guide and background audio
+when configured. It retains its guide and service map without an audio file.
 
 Nothing is transcoded unless the box asks: when the relay disconnects
 (channel change, core stopped) the transcode stops at once. The only buffer is
@@ -24,24 +25,38 @@ locked to the guide's clock however long it runs.
 GET /           status page (what is on, what is being streamed)
 GET /now.json   the same as JSON
 """
-import argparse, json, os, subprocess, sys, threading, time
-from datetime import datetime, timezone
+import argparse, json, os, queue, select, socket, subprocess, sys, tempfile, threading, time
+from collections import deque
+from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from pace_channels import (RATE, load_settings, load_lineup, lineup_tables, carousel, MUSIC_PID, MUSIC_PMT,  # noqa: E402
-                           MUSIC_SID, HOME_TSID, CHAN_TSID, transport_of)
+from pace_channels import (RATE, load_settings, load_lineup, read_lineup, redact, lineup_tables, carousel,  # noqa: E402
+                           MUSIC_PID, MUSIC_PMT, MUSIC_SID, HOME_TSID, CHAN_TSID, transport_of)
 
 P = 188
 NULL = bytes([0x47, 0x1f, 0xff, 0x10]) + b'\xff' * 184
 VIDEO_KBPS, AUDIO_KBPS = 4300, 192
 SI_RATE = 125000                # carousel byte rate (1 Mbit/s)
+CHUNK_PACKETS = 348
+# The 2002 reference's channel excerpts measured about -24 LUFS. Keep the
+# Guide 10 LU below TV, with room for the MP2 encoder's peak overshoot.
+TV_LUFS, GUIDE_LUFS, TRUE_PEAK = -24, -34, -3
+STEREO_48K = 'aresample=48000,aformat=channel_layouts=stereo'
+
+
+def normalised_audio(target):
+    return f'{STEREO_48K},loudnorm=I={target}:TP={TRUE_PEAK}:LRA=18,aresample=48000'
 
 
 def pid_of(p):
     return ((p[1] & 0x1f) << 8) | p[2]
+
+
+class ClientDisconnected(ConnectionError):
+    pass
 
 
 class Weaver:
@@ -51,25 +66,23 @@ class Weaver:
     joins between ffmpeg runs are seamless to the demux."""
     def __init__(self, si, av_pids):
         self.av = set(av_pids)
+        self.slot = 0
+        self.cc = {}
+        self.set_si(si)
+
+    def set_si(self, si):
+        """Start the updated carousel at the current point in the output."""
+        self.base = self.slot * P / RATE
         self.si = [(i * P / SI_RATE, si[i * P:(i + 1) * P]) for i in range(len(si) // P)
                    if pid_of(si[i * P:(i + 1) * P]) != 0x1fff]
         self.period = len(si) / SI_RATE
         self.k = 0
-        self.slot = 0
-        self.cc = {}
-
-    def set_si(self, si):
-        """New carousel (fresh listings), continuing the same timing."""
-        base = (self.k // len(self.si)) * self.period if self.si else 0
-        self.si = [(i * P / SI_RATE, si[i * P:(i + 1) * P]) for i in range(len(si) // P)
-                   if pid_of(si[i * P:(i + 1) * P]) != 0x1fff]
-        self.period = len(si) / SI_RATE
-        self.k = int(base / self.period) * len(self.si)
 
     def stamp(self, p):
         pid = pid_of(p)
-        c = self.cc.get(pid, 0)
-        self.cc[pid] = (c + 1) & 15
+        c = self.cc.get(pid, 15)
+        if p[3] & 0x10:
+            c = self.cc[pid] = (c + 1) & 15
         return p[:3] + bytes([(p[3] & 0xf0) | c]) + p[4:]
 
     def packet(self, p=None):
@@ -79,7 +92,7 @@ class Weaver:
             return self.stamp(p)
         if self.si:
             due, sp = self.si[self.k % len(self.si)]
-            due += (self.k // len(self.si)) * self.period
+            due += self.base + (self.k // len(self.si)) * self.period
             if due <= now:
                 self.k += 1
                 return self.stamp(sp)
@@ -88,131 +101,187 @@ class Weaver:
 
 class Session:
     """One /tune request."""
-    active = {}
-    lock = threading.Lock()
 
-    def __init__(self, server, video, audio, wfile, freq=None):
-        self.srv, self.wfile = server, wfile
-        self.chan = server.service(video, audio)
-        self.on = server.transport(self.chan, freq)
-        if server.music and self.chan is not None and (self.chan == 'music') != (self.on == HOME_TSID):
-            self.chan = None     # that service is not on the transponder the box is tuned to
+    def __init__(self, server, chan, on, connection):
+        self.srv, self.connection = server, connection
+        self.chan, self.on = chan, on
         self.start = time.time()
         self.sent = 0
         self.item = None
-        self.proc = None
-        self.stopped = False
-        self.audio = audio
+        self.stopped = threading.Event()
+        self.refresh = time.monotonic() + 60
 
     def schedule_time(self):
         """The time on air of the next byte (what the box will show when it plays it)."""
         return self.start + self.sent / RATE
 
     def send(self, data):
-        self.wfile.write(data)
-        self.sent += len(data)
+        pending = memoryview(data)
+        deadline = time.monotonic() + 25
+        while pending:
+            if self.stopped.is_set():
+                raise ClientDisconnected('playout stopped')
+            try:
+                count = self.connection.send(pending)
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    raise ClientDisconnected('box stopped reading')
+                select.select([], [self.connection], [], 0.2)
+                continue
+            except OSError as e:
+                raise ClientDisconnected(type(e).__name__) from e
+            if count == 0:
+                raise ClientDisconnected('box closed the connection')
+            self.sent += count
+            pending = pending[count:]
+            deadline = time.monotonic() + 25
 
     def si(self):
         return self.srv.carousel(self.schedule_time(), self.on)
 
+    def update_si(self, weaver):
+        if time.monotonic() >= self.refresh:
+            weaver.set_si(self.si())
+            self.refresh = time.monotonic() + 60
+
     def run(self):
-        with Session.lock:
-            Session.active[id(self)] = self
+        with self.srv.session_lock:
+            if self.srv.closing:
+                return
+            self.srv.sessions.add(self)
         try:
+            self.connection.setblocking(False)
             if self.chan == 'music':
                 self.music()
             elif self.chan is None:
                 self.guide_only()
             else:
                 self.channel()
-        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError) as e:
-            why = f'box disconnected ({type(e).__name__})'
+        except ClientDisconnected as e:
+            why = f'box disconnected ({e})'
         except Exception:
             import traceback
             why = 'error:\n' + traceback.format_exc()
         else:
             why = 'finished'
         finally:
-            self.stopped = True
-            if self.proc and self.proc.poll() is None:
-                self.proc.kill()
-            with Session.lock:
-                Session.active.pop(id(self), None)
+            self.stopped.set()
+            with self.srv.session_lock:
+                self.srv.sessions.discard(self)
         self.srv.log(f'session ended after {self.sent / RATE:.0f} s: {why}')
+
+    def stuff(self, weaver, target=None):
+        while target is None or self.sent < target:
+            packets = CHUNK_PACKETS if target is None else min(CHUNK_PACKETS, (target - self.sent) // P)
+            self.send(b''.join(weaver.packet() for _ in range(packets)))
+            self.update_si(weaver)
 
     def guide_only(self):
         self.srv.log('guide data only (no channel tuned)')
-        w = Weaver(self.si(), ())
-        refresh = time.time() + 60
-        while True:
-            self.send(b''.join(w.packet() for _ in range(348)))   # 64 KiB
-            if time.time() > refresh:
-                w.set_si(self.si()); refresh = time.time() + 60
+        self.stuff(Weaver(self.si(), ()))
+
+    def transcode(self, cmd, weaver, target=None):
+        """Read complete packets with a bounded stall timeout and reap FFmpeg on every exit."""
+        chunks = queue.Queue(maxsize=4)
+        finished = threading.Event()
+        with tempfile.TemporaryFile() as errors, subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=errors,
+                creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0)) as proc:
+            def read():
+                try:
+                    while not finished.is_set():
+                        chunk = proc.stdout.read(P * CHUNK_PACKETS)
+                        while not finished.is_set():
+                            try:
+                                chunks.put(chunk, timeout=0.2)
+                                break
+                            except queue.Full:
+                                continue
+                        if not chunk:
+                            break
+                except OSError:
+                    pass
+
+            reader = threading.Thread(target=read, name='ffmpeg output', daemon=True)
+            reader.start()
+            try:
+                deadline = time.monotonic() + 15
+                while target is None or self.sent < target:
+                    if self.stopped.is_set():
+                        raise ClientDisconnected('playout stopped')
+                    try:
+                        chunk = chunks.get(timeout=0.25)
+                    except queue.Empty:
+                        if time.monotonic() >= deadline:
+                            raise RuntimeError('FFmpeg produced no data for 15 seconds')
+                        continue
+                    if not chunk:
+                        if proc.wait(timeout=2):
+                            errors.seek(max(0, errors.seek(0, os.SEEK_END) - 1600))
+                            detail = errors.read().decode('utf-8', 'replace').strip()
+                            raise RuntimeError(redact(detail or f'FFmpeg exited with code {proc.returncode}'))
+                        break
+                    size = len(chunk) // P * P
+                    if target is not None:
+                        size = min(size, target - self.sent)
+                    self.send(b''.join(weaver.packet(chunk[i:i + P]) if chunk[i] == 0x47 else weaver.packet()
+                                       for i in range(0, size, P)))
+                    self.update_si(weaver)
+                    deadline = time.monotonic() + 15
+            finally:
+                finished.set()
+                if proc.poll() is None:
+                    proc.kill()
+                reader.join()
 
     def music(self):
         """The EPG Background Audio service: the line-up's period MP2, looped, on its PID - a
         continuous broadcast, so it is joined where the wall clock says it has got to."""
-        length = self.srv.media.probe(self.srv.music)['duration']
+        length = self.srv.music_length
         at = self.schedule_time() % length
         self.srv.log(f"EPG background audio: {Path(self.srv.music).name} @{at:.1f}s of {length:.1f}s")
         w = Weaver(self.si(), (MUSIC_PID,))
-        refresh = time.time() + 60
         cmd = [self.srv.settings['ffmpeg'], '-hide_banner', '-loglevel', 'error', '-nostdin',
-               '-ss', f'{at:.3f}', '-stream_loop', '-1', '-i', self.srv.music, '-map', '0:a:0', '-c:a', 'copy',
+               '-ss', f'{at:.3f}', '-stream_loop', '-1', '-i', self.srv.music, '-map', '0:a:0',
+               '-af', normalised_audio(GUIDE_LUFS),
+               '-c:a', 'mp2', '-ar', '48000', '-ac', '2', '-b:a', f'{AUDIO_KBPS}k',
                '-streamid', f'0:{MUSIC_PID}', '-mpegts_pmt_start_pid', str(MUSIC_PMT),
                '-mpegts_service_id', str(MUSIC_SID), '-muxrate', str(RATE * 8), '-f', 'mpegts', 'pipe:1']
-        self.proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                                     creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
-        buf = b''
-        while True:
-            chunk = self.proc.stdout.read(P * 348)
-            if not chunk:
-                break
-            buf += chunk
-            n = len(buf) // P * P
-            self.send(b''.join(w.packet(buf[i:i + P]) for i in range(0, n, P) if buf[i] == 0x47))
-            buf = buf[n:]
-            if time.time() > refresh:
-                w.set_si(self.si()); refresh = time.time() + 60
+        try:
+            self.transcode(cmd, w)
+        except (OSError, RuntimeError, subprocess.SubprocessError) as e:
+            if isinstance(e, ClientDisconnected):
+                raise
+            self.srv.log(f'EPG background audio interrupted: {e}')
+        self.stuff(w)
 
     def channel(self):
         c = self.chan
         w = Weaver(self.si(), (c.video_pid, c.audio_pid))
-        refresh = time.time() + 60
         while True:
-            it, offset, _ = c.at(self.schedule_time())
-            remaining = it['length'] - offset
+            on_air = self.schedule_time()
+            it, offset, day = c.at(on_air)
+            remaining = min(it['length'] - offset, (day + 1) * 86400 + c.start - on_air)
+            target = self.sent + max(1, int(remaining * RATE / P + 0.999999)) * P
             if remaining < 0.5:                 # too short to be worth a run: skip ahead in stuffing
-                for _ in range(int(remaining * RATE / P) + 1):
-                    self.send(w.packet())
+                self.stuff(w, target)
                 continue
             self.item = dict(it, offset=offset)
             self.srv.log(f"{c.name}: {it['kind']} '{it['title']}' {Path(it['source']).name} "
                          f"@{it['inpoint'] + offset:.1f}s for {remaining:.1f}s")
-            self.proc = subprocess.Popen(self.srv.ffmpeg_cmd(c, it['source'], it['inpoint'] + offset, remaining),
-                                         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                                         creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
-            target = self.sent + int(remaining * RATE)
-            buf = b''
-            while True:
-                chunk = self.proc.stdout.read(P * 348)
-                if not chunk:
-                    break
-                buf += chunk
-                n = len(buf) // P * P
-                out = b''.join(w.packet(buf[i:i + P]) for i in range(0, n, P) if buf[i] == 0x47)
-                buf = buf[n:]
-                self.send(out)
-                if time.time() > refresh:
-                    w.set_si(self.si()); refresh = time.time() + 60
-            self.proc.wait()
+            try:
+                cmd = self.srv.ffmpeg_cmd(c, it['source'], it['inpoint'] + offset, remaining)
+                self.transcode(cmd, w, target)
+            except ClientDisconnected:
+                raise
+            except (OSError, ValueError, KeyError, RuntimeError, subprocess.SubprocessError) as e:
+                self.srv.log(f"{c.name}: {it['title']} unavailable: {e}")
             # hold the schedule: pad (or the next run starts early) to the item's exact end
-            while self.sent < target:
-                self.send(w.packet())
+            self.stuff(w, target)
 
 
 class Server(ThreadingHTTPServer):
-    daemon_threads = True
+    daemon_threads = False
 
     def handle_error(self, request, client_address):
         """Request errors go to the log (a windowed app has no stderr)."""
@@ -223,50 +292,81 @@ class Server(ThreadingHTTPServer):
         self.settings = settings
         self.log_sink = log            # the GUI's log, when running inside the app
         self.lineup_path = lineup
-        self.history = []
-        self.chans, self.media = load_lineup(lineup, settings, self.log)
-        music = json.loads(Path(lineup).read_text()).get('epg_music')
+        self.history = deque(maxlen=40)
+        self.session_lock = threading.Lock()
+        self.sessions = set()
+        self.requests = set()
+        self.closing = False
+        cfg = read_lineup(lineup)
+        self.chans, self.media = load_lineup(lineup, settings, self.log, cfg=cfg)
+        self.by_video = {c.video_pid: c for c in self.chans}
+        music = cfg.get('epg_music')
         self.music = None
         if music:
-            m = Path(music) if Path(music).is_absolute() else Path(settings.get('data_root', '.')) / music
-            if m.exists():
+            m = Path(settings.get('data_root') or '.') / music
+            try:
+                info = self.media.probe(str(m))
+                if not info.get('audio'):
+                    raise ValueError('no audio stream')
+                self.music_length = info['duration']
                 self.music = str(m)
                 self.log(f'EPG background audio service on: {m.name}')
-            else:
-                self.log(f'epg_music not found: {m}')
+            except (OSError, ValueError, KeyError, RuntimeError, subprocess.SubprocessError) as e:
+                self.log(f'EPG audio unavailable; using silent guide transport: {m}: {e}')
         from pace_huffman import FirmwareHuffman
         self.codec = FirmwareHuffman.from_file(settings['huffman_ram'])
         self._si = {}
         self._si_lock = threading.Lock()
         super().__init__(('0.0.0.0', port), Handler)
 
-    def service(self, video, audio):
-        """The channel the firmware has tuned: by its video PID, or -- in the Guide,
-        where the firmware stops video but the channel's sound carries on -- by
-        its audio PID. None = no channel (guide data only)."""
-        v, a = video & 0x1fff, audio & 0x1fff
-        if self.music and v == 0x1fff and a == MUSIC_PID:
-            return 'music'
-        return (next((c for c in self.chans if c.video_pid == v), None)
-                or next((c for c in self.chans if c.audio_pid == a), None))
+    def server_close(self):
+        with self.session_lock:
+            self.closing = True
+            for session in self.sessions:
+                session.stopped.set()
+            for request in self.requests:
+                try:
+                    request.shutdown(socket.SHUT_RDWR)
+                except OSError:
+                    pass
+        super().server_close()
 
-    def transport(self, chan, freq):
-        """Which transport a tuning is on. With the EPG Background Audio service the line-up has
-        two (home 11778 V: the music service; channels 12207 V: the TV services): the relay reports
-        the frequency the firmware tuned; without that, the service decides. One transport otherwise."""
-        if not self.music:
-            return HOME_TSID
-        if freq:
-            return transport_of(freq)
-        return HOME_TSID if chan is None or chan == 'music' else CHAN_TSID
+    def get_request(self):
+        connection, address = super().get_request()
+        connection.settimeout(2)
+        return connection, address
+
+    def process_request(self, request, client_address):
+        with self.session_lock:
+            self.requests.add(request)
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            with self.session_lock:
+                self.requests.discard(request)
+            raise
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            with self.session_lock:
+                self.requests.discard(request)
+
+    def tune(self, video, freq):
+        channel = self.by_video.get(video & 0x1fff)
+        on = transport_of(freq) if freq else CHAN_TSID if channel else HOME_TSID
+        if on == HOME_TSID:
+            return ('music' if self.music else None), on
+        return channel, on
 
     def log(self, msg):
-        line = time.strftime('%H:%M:%S ') + msg
+        line = time.strftime('%H:%M:%S ') + redact(msg)
         if self.log_sink:
             self.log_sink(line)
         else:
             print(line, flush=True)
-        self.history = (self.history + [line])[-40:]
+        self.history.append(line)
 
     def carousel(self, when, on=HOME_TSID):
         override = os.environ.get('PACE_SI_FILE')       # diagnostics: send a fixed carousel
@@ -274,24 +374,29 @@ class Server(ThreadingHTTPServer):
             return Path(override).read_bytes()
         with self._si_lock:
             stamp, si = self._si.get(on, (0, None))
-            if si is None or abs(when - stamp) > 60:
+            if si is None or abs(when - stamp) > 60 or int(when) // 86400 != int(stamp) // 86400:
                 tables, today = lineup_tables(when, self.codec, self.chans, int(self.settings['days']),
-                                              music=bool(self.music), on=on)
+                                              music=True, on=on)
                 si = carousel(tables, today)
                 self._si[on] = (when, si)
             return si
 
     def ffmpeg_cmd(self, c, source, start, length):
         info = self.media.probe(source)
+        if not info.get('video'):
+            raise ValueError('source contains no video stream')
         cmd = [self.settings['ffmpeg'], '-hide_banner', '-loglevel', 'error', '-nostdin',
                '-ss', f'{start:.3f}', '-t', f'{length:.3f}', '-i', self.media.url(source)]
         amap = '0:a:0'
-        if not info.get('audio'):
+        audio_filter = STEREO_48K
+        if info.get('audio'):
+            audio_filter = normalised_audio(TV_LUFS)
+        else:
             cmd += ['-f', 'lavfi', '-t', f'{length:.3f}', '-i', 'anullsrc=r=48000:cl=stereo']
             amap = '1:a:0'
         cmd += ['-map', '0:v:0', '-map', amap,
                 '-vf', 'scale=720:576:flags=lanczos,setsar=16/15,fps=25,format=yuv420p,setfield=tff',
-                '-af', 'aresample=48000,aformat=channel_layouts=stereo',
+                '-af', audio_filter,
                 '-c:v', 'mpeg2video', '-flags', '+ilme+ildct', '-g', '12', '-bf', '2',
                 '-b:v', f'{VIDEO_KBPS}k', '-maxrate', f'{VIDEO_KBPS + 600}k', '-bufsize', '1835k',
                 '-c:a', 'mp2', '-b:a', f'{AUDIO_KBPS}k',
@@ -305,21 +410,24 @@ class Server(ThreadingHTTPServer):
         out = []
         for c in self.chans:
             it, off, _ = c.at(t)
-            events = c.events_utc(datetime.now(timezone.utc).date())
+            day = datetime.fromtimestamp(t, timezone.utc).date()
+            events = c.events_utc(day)
             sod = t % 86400
             cur = next(((s, l, ti) for s, l, ti, _ in events if s <= sod < s + l), None)
             nxt = next(((s, l, ti) for s, l, ti, _ in events if s > sod), None)
+            if nxt is None:
+                nxt = next(iter(c.events_utc(day + timedelta(days=1))), None)
             out.append(dict(number=c.number, name=c.name, style=c.style,
                             now=cur[2] if cur else '', next=nxt[2] if nxt else '',
                             next_at=f'{nxt[0]//3600:02d}:{nxt[0]//60%60:02d}' if nxt else '',
                             on_air=it['kind'], source=Path(it['source']).name, offset=round(off, 1)))
-        with Session.lock:
+        with self.session_lock:
             sessions = [dict(channel=('(EPG background audio)' if s.chan == 'music' else s.chan.name if s.chan else '(guide data)'), seconds=round(s.sent / RATE),
                              item=s.item and dict(kind=s.item['kind'], title=s.item['title'],
                                                   source=Path(s.item['source']).name))
-                        for s in Session.active.values()]
+                        for s in self.sessions]
         return dict(utc=datetime.now(timezone.utc).strftime('%H:%M:%S'), channels=out, streaming=sessions,
-                    log=self.history[-15:])
+                    log=list(self.history.copy())[-15:])
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -330,29 +438,34 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         url = urlparse(self.path)
-        if url.path == '/tune':
+        if url.path in ('/service', '/tune'):
             q = parse_qs(url.query)
-            video = int(q.get('video', ['0x1fff'])[0], 0)
-            audio = int(q.get('audio', ['0x1fff'])[0], 0)
-            freq = int(q['freq'][0], 16) if q.get('freq') else None     # BCD, as the NIT carries it
+            try:
+                video = int(q.get('video', ['0x1fff'])[0], 0)
+                audio = int(q.get('audio', ['0x1fff'])[0], 0)
+                freq = int(q['freq'][0], 16) if q.get('freq') else None
+                if not (0 <= video <= 0xffff and 0 <= audio <= 0xffff and
+                        (freq is None or 0 <= freq <= 0xffffffff)):
+                    raise ValueError
+            except ValueError:
+                self.send_error(400, 'Invalid tuning')
+                return
+            channel, on = self.server.tune(video, freq)
+            ident = 'music' if channel == 'music' else str(channel.i) if channel else 'guide'
+            if url.path == '/service':
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/plain')
+                self.end_headers()
+                self.wfile.write(f'{ident}@{on}'.encode())
+                return
             self.send_response(200)
             self.send_header('Content-Type', 'video/mp2t')
+            self.send_header('X-Pace-Service', f'{ident}@{on}')
             self.end_headers()
             self.server.log(f'tune from {self.client_address[0]}: video {video:04x} audio {audio:04x}'
                             + (f' at {freq >> 8:x}.{freq & 0xff:02x} MHz' if freq else ''))
             self.server.last_box = (time.time(), self.client_address[0])
-            Session(self.server, video, audio, self.wfile, freq).run()
-        elif url.path == '/service':
-            # which service a tuning means (the relay keeps its stream when unchanged)
-            q = parse_qs(url.query)
-            c = self.server.service(int(q.get('video', ['0x1fff'])[0], 0), int(q.get('audio', ['0x1fff'])[0], 0))
-            freq = int(q['freq'][0], 16) if q.get('freq') else None
-            body = (('music' if c == 'music' else str(c.i) if c else 'guide')
-                    + f'@{self.server.transport(c, freq)}').encode()
-            self.send_response(200)
-            self.send_header('Content-Type', 'text/plain')
-            self.end_headers()
-            self.wfile.write(body)
+            Session(self.server, channel, on, self.connection).run()
         elif url.path == '/now.json':
             body = json.dumps(self.server.now(), indent=1).encode()
             self.send_response(200)
@@ -379,8 +492,19 @@ th{color:#9ab}h1{font-size:20px}.live{color:#6f6}pre{background:#0a0d10;padding:
 <script>
 async function tick(){const r=await fetch('/now.json');const d=await r.json();
 document.getElementById('utc').textContent=d.utc+' UTC';
-document.getElementById('ch').innerHTML=d.channels.map(c=>`<tr><td>${c.number}</td><td>${c.name} <small>(${c.style})</small></td><td>${c.now}</td><td>${c.next_at} ${c.next}</td><td>${c.on_air}: ${c.source} @${c.offset}s</td></tr>`).join('');
-document.getElementById('st').innerHTML=d.streaming.length?d.streaming.map(s=>`<p class=live>&#9679; ${s.channel} for ${s.seconds}s ${s.item?'- '+s.item.kind+' '+s.item.title+' ('+s.item.source+')':''}</p>`).join(''):'<p>Nothing - the box has not tuned a channel.</p>';
+const ch=document.getElementById('ch');ch.replaceChildren();
+for(const c of d.channels){
+  const row=ch.insertRow();
+  for(const value of [c.number,`${c.name} (${c.style})`,c.now,`${c.next_at} ${c.next}`,`${c.on_air}: ${c.source} @${c.offset}s`])
+    row.insertCell().textContent=value;
+}
+const st=document.getElementById('st');st.replaceChildren();
+for(const s of d.streaming){
+  const p=document.createElement('p');p.className='live';
+  p.textContent=`● ${s.channel} for ${s.seconds}s ${s.item?'- '+s.item.kind+' '+s.item.title+' ('+s.item.source+')':''}`;
+  st.append(p);
+}
+if(!d.streaming.length)st.textContent='The box has not tuned a channel.';
 document.getElementById('log').textContent=d.log.join('\\n');}
 tick();setInterval(tick,2000);
 </script></body></html>"""

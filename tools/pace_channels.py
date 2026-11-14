@@ -28,12 +28,14 @@ filled with contiguous runs of spots exactly as they were recorded off air.
 Service numbering: channel i (0-based) is SID 1001+i, PMT PID 0x1000+i,
 video PID 0x200+0x10*i, audio PID 0x102+0x10*i, OpenTV listing 3000+i.
 """
-import argparse, hashlib, json, os, random, re, subprocess, sys
+import argparse, hashlib, json, math, os, random, re, subprocess, sys, tempfile, threading
 from datetime import date, datetime, timedelta, timezone
+from functools import lru_cache
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent              # data folder (line-ups, roms/); the app sets it from settings
+SOURCE_ROOT = ROOT
 FROZEN = getattr(sys, 'frozen', False)          # running as the packaged Windows app
 APP_DIR = Path(sys.executable).parent if FROZEN else None
 # no console window flashing up for every ffmpeg/ffprobe run from the GUI
@@ -65,26 +67,65 @@ def settings_path():
     return Path(base) / 'Pace2500N' / 'settings.json'
 
 
-def load_settings():
+def read_json(path):
+    return json.loads(Path(path).read_text(encoding='utf-8-sig'))
+
+
+def write_json(path, value, indent=2):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = json.dumps(value, indent=indent)
+    fd, name = tempfile.mkstemp(dir=path.parent, prefix=path.name + '.', suffix='.tmp')
+    tmp = Path(name)
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as file:
+            file.write(payload)
+        os.replace(tmp, path)
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+def redact(text):
+    return re.sub(r'(?i)(x-plex-token(?:=|%3d))[^&\s\'"]+', r'\1[redacted]', str(text))
+
+
+def load_settings(log=print):
     p = settings_path()
-    s = json.loads(p.read_text()) if p.exists() else {}
+    try:
+        s = read_json(p) if p.exists() else {}
+        if not isinstance(s, dict):
+            raise ValueError('expected a JSON object')
+    except (OSError, ValueError) as e:
+        log(f'Could not read settings {p}: {e}. Using defaults for this run.')
+        s = {}
+    for key in ('data_root', 'last_lineup', 'ffmpeg', 'huffman_ram', 'library_cache',
+                'plex_url', 'plex_token', 'plex_client_id', 'ytdlp'):
+        if key in s and not isinstance(s[key], str):
+            log(f'Ignoring invalid {key} setting')
+            del s[key]
+    for key, default, maximum in (('port', 8250, 65535), ('days', 7, 8)):
+        try:
+            value = int(s.get(key, default))
+            if not 1 <= value <= maximum:
+                raise ValueError
+        except (TypeError, ValueError):
+            log(f'Ignoring invalid {key} setting; using {default}')
+            value = default
+        s[key] = value
     global ROOT
+    ROOT = SOURCE_ROOT
     if s.get('data_root') and Path(s['data_root']).is_dir():
         ROOT = Path(s['data_root'])
-    if FROZEN and bundled('ffmpeg.exe') and not Path(s.get('ffmpeg', '')).exists():
+    if FROZEN and bundled('ffmpeg.exe') and not Path(s.get('ffmpeg') or 'ffmpeg').is_file():
         s['ffmpeg'] = bundled('ffmpeg.exe')
     s.setdefault('ffmpeg', default_ffmpeg())
-    s.setdefault('port', 8250)
     s.setdefault('huffman_ram', str(ROOT / 're' / 'fpga_guide_checkpoint' / 'RAM.bin'))
     s.setdefault('library_cache', str(ROOT / 'roms' / 'library_cache.json'))
-    s.setdefault('days', 7)
     return s
 
 
 def save_settings(s):
-    p = settings_path()
-    p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(s, indent=2))
+    write_json(settings_path(), s)
 
 
 def hms(text):
@@ -97,28 +138,35 @@ def hms(text):
 # ------------------------------------------------------------------ media access
 class Media:
     """ffprobe/ffmpeg analysis with a persistent cache, and Plex resolution."""
+    cache_lock = threading.RLock()
+
     def __init__(self, settings):
         self.s = settings
         self.ffmpeg = settings['ffmpeg']
         self.ffprobe = re.sub(r'ffmpeg(\.exe)?$', lambda m: 'ffprobe' + (m.group(1) or ''), self.ffmpeg)
         self.cache_path = Path(settings['library_cache'])
-        self.cache = json.loads(self.cache_path.read_text()) if self.cache_path.exists() else {}
+        self.cache = self.read_cache()
         self._keys = {}
+        self._dirty = set()
+
+    def read_cache(self):
+        try:
+            raw = read_json(self.cache_path)
+            return {k: v for k, v in raw.items() if isinstance(v, dict)} if isinstance(raw, dict) else {}
+        except (OSError, ValueError):
+            return {}
 
     def save(self):
         """Merge into the file per entry: other tools (the builder, a prepare run)
         may have added analysis since this process loaded it."""
-        self.cache_path.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            disk = json.loads(self.cache_path.read_text()) if self.cache_path.exists() else {}
-        except ValueError:
-            disk = {}
-        for k, v in self.cache.items():
-            disk[k] = {**disk.get(k, {}), **v}
-        self.cache = disk
-        tmp = self.cache_path.with_suffix('.tmp')
-        tmp.write_text(json.dumps(disk, indent=1))
-        os.replace(tmp, self.cache_path)
+        with self.cache_lock:
+            if not self._dirty:
+                return
+            disk = self.read_cache()
+            for k in self._dirty:
+                disk[k] = {**disk.get(k, {}), **self.cache[k]}
+            write_json(self.cache_path, disk, indent=1)
+            self._dirty.clear()
 
     def url(self, source):
         """Something ffmpeg can open."""
@@ -135,16 +183,31 @@ class Media:
             k = self._keys[source] = f'{Path(source).resolve()}|{st.st_size}|{int(st.st_mtime)}'
         return k
 
-    def plex_part(self, rating_key):
+    def plex_metadata(self, rating_key):
         import urllib.request
         base, token = self.s.get('plex_url'), self.s.get('plex_token')
         if not base or not token:
             raise RuntimeError('Plex source used but plex_url/plex_token are not set')
-        req = urllib.request.Request(f'{base}/library/metadata/{rating_key}?X-Plex-Token={token}',
-                                     headers={'Accept': 'application/json'})
-        meta = json.load(urllib.request.urlopen(req, timeout=10))
-        part = meta['MediaContainer']['Metadata'][0]['Media'][0]['Part'][0]['key']
-        return f'{base}{part}?X-Plex-Token={token}'
+        if not rating_key.isdecimal():
+            raise ValueError(f'Invalid Plex rating key: {rating_key}')
+        req = urllib.request.Request(f"{base.rstrip('/')}/library/metadata/{rating_key}",
+                                     headers={'Accept': 'application/json', 'X-Plex-Token': token})
+        with urllib.request.urlopen(req, timeout=10) as response:
+            rows = json.load(response).get('MediaContainer', {}).get('Metadata', [])
+        if not rows:
+            raise ValueError(f'Plex item {rating_key} is unavailable')
+        return rows[0]
+
+    def plex_part(self, rating_key):
+        from urllib.parse import urlencode
+        meta = self.plex_metadata(rating_key)
+        part = next((p['key'] for m in meta.get('Media', []) for p in m.get('Part', [])
+                     if p.get('key', '').startswith('/library/parts/')), None)
+        if part is None:
+            raise ValueError(f'Plex item {rating_key} has no playable media part')
+        query = urlencode({'X-Plex-Token': self.s['plex_token']})
+        sep = '&' if '?' in part else '?'
+        return f"{self.s['plex_url'].rstrip('/')}{part}{sep}{query}"
 
     def summary(self, source):
         """Synopsis for the guide: Plex's summary for plex: sources (fetched once, cached);
@@ -153,36 +216,38 @@ class Media:
             return ''
         hit = self.cache.setdefault(source, {})
         if 'summary' not in hit:
-            import urllib.request
-            base, token = self.s.get('plex_url'), self.s.get('plex_token')
-            if not base or not token:
-                return ''
             try:
-                req = urllib.request.Request(f'{base}/library/metadata/{source[5:]}?X-Plex-Token={token}',
-                                             headers={'Accept': 'application/json'})
-                meta = json.load(urllib.request.urlopen(req, timeout=10))['MediaContainer']['Metadata'][0]
+                meta = self.plex_metadata(source[5:])
             except Exception:
                 return ''
-            hit['summary'] = meta.get('summary') or ''
-            self._summaries_dirty = True
-        return hit['summary']
+            with self.cache_lock:
+                summary = meta.get('summary')
+                hit['summary'] = summary if isinstance(summary, str) else ''
+                self._dirty.add(source)
+        return hit['summary'] if isinstance(hit['summary'], str) else ''
 
     def probe(self, source):
         k = self.key(source)
         hit = self.cache.get(k, {})
-        if 'duration' not in hit:
+        if not isinstance(hit.get('duration'), (float, int)) or not 0 < hit['duration'] < math.inf:
             out = subprocess.run(creationflags=NO_WINDOW, args=[self.ffprobe, '-v', 'error', '-show_entries',
                                   'format=duration:stream=codec_type,codec_name,width,height',
-                                  '-of', 'json', self.url(source)], capture_output=True, text=True)
+                                  '-of', 'json', self.url(source)], capture_output=True, text=True,
+                                 encoding='utf-8', errors='replace', timeout=20)
             if out.returncode:
-                raise RuntimeError(f'ffprobe failed for {source}: {out.stderr.strip()}')
+                raise RuntimeError(redact(f'ffprobe failed for {source}: {out.stderr.strip()}'))
             info = json.loads(out.stdout)
-            hit.update(duration=float(info['format']['duration']),
-                       audio=any(s['codec_type'] == 'audio' for s in info['streams']),
-                       video=next(({k: s.get(k) for k in ('codec_name', 'width', 'height')}
-                                   for s in info['streams'] if s['codec_type'] == 'video'), None))
-            self.cache[k] = hit
-            self.save()
+            duration = float(info['format']['duration'])
+            if not 0 < duration < math.inf:
+                raise ValueError(f'Invalid media duration for {source}')
+            with self.cache_lock:
+                hit = self.cache.setdefault(k, {})
+                hit.update(duration=duration,
+                           audio=any(s['codec_type'] == 'audio' for s in info['streams']),
+                           video=next(({k: s.get(k) for k in ('codec_name', 'width', 'height')}
+                                       for s in info['streams'] if s['codec_type'] == 'video'), None))
+                self._dirty.add(k)
+                self.save()
         return hit
 
     def cuts(self, source, log=print):
@@ -194,7 +259,9 @@ class Media:
             out = subprocess.run(creationflags=NO_WINDOW, args=[self.ffmpeg, '-hide_banner', '-nostdin', '-i', self.url(source),
                                   '-vf', 'scale=128:-2,blackdetect=d=0.06:pix_th=0.12:pic_th=0.95',
                                   '-af', 'silencedetect=n=-42dB:d=0.12', '-f', 'null', '-'],
-                                 capture_output=True, text=True, errors='replace')
+                                 capture_output=True, text=True, errors='replace', timeout=600)
+            if out.returncode:
+                raise RuntimeError(redact(f'ffmpeg analysis failed for {source}: {out.stderr[-1000:].strip()}'))
             black = [(float(a), float(b)) for a, b in
                      re.findall(r'black_start:([\d.]+) black_end:([\d.]+)', out.stderr)]
             silence_start = [float(x) for x in re.findall(r'silence_start: ([\d.]+)', out.stderr)]
@@ -204,10 +271,12 @@ class Media:
             for a, b in black:
                 if any(sa < b + 0.2 and se > a - 0.2 for sa, se in silence):
                     cuts.append(round((a + b) / 2, 3))
-            hit['cuts'] = cuts
-            hit['black'] = [round((a + b) / 2, 3) for a, b in black]
-            hit['silence'] = [[round(a, 3), round(b, 3)] for a, b in silence]
-            self.save()
+            with self.cache_lock:
+                hit['cuts'] = cuts
+                hit['black'] = [round((a + b) / 2, 3) for a, b in black]
+                hit['silence'] = [[round(a, 3), round(b, 3)] for a, b in silence]
+                self._dirty.add(k)
+                self.save()
         return hit['cuts']
 
 
@@ -271,8 +340,12 @@ def interstitial_runs(media, folders, log=print):
     so a break never jumps over it."""
     runs = []
     for folder in folders:
-        folder = set_folder(folder)
-        excluded = excluded_spots(folder)
+        folder = Path(media.s.get('data_root') or ROOT) / folder
+        try:
+            excluded = excluded_spots(folder)
+        except (OSError, ValueError) as e:
+            log(f'{folder.name}: could not read spot exclusions: {e}')
+            excluded = set()
         for f in sorted(folder.glob('*')):
             # yt-dlp's per-stream parts (NAME.f251.webm) and unfinished downloads are not recordings
             if f.suffix.lower() not in VIDEO_SUFFIXES or re.search(r'\.f\d+$', f.stem):
@@ -310,16 +383,29 @@ class Channel:
         self.number = int(cfg.get('number', 101 + index))
         self.style = cfg.get('style', 'bbc')
         self.start = hms(cfg.get('start', '06:00'))
+        if self.style not in STYLE or not 0 <= self.start < 86400 or not 1 <= self.number <= 4095:
+            raise ValueError('invalid style, broadcast start or channel number')
         self.sid, self.listing = 1001 + index, 3000 + index
         self.pmt_pid, self.video_pid, self.audio_pid = 0x1000 + index, 0x200 + 0x10 * index, 0x102 + 0x10 * index
         self.media = media
         self.programmes = []
         for p in cfg['programmes']:
-            inpoint = float(p.get('inpoint') or 0)
-            dur = float(p.get('duration') or (media.probe(p['source'])['duration'] - inpoint))
-            self.programmes.append(dict(title=p['title'], source=p['source'], inpoint=inpoint, duration=dur,
-                                        breaks=p.get('breaks', 'auto'),
-                                        summary=p.get('summary') or media.summary(p['source'])))
+            try:
+                source = p['source']
+                if not source.startswith('plex:'):
+                    media.key(source)
+                inpoint = float(p.get('inpoint') or 0)
+                duration = p.get('duration')
+                dur = float(duration) if duration is not None else media.probe(source)['duration'] - inpoint
+                if not 0 <= inpoint < math.inf or not 2 <= dur < math.inf:
+                    raise ValueError('invalid duration or in-point')
+                summary = p['summary'] if isinstance(p.get('summary'), str) else media.summary(source)
+                self.programmes.append(dict(title=p['title'], source=source, inpoint=inpoint, duration=dur,
+                                            breaks=p.get('breaks', 'auto'), summary=summary))
+            except (OSError, ValueError, TypeError, KeyError, RuntimeError, subprocess.SubprocessError) as e:
+                log(redact(f"{self.name}: skipping {p['title']} ({p['source']}): {e}"))
+        if not self.programmes:
+            raise ValueError('no usable programmes')
         self.runs = interstitial_runs(media, cfg.get('interstitials', []), log)
         self._days = {}
 
@@ -382,6 +468,8 @@ class Channel:
                                   source=src, inpoint=s0, start=t, length=ln))
                 t += ln
             events.append((slot, t - slot, p['title'], p['summary']))
+        if len(self._days) >= 12:
+            self._days.pop(next(iter(self._days)), None)
         self._days[n] = (items, events)
         return items, events
 
@@ -411,8 +499,30 @@ class Channel:
         return out
 
 
-def load_lineup(path, settings, log=print):
-    cfg = json.loads(Path(path).read_text())
+def read_lineup(path):
+    cfg = read_json(path)
+    if not isinstance(cfg, dict) or not isinstance(cfg.get('channels'), list):
+        raise ValueError('expected a line-up JSON object with a "channels" list')
+    if cfg.get('epg_music') is not None and not isinstance(cfg['epg_music'], str):
+        raise ValueError('epg_music must be a file path')
+    for i, channel in enumerate(cfg['channels'], 1):
+        if not isinstance(channel, dict) or not isinstance(channel.get('name'), str):
+            raise ValueError(f'channel {i} needs a name')
+        folders = channel.get('interstitials', [])
+        if not isinstance(folders, list) or not all(isinstance(f, str) for f in folders):
+            raise ValueError(f'channel {i} needs a list of interstitial folders')
+        programmes = channel.get('programmes')
+        if not isinstance(programmes, list):
+            raise ValueError(f'channel {i} needs a list of programmes')
+        for j, p in enumerate(programmes, 1):
+            if not isinstance(p, dict) or not all(isinstance(p.get(k), str) and p[k] for k in ('title', 'source')):
+                raise ValueError(f'channel {i}, programme {j} needs a title and source')
+    return cfg
+
+
+def load_lineup(path, settings, log=print, *, cfg=None):
+    if cfg is None:
+        cfg = read_lineup(path)
     media = Media(settings)
     chans = []
     for i, c in enumerate(cfg['channels']):
@@ -420,10 +530,11 @@ def load_lineup(path, settings, log=print):
             # nothing to schedule: leave it off air rather than fail every channel's guide
             log(f"{c.get('name', 'channel')}: no programmes yet - not broadcast")
             continue
-        chans.append(Channel(i, c, media, log))
-    if getattr(media, '_summaries_dirty', False):     # Plex synopses fetched this time
-        media.save()
-        media._summaries_dirty = False
+        try:
+            chans.append(Channel(i, c, media, log))
+        except (OSError, ValueError, TypeError) as e:
+            log(redact(f"{c['name']}: not broadcast: {e}"))
+    media.save()     # Plex synopses fetched while loading the line-up
     return chans, media
 
 
@@ -431,7 +542,7 @@ def load_lineup(path, settings, log=print):
 # The EPG Background Audio service (line-up key "epg_music"): an audio-only radio service as
 # Sky broadcast on the EPG (home/default) transponder (SID 4152, audio PID 0x288 per a 2013-15
 # channels.conf; unverified for 2002), with its own 0xB1 entry so the box makes a service
-# record for it, and the 0x91 home-service linkage pointing at it.
+# record for it, and the 0x90 background-audio linkage pointing at it.
 MUSIC_SID, MUSIC_PMT, MUSIC_PID, MUSIC_LISTING = 4152, 0x10ff, 0x288, 0x0fff
 
 
@@ -440,6 +551,7 @@ _PLAIN = {'‘': "'", '’': "'", '“': '"', '”': '"', '–': '-', '—': '-'
 _encodable = {}
 
 
+@lru_cache(maxsize=4096)
 def guide_text(codec, text, limit):
     """Text as the box's own Huffman table can carry it: accents and typographic quotes
     folded to plain ASCII, characters the table has no code for dropped, whitespace
@@ -457,10 +569,15 @@ def guide_text(codec, text, limit):
         if _encodable[ch]:
             keep.append(ch)
     s = ''.join(keep)
-    while s and len(codec.encode(s)) > limit:
-        cut = s.rfind(' ', 0, len(s) * 9 // 10)
-        s = (s[:cut] if cut > 0 else s[:len(s) * 9 // 10]).rstrip(' ,;:') + '...'
-    return s
+    if len(codec.encode(s)) <= limit:
+        return s
+    while s:
+        end = len(s) * 9 // 10
+        cut = s.rfind(' ', 0, end)
+        s = s[:cut if cut > 0 else end].rstrip(' ,;:')
+        if len(codec.encode(s + '...')) <= limit:
+            return s + '...'
+    return ''
 
 
 # Transports. With the EPG Background Audio service on, the line-up is laid out as Sky's was:
@@ -481,6 +598,20 @@ def transport_of(freq_bcd):
     return CHAN_TSID if freq_bcd == CHAN_FREQ else HOME_TSID
 
 
+def record_groups(records, size, budget):
+    groups, group, used = [], [], 0
+    for record in records:
+        length = size(record)
+        if used + length > budget:
+            groups.append(group)
+            group, used = [], 0
+        group.append(record)
+        used += length
+    if group:
+        groups.append(group)
+    return groups
+
+
 def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID):
     """Guide data as sent on transport `on` (one transport, HOME, unless music is on)."""
     when = datetime.fromtimestamp(int(now), timezone.utc)
@@ -493,6 +624,10 @@ def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID):
     shape = repr([(c.sid, c.number, c.listing, c.name, c.pmt_pid, c.video_pid, c.audio_pid) for c in chans]
                  + (['split', MUSIC_SID, 0x90] if music else []))
     ver = 1 + int(hashlib.md5(shape.encode()).hexdigest(), 16) % 31
+    # The first B2 byte is the number of six-hour listing blocks available
+    # from the current block. The grid uses it to bound both right and +24h.
+    schedule_blocks = days * 4 - when.hour // 6
+    sdt_ver = (ver - 1 + schedule_blocks) % 31 + 1
     namespace = bytes.fromhex('5f0400000002')
     # per transport: [(service id, service type, its 0xB1 entry)]. B1 entry: service id, type,
     # channel id, channel number (shown by the guide), then the field carrying the guide-visible
@@ -528,9 +663,10 @@ def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID):
                 it, _, _ = c.at(now)
                 current = it['title'] or next((t for s, l, t, _ in c.events_utc(when.date())
                                                if s <= now % 86400 < s + l), c.name)
-                desc += descriptor(0xb2, bytes((1, 0, 3 << 5)) + codec.encode(guide_text(codec, current, 200)))
+                desc += descriptor(0xb2, bytes((schedule_blocks, 0, 3 << 5))
+                                   + codec.encode(guide_text(codec, current, 200)))
             body += u16(sid) + b'\xfc' + u16(0x8000 | len(desc)) + desc
-        return long_section(table, tsid, body, version=ver)
+        return long_section(table, tsid, body, version=sdt_ver)
 
     # SDT "actual" for the transport this stream is, SDT "other" for the rest (all on PID 0x11)
     sdts = [sdt_section(0x42 if t == on else 0x46, t, sv) for t, sv in transports]
@@ -538,7 +674,8 @@ def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID):
     # channel. 0x90: the EPG background audio. With Background Music on (setting SSBM) the
     # Guide asks the SI for linkage type 0x90 - native (12,0x24) = 800CB74C -> 800CB69C(0x90),
     # the same lookup (12,0x23) does for 0x91 - so the music service is named by a 0x90 linkage.
-    linkage = descriptor(0x4a, ts_id(CHAN_TSID if split else HOME_TSID) + u16(chans[0].sid) + b'\x91')
+    linkage = (descriptor(0x4a, ts_id(CHAN_TSID if split else HOME_TSID) + u16(chans[0].sid) + b'\x91')
+               if chans else b'')
     if music:
         linkage += descriptor(0x4a, ts_id(HOME_TSID) + u16(MUSIC_SID) + b'\x90')
     bat = long_section(0x4a, 0x1000, loop(descriptor(0x47, b'PACE PLAYOUT') + linkage)
@@ -573,9 +710,10 @@ def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID):
         d = when.date() + timedelta(days=dd)
         mjd = (d - EPOCH).days
         for c in chans:
+            schedule = c.events_utc(d)
             events = [(dd * 1000 + n + 1, s, l, guide_text(codec, t, 200))
-                      for n, (s, l, t, _) in enumerate(c.events_utc(d))]
-            synopses = [guide_text(codec, sm, 255) for *_, sm in c.events_utc(d)]
+                      for n, (s, l, t, _) in enumerate(schedule)]
+            synopses = [guide_text(codec, sm, 255) if full else '' for *_, sm in schedule]
             if not full:     # now and next: the event on air and the one after it
                 keep = [i for i, e in enumerate(events) if e[1] + e[2] > sod][:2]
                 events, synopses = [events[i] for i in keep], ['' for i in keep]
@@ -586,59 +724,70 @@ def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID):
                     index_events.append((c.listing, ev))
             for block, group in groups.items():
                 titles = [ev for ev, _ in group]
-                # one section per six-hour block; very short programmes could overflow it
-                while titles:
-                    tables.append((0x30 | (mjd & 7), title_section(0xa0 | block, c.listing, mjd, titles[:28], codec)))
-                    titles = titles[28:]
+                # A long section has 1012 bytes of payload, two reserved for MJD.
+                chunks = record_groups(titles, lambda e: 13 + len(codec.encode(e[3])), 1010)
+                for i, chunk in enumerate(chunks):
+                    tables.append((0x30 | (mjd & 7), title_section(0xa0 | block, c.listing, mjd, chunk,
+                                                                  codec, i, len(chunks) - 1)))
                 # OpenTV summaries: same channel id / day / block addressing as the titles,
                 # table 0xA8-0xAB on PID 0x40-0x47, descriptor 0xB9 per event id; a section
                 # holds as many as fit (a synopsis is up to 255 coded bytes)
                 encoded = [(ev[0], codec.encode(sm)) for ev, sm in group if sm]
-                while encoded:
-                    n, size = 0, 2
-                    while n < len(encoded) and size + 6 + len(encoded[n][1]) <= 1012 - 4:
-                        size += 6 + len(encoded[n][1]); n += 1
-                    tables.append((0x40 | (mjd & 7), summary_section(0xa8 | block, c.listing, mjd, encoded[:n])))
-                    encoded = encoded[n:]
+                chunks = record_groups(encoded, lambda e: 6 + len(e[1]), 1010)
+                for i, chunk in enumerate(chunks):
+                    tables.append((0x40 | (mjd & 7), summary_section(0xa8 | block, c.listing, mjd, chunk,
+                                                                    i, len(chunks) - 1)))
     def index_record(listing, ev):
         return u16(listing) + b'\x0f\xc0\x00' + u16(ev[0]) + b'\x00\x00'
+
+    def add_index(extension, records):
+        chunks = record_groups(records, len, 1012) or [[]]
+        for i, chunk in enumerate(chunks):
+            tables.append((0x52, long_section(0xc1, extension, b''.join(chunk), section=i, last=len(chunks) - 1)))
+
     for letter in range(ord('A'), ord('Z') + 1) if full else ():
-        payload = b''.join(index_record(l, e) for l, e in index_events if e[3][:1].upper() == chr(letter))
-        tables.append((0x52, long_section(0xc1, letter, payload[:1000])))
+        add_index(letter, (index_record(l, e) for l, e in index_events if e[3][:1].upper() == chr(letter)))
     for genre in (0, 3) if full else ():
         for block in range(4):
-            payload = b''.join(index_record(l, e) for l, e in index_events if e[1] // 21600 == block)
-            tables.append((0x52, long_section(0xc1, 0x100 | block << 6 | genre, payload[:1000])))
+            add_index(0x100 | block << 6 | genre, (index_record(l, e) for l, e in index_events if e[1] // 21600 == block))
     today_pid = 0x30 | ((when.date() - EPOCH).days & 7)
     return tables, today_pid
 
 
-def carousel(tables, today_pid, seconds=8, period_ms=4000):
-    """1 Mbit/s SI carousel in the layout tools/sky_streamer.py uses (8 s, every
-    table each 4 s, two C1 index sections per 200 ms tick after 80 packets).
-    Titles of later days and all summaries (synopses) go out once per carousel, spread
-    across the ticks."""
-    def spread(p, s):
-        return (0xa0 <= s[0] <= 0xa3 and p != today_pid) or 0xa8 <= s[0] <= 0xab
-    indices = [(p, s) for p, s in tables if s[0] == 0xc1]
-    later = [(p, s) for p, s in tables if spread(p, s)]
-    # PAT and PMTs every tick (200 ms), as a broadcaster repeats them: after a retune the box
-    # finds the service it wants without waiting for the 4 s SI round
-    psi = [(p, s) for p, s in tables if s[0] in (0x00, 0x02)]
-    rest = [(p, s) for p, s in tables if s[0] not in (0xc1, 0x00, 0x02) and not spread(p, s)]
-    ticks = seconds * 5
+def carousel(tables, today_pid, seconds=8):
+    """1 Mbit/s SI carousel in 200 ms ticks.
+
+    PAT/PMT repeat each tick, service tables every 600 ms, and today's titles
+    every second. Pace the index, future titles and summaries across the loop.
+    """
+    service, psi, titles, indices, later = [], [], [], [], []
+    for pid, section in tables:
+        table_id = section[0]
+        if table_id in (0x00, 0x02):
+            psi.append((pid, section))
+        elif table_id == 0xc1:
+            indices.append((pid, section))
+        elif 0xa0 <= table_id <= 0xa3 and pid == today_pid:
+            titles.append((pid, section))
+        elif 0xa0 <= table_id <= 0xab:
+            later.append((pid, section))
+        else:
+            service.append((pid, section))
+    # Keep both service and title intervals across the end of the loop.
+    ticks = 15 * ((max(seconds * 5, (len(indices) + 1) // 2) + 14) // 15)
     pk = Packetizer()
     data = bytearray()
     for tick in range(ticks):
         start = len(data)
         for pid, section in psi:
             data += pk.section(pid, section)
-        if tick % (period_ms // 200) == 0:
-            for pid, section in rest:
+        if tick % 3 == 0:
+            for pid, section in service:
                 data += pk.section(pid, section)
-        else:
-            for pid, section in later[tick::ticks]:
-                data += pk.section(pid, section)
+        for pid, section in titles[tick % 5::5]:
+            data += pk.section(pid, section)
+        for pid, section in later[tick::ticks]:
+            data += pk.section(pid, section)
         if indices:
             while len(data) - start < 80 * 188:
                 data += pk.null()

@@ -28,12 +28,12 @@ def with_crc(data):
     return data + crc32_mpeg(data).to_bytes(4, 'big')
 
 
-def long_section(table, extension, payload, version=0):
+def long_section(table, extension, payload, version=0, section=0, last=0):
     length = len(payload) + 9
-    if length > 1021 or not 0 <= version <= 31:
+    if length > 1021 or not 0 <= version <= 31 or not 0 <= section <= last <= 255:
         raise ValueError('Long section exceeds DVB SI bounds')
     return with_crc(bytes((table,)) + u16(0xb000 | length) + u16(extension)
-                    + bytes((0xc1 | version << 1, 0, 0)) + payload)
+                    + bytes((0xc1 | version << 1, section, last)) + payload)
 
 
 def bcd(n):
@@ -57,7 +57,7 @@ def tot(when):
     return with_crc(b'\x73' + u16(0x7000 | (len(body) + 4)) + body)
 
 
-def title_section(table, listing, mjd, events, codec):
+def title_section(table, listing, mjd, events, codec, section=0, last=0):
     records = bytearray()
     for event_id, start, duration, title in events:
         if start % 2 or duration % 2 or not 0 <= start < 86400 or not 0 < duration <= 86400:
@@ -66,10 +66,10 @@ def title_section(table, listing, mjd, events, codec):
         desc = descriptor(0xb5, body)
         # packet_length counts AFTER the four-byte event/length header.
         records += u16(event_id) + u16(0xf000 | len(desc)) + desc
-    return long_section(table, listing, u16(mjd) + records)
+    return long_section(table, listing, u16(mjd) + records, section=section, last=last)
 
 
-def summary_section(table, listing, mjd, summaries):
+def summary_section(table, listing, mjd, summaries, section=0, last=0):
     """OpenTV summary (synopsis) section, tables 0xA8-0xAB on PIDs 0x40-0x47: the title
     section's addressing and record framing, one descriptor 0xB9 per event carrying the
     Huffman-coded synopsis. summaries: [(event_id, coded_bytes)]."""
@@ -77,7 +77,7 @@ def summary_section(table, listing, mjd, summaries):
     for event_id, coded in summaries:
         desc = descriptor(0xb9, coded)
         records += u16(event_id) + u16(0xf000 | len(desc)) + desc
-    return long_section(table, listing, u16(mjd) + records)
+    return long_section(table, listing, u16(mjd) + records, section=section, last=last)
 
 
 def loop_events(title, duration, anchor):

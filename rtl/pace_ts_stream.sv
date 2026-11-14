@@ -62,6 +62,7 @@ module pace_ts_stream #(
  output reg restart=0,              // one-cycle pulse: playback restarts (new file or live session)
  output reg resync=0,               // one-cycle pulse: the demux must resynchronise (mount, forced switch)
  output reg live=0,                 // the mounted image is a live ring
+ output reg epg_mode=0,epg_music=0, // live relay's guest mode and home audio availability
  output reg [31:0] written=0,       // bytes of the file placed in the ring
  output reg [31:0] loops=0,
  output reg [39:0] start_byte=0,    // where this mount joined the file
@@ -88,7 +89,7 @@ module pace_ts_stream #(
             STAT_REQ=13,STAT_WAIT=14;
  reg [3:0] state=IDLE;
  // stream-info header and join arithmetic
- reg [7:0] head[0:23];reg [4:0] head_i=0;
+ reg [7:0] head[0:27];reg [4:0] head_i=0;
  reg [16:0] anchor=0;reg [16:0] elapsed=0;reg behind=0;
  reg [47:0] num=0,den=0,rem=0;reg [6:0] bit_i=0;reg mod_stage=0;
  wire head_ok=head[0]==8'h47 && head[1][4:0]==5'h1f && head[2]==8'hfe &&
@@ -101,6 +102,7 @@ module pace_ts_stream #(
  wire [31:0] head_session={head[12],head[13],head[14],head[15]};
  wire [31:0] head_written={head[16],head[17],head[18],head[19]};
  wire [31:0] head_ring={head[20],head[21],head[22],head[23]};
+ wire head_av={head[24],head[25],head[26]}==24'h415631; // "AV1", optional live header extension
  // ---- live mode
  reg polling=0;                       // this header read is a poll, not a mount
  reg [31:0] session=0,src_written=0,ring_mask=0,seq=0;
@@ -126,12 +128,14 @@ module pace_ts_stream #(
   if(pending_switch && switch_timer!=0)switch_timer<=switch_timer-1'b1;
   if(reset)begin
    state<=IDLE;active<=0;sd_rd<=0;sd_wr<=0;mem_req<=0;written<=0;loops<=0;live<=0;pending_switch<=0;
+   epg_mode<=0;epg_music<=0;
   end else begin
    if(img_mounted)begin
     // New file (or unmount, size 0): start again from its first byte.
     size<=img_size;total_blocks<=32'((img_size[39:0]+40'd511)>>9);
     active<=img_size!=0;restart<=1;resync<=1;state<=IDLE;sd_rd<=0;sd_wr<=0;mem_req<=0;
     file_pos<=0;written<=0;wr_ptr<=0;loops<=0;start_byte<=0;live<=0;polling<=0;pending_switch<=0;
+    epg_mode<=0;epg_music<=0;
     if(img_size!=0)state<=HEAD_REQ;
    end else case(state)
     // ---- read block 0 for the stream-info packet
@@ -140,11 +144,12 @@ module pace_ts_stream #(
     HEAD_READ:begin   // two cycles per word: address, then data
      if(head_i[0])begin head[{head_i[4:1],1'b0}]<=rd_q[7:0];head[{head_i[4:1],1'b1}]<=rd_q[15:8];rd_word<=rd_word+1'b1;end
      head_i<=head_i+1'b1;
-     if(head_i==5'd23)state<=HEAD_PARSE;
+     if(head_i==5'd27)state<=HEAD_PARSE;
     end
     HEAD_PARSE:if(polling)begin
      // live poll: follow the relay; a new session switches streams
      if(head_live)begin
+      epg_mode<=head_av && head[27][0];epg_music<=head_av && head[27][1];
       if(head_session!=session)begin
        if(!pending_switch)switch_timer<=23'(SWITCH_WAIT);
        pending_switch<=1;new_session<=head_session;new_written<=head_written;
@@ -154,6 +159,7 @@ module pace_ts_stream #(
     end else begin
      if(head_live && head_ring>=32'd65536 && (head_ring&(head_ring-1))==0)begin
       live<=1;session<=head_session;src_written<=head_written;ring_mask<=head_ring-1;poll_timer<=0;
+      epg_mode<=head_av && head[27][0];epg_music<=head_av && head[27][1];
       state<=IDLE;
      end else if(head_ok && now_valid && head_anchor<32'd86400)begin
       behind<=now_seconds<head_anchor[16:0];

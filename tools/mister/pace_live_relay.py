@@ -19,6 +19,7 @@ TV Guide tuning the home transponder -- reaches the playout like a PID change do
 
 File layout (big-endian; must match rtl/pace_ts_stream.sv):
   0     47 1F FE 10 "PACELIVE" session(u32) written(u32) ring_bytes(u32)
+  24    "AV1" flags(u8): bit 0 = EPG mode, bit 1 = home background audio active
   512   "PACESTAT" session(u32) read_pos(u32) video(u16) audio(u16) seq(u32)
         played(u32) underruns(u32)                      -- written by the core
   1024  ring data: session byte n at 1024 + n % ring_bytes
@@ -29,6 +30,7 @@ Usage: pace_live_relay.py [--server HOST:PORT] [--file /tmp/pace_live.ts]
 import argparse, configparser, fcntl, mmap, os, select, socket, struct, sys, time
 
 CHUNK = 8192
+HOME_FREQ = 0x01177800
 HEAD = 1024
 LOG = '/tmp/pace_live_relay.log'
 
@@ -46,11 +48,16 @@ def log(msg):
 class GuestRAM:
     """The core's guest RAM, read-only, from the HPS: DDR3 0x30000000 + physical address."""
     TUNED_FREQ = 0x801631B4          # MPEG manager 0x80163198 + 0x1C: tuned frequency (BCD)
+    EPG_MODE = 0x80161D50            # AV manager dispatch cases 6/7, pointer at 0x80056258
+    BACKGROUND_MUSIC = 0x80477228    # Guide o-code global for SSBM
 
     def __init__(self):
         try:
             fd = os.open('/dev/mem', os.O_RDONLY | os.O_SYNC)
-            self.m = mmap.mmap(fd, 16 << 20, mmap.MAP_SHARED, mmap.PROT_READ, offset=0x30000000)
+            try:
+                self.m = mmap.mmap(fd, 16 << 20, mmap.MAP_SHARED, mmap.PROT_READ, offset=0x30000000)
+            finally:
+                os.close(fd)
         except OSError as e:
             log(f'guest RAM not readable ({e}): transponder not reported')
             self.m = None
@@ -63,6 +70,9 @@ class GuestRAM:
         ok = all((f >> s & 0xf) < 10 for s in range(0, 32, 4)) and 0x01070000 <= f <= 0x01280000
         return f if ok else None
 
+    def word(self, addr):
+        return struct.unpack_from('>I', self.m, addr & 0xffffff)[0] if self.m else 0
+
 
 class Ring:
     def __init__(self, path, ring):
@@ -71,13 +81,19 @@ class Ring:
         os.ftruncate(self.fd, HEAD + ring)
         self.session = int(time.time()) & 0xffffffff   # unique across relay restarts
         self.written = 0
-        self.service = None                              # playout service being relayed
+        self.av_flags = 0
         os.pwrite(self.fd, bytes(512), 512)              # no stale status
         self.header()
 
     def header(self):
         os.pwrite(self.fd, b'\x47\x1f\xfe\x10PACELIVE' + struct.pack('>III', self.session,
-                  self.written & 0xffffffff, self.ring), 0)
+                  self.written & 0xffffffff, self.ring) + b'AV1' + bytes((self.av_flags,)), 0)
+
+    def set_av(self, epg, music):
+        flags = int(epg) | (int(music) << 1)
+        if flags != self.av_flags:
+            self.av_flags = flags
+            self.header()
 
     def new_session(self):
         self.session = (self.session + 1) & 0xffffffff
@@ -107,51 +123,44 @@ def query(video, audio, freq):
     return f'video=0x{video:04x}&audio=0x{audio:04x}' + (f'&freq={freq:08x}' if freq else '')
 
 
-def service_of(server, tuning):
-    """Ask the playout server which service a tuning means ('0@1', 'music@0', 'guide@0' ...)."""
-    try:
-        host, port = server.rsplit(':', 1)
-        s = socket.create_connection((host, int(port)), timeout=2)
-        s.sendall(f'GET /service?{query(*tuning)} HTTP/1.0\r\n'
-                  f'Host: {host}\r\n\r\n'.encode())
-        data = b''
-        while True:
-            part = s.recv(4096)
-            if not part:
-                break
-            data += part
-        s.close()
-        return data.split(b'\r\n\r\n', 1)[1].decode().strip()
-    except (OSError, IndexError):
-        return None
-
-
 class Upstream:
     """One HTTP request to the playout server for one tuning."""
     def __init__(self, server, video, audio, freq=None):
         host, port = server.rsplit(':', 1)
-        self.sock = socket.create_connection((host, int(port)), timeout=5)
-        self.sock.sendall(f'GET /tune?{query(video, audio, freq)} HTTP/1.0\r\n'
-                          f'Host: {host}\r\n\r\n'.encode())
-        head = b''
-        while b'\r\n\r\n' not in head:
-            part = self.sock.recv(4096)
-            if not part:
-                raise ConnectionError('server closed before headers')
-            head += part
-        head, self.pending = head.split(b'\r\n\r\n', 1)
-        status = head.split(b'\r\n', 1)[0]
-        if b' 200 ' not in status + b' ':
-            raise ConnectionError(status.decode(errors='replace'))
+        self.sock = socket.create_connection((host, int(port)), timeout=2)
+        try:
+            self.sock.sendall(f'GET /tune?{query(video, audio, freq)} HTTP/1.0\r\n'
+                              f'Host: {host}\r\n\r\n'.encode())
+            head = b''
+            while b'\r\n\r\n' not in head:
+                part = self.sock.recv(4096)
+                if not part or len(head) > 16384:
+                    raise ConnectionError('incomplete playout response')
+                head += part
+            head, self.pending = head.split(b'\r\n\r\n', 1)
+            status, *headers = head.split(b'\r\n')
+            if b' 200 ' not in status + b' ':
+                raise ConnectionError(status.decode(errors='replace'))
+            self.service = next((line.split(b':', 1)[1].strip() for line in headers
+                                 if line.lower().startswith(b'x-pace-service:')), None)
+            self.sock.setblocking(False)
+        except BaseException:
+            self.sock.close()
+            raise
         self.pending = bytearray(self.pending)
-        self.sock.setblocking(False)
         self.eof = False
+        self.last_data = time.monotonic()
 
     def fill(self, limit):
+        if len(self.pending) >= limit:
+            self.last_data = time.monotonic()   # backpressure from the FPGA ring
         while len(self.pending) < limit and not self.eof:
             try:
                 part = self.sock.recv(65536)
             except BlockingIOError:
+                if time.monotonic() - self.last_data > 25:
+                    log('playout stream stalled')
+                    self.eof = True
                 return
             except OSError:          # reset / aborted: treat as the end of the stream
                 self.eof = True
@@ -160,6 +169,7 @@ class Upstream:
                 self.eof = True
                 return
             self.pending += part
+            self.last_data = time.monotonic()
 
     def close(self):
         try:
@@ -205,66 +215,73 @@ def main():
             if up:
                 up.close()
             up, tuned = None, None
+            ring.set_av(False, False)
+            ring.new_session()
             time.sleep(1)
 
 
 def step(ring, guest, server, up, tuned, want, want_since, last_seq, alive_at, retry_at):
-    if True:
-        now = time.monotonic()
-        st = ring.status()
-        if st and st['seq'] != last_seq:
-            last_seq = st['seq']; alive_at = now
-        alive = st is not None and now - alive_at < 3.0
-        w = (st['video'], st['audio'], guest.freq()) if alive else None
-        if w != want:
-            want, want_since = w, now
-        # A tuning must hold for 300 ms (the firmware rewrites PIDs while zapping).
-        # Mid-zap the firmware switches both PIDs off (1-3 s seen on hardware)
-        # before routing the next channel: hold the current stream through that
-        # (5 s) rather than restarting twice per zap. If nothing else is
-        # routed by then, the box really has stopped and so does the stream.
-        # Not after a retune, though: on another transponder the old stream is simply wrong.
-        settle = 5.0 if (want and tuned and want[:2] == (0x1fff, 0x1fff) and tuned != want
-                         and want[2] == tuned[2]) else 0.3
-        if want != tuned and now - want_since >= settle:
-            # Same channel (e.g. the Guide stops the video but keeps the sound)?
-            # Then keep the stream that is playing.
-            svc = service_of(server, want) if want else None
-            if up and tuned and svc is not None and svc == ring.service:
-                log(f'tuning {want[0]:04x}/{want[1]:04x} at {want[2] or 0:08x}: same service {svc}, stream kept')
-                tuned = want
-                return up, tuned, want, want_since, last_seq, alive_at, retry_at
-            if up:
-                up.close(); up = None
-            tuned = want
-            ring.service = svc
-            if tuned is None:
-                log('core not running: nothing requested')
-            else:
-                ring.new_session()
-                retry_at = 0.0
-                log(f'tuned: video {tuned[0]:04x} audio {tuned[1]:04x} freq {tuned[2] or 0:08x}'
-                    f' -> session {ring.session:08x}')
-        if tuned is not None and up is None and now >= retry_at:
-            try:
-                up = Upstream(server, *tuned)
-            except OSError as e:
-                log(f'playout server: {e}; retrying in 2 s')
-                retry_at = now + 2.0
+    now = time.monotonic()
+    st = ring.status()
+    restarted = st and last_seq is not None and (st['seq'] - last_seq) & 0x80000000
+    if st and st['seq'] != last_seq:
+        last_seq, alive_at = st['seq'], now
+    alive = st is not None and now - alive_at < 3.0
+    freq = guest.freq() if alive else None
+    epg = alive and guest.word(guest.EPG_MODE) == 1
+    music_enabled = epg and guest.word(guest.BACKGROUND_MUSIC) == 1
+    if not alive:
+        current = None
+    elif freq == HOME_FREQ or (freq is None and (epg or not st['video'] & 0x4000)):
+        # The same home transport is used on every EPG screen, even when the
+        # firmware takes the audio PID off its own route between menus.
+        # The server also defaults to this transport during initial acquisition.
+        # Retain the stream when the guest first publishes the home frequency.
+        current = (0x1fff, 0x4288, HOME_FREQ)
+    else:
+        video = st['video'] if st['video'] & 0x4000 and not epg else 0x1fff
+        current = (video, 0x1fff, freq)
+    if current != want:
+        want, want_since = current, now
+
+    if restarted or (want != tuned and (epg or want is None or now - want_since >= 0.15)):
         if up:
-            up.fill(4 * CHUNK)
-            while len(up.pending) >= CHUNK and ring.space(st) >= CHUNK:
-                ring.put(bytes(up.pending[:CHUNK]))
-                del up.pending[:CHUNK]
-            if up.eof and len(up.pending) < CHUNK:
-                log('playout stream ended; requesting again')
-                up.close(); up = None
-                ring.new_session()
-            if up and len(up.pending) < 4 * CHUNK:
-                select.select([up.sock], [], [], 0.005)
-                return up, tuned, want, want_since, last_seq, alive_at, retry_at
+            up.close()
+            up = None
+        tuned = want
+        ring.set_av(epg, False)
+        ring.new_session()
+        retry_at = 0
+        if tuned:
+            log(f'tuned: video {tuned[0]:04x} audio {tuned[1]:04x} freq {tuned[2] or 0:08x}'
+                f' -> session {ring.session:08x}')
+        else:
+            log('core not running: nothing requested')
+
+    ring.set_av(epg, bool(music_enabled and up and up.service == b'music@0' and tuned == want))
+    if tuned is not None and up is None and now >= retry_at:
+        try:
+            up = Upstream(server, *tuned)
+        except OSError as e:
+            log(f'playout server: {e}; retrying in 2 s')
+            retry_at = time.monotonic() + 2
+    if up:
+        up.fill(4 * CHUNK)
+        while len(up.pending) >= CHUNK and ring.space(st) >= CHUNK:
+            ring.put(bytes(up.pending[:CHUNK]))
+            del up.pending[:CHUNK]
+        if up.eof and len(up.pending) < CHUNK:
+            log('playout stream ended; requesting again')
+            up.close()
+            up = None
+            ring.set_av(epg, False)
+            ring.new_session()
+            retry_at = now + 0.5
+    if up and len(up.pending) < 4 * CHUNK:
+        select.select([up.sock], [], [], 0.005)
+    else:
         time.sleep(0.005)
-        return up, tuned, want, want_since, last_seq, alive_at, retry_at
+    return up, tuned, want, want_since, last_seq, alive_at, retry_at
 
 
 if __name__ == '__main__':

@@ -11,14 +11,10 @@ programmes.
 > notes are in `CURRENT_STATUS.md`, `handoff.md` and `re/`.
 
 **Downloads:** [Releases](https://github.com/retrorepair/Pace2500N-MiSTer/releases)
-(latest release **v0.6.3**) — `Pace2500N_V063.rbf` (the core),
-`Pace2500N-MiSTer-files-v0.6.3.zip` (launcher + relay) and
-`PaceChannelBuilder-v0.6.3-windows.zip` (the Windows app). The core contains no
-firmware: it runs the flash dump you supply.
-
-**v0.7.0** (not released yet; build it from source, see *Building the core*)
-replaces the CPU with a pipelined, cached VR4110 - about 15 times faster - and
-is the version this guide describes. v0.6.3 stays usable as a fallback.
+(**v0.7.4**) — `Pace2500N_V074.rbf` (the core),
+`Pace2500N-MiSTer-files-v0.7.4.zip` (launcher and relay) and
+`PaceChannelBuilder-v0.7.4-windows.zip` (the Windows app). Supply your own
+firmware and Guide checkpoint.
 
 ## What works
 
@@ -34,11 +30,11 @@ is the version this guide describes. v0.6.3 stays usable as a fallback.
 | **New CPU**: pipelined NEC VR4110 with instruction and data caches, MIPS16, 75 MHz (~70 million instructions/s, the old CPU managed ~5) | **v0.7.0** |
 | Keys respond straight away; TV Guide, Box Office and Services menus; back to the Guide from a channel | **working (v0.7.0)** |
 | Interactive | shows the firmware's "no interactive services available" (none are broadcast) |
-| Typing a channel number | "Channel Unavailable" - not yet |
-| Channel sound continuing under the TV Guide | working |
+| Typing a channel number | working with the current line-up and relay |
+| TV sound in the EPG | muted while the firmware tunes to the Guide transponder |
 | Plex library as a programme source (single titles or whole libraries) | working (Sky Movies from Plex, v0.7.0) |
-| 7-day listings | generated; set `days` to 1 until proven on the firmware |
-| EPG background music in the TV Guide | **working (13 Nov)**: with `"epg_music"` in the line-up, pressing TV Guide makes the box retune to its home transponder and play the period Guide music, as a real Digibox did; Sky returns to your channel. Needs the updated relay on the MiSTer (`tools/mister/install_relay.sh`). Background Music in Services > System Setup > Sound Settings |
+| 7-day listings | verified through the final grid slot on v0.7.4 |
+| EPG background music | the updated relay keeps music playing across Guide, All Channels, Box Office and Services when a period audio file is configured. Sky returns to the TV channel. Background Music is in Services > System Setup > Sound Settings |
 | Teletext/VBI, A/V lip-sync | not yet |
 
 ## How it fits together
@@ -55,8 +51,9 @@ is the version this guide describes. v0.6.3 stays usable as a fallback.
   its decoder, the core reports them; the relay asks the PC for that channel;
   the PC transcodes *what the schedule says is on now* and streams it. Change
   channel or leave the core and the transcode stops. Nothing is "on air" unless
-  the box has tuned it. In the Guide (no channel tuned) only the listings are
-  sent — no video is transcoded.
+  the box has tuned it. The home transponder carries listings and configured
+  Guide music. The playout server levels programmes and breaks toward −24 LUFS
+  and Guide music toward −34 LUFS.
 - **Period breaks.** ITV-style channels get centre and end breaks of real
   period adverts; Sky-style channels get Sky-length breaks; BBC-style channels
   get continuity (announcers, trailers, idents) and no adverts. Breaks are
@@ -68,8 +65,8 @@ Copy to the MiSTer SD card:
 
 | File | Where |
 |------|-------|
-| `Pace2500N_V070.rbf` (built from source; v0.6.3: `Pace2500N_V063.rbf` from Releases) | `/media/fat/_Other/` |
-| `Pace2500N_V070_Live.mgl` (v0.6.3: `Pace2500N_V063_Live.mgl`, in the MiSTer files zip) | `/media/fat/` |
+| `Pace2500N_V074.rbf` | `/media/fat/_Other/` |
+| `Pace2500N_V074_Live.mgl` (in the MiSTer files zip) | `/media/fat/_Other/` |
 | Your firmware `FLASH_U202.bin` | `/media/fat/games/Pace2500N/` |
 | Guide checkpoint `RAM.bin`, `STATE.bin` | `/media/fat/games/Pace2500N_GUIDE/` |
 
@@ -82,7 +79,7 @@ box is built into it.
 A normal Windows program - nothing else to install (Python, ffmpeg and yt-dlp
 are inside its folder).
 
-- **Get it:** unzip `PaceChannelBuilder-v0.6.3-windows.zip` from
+- **Get it:** unzip `PaceChannelBuilder-v0.7.4-windows.zip` from
   [Releases](https://github.com/retrorepair/Pace2500N-MiSTer/releases) anywhere
   (e.g. `C:\PaceChannelBuilder`) and run `PaceChannelBuilder.exe`. Keep the
   whole folder together. Windows SmartScreen may warn the first time (the exe
@@ -167,11 +164,11 @@ For scripting there are command-line equivalents (`tools/pace_channels.py`,
 ## 5. Watch
 
 1. Open **Pace Channel Builder** on the PC (playout starts with it).
-2. On the MiSTer load **Pace2500N_V070_Live** (or `Pace2500N_V063_Live`). The
-   firmware starts in the Guide. After loading, the box gathers its listings:
-   if ALL CHANNELS says *Searching for listings*, press Back Up (Esc) and open
-   it again - with v0.7.0 the grid is there on the second visit, a couple of
-   minutes after loading.
+2. On the MiSTer load your matching **Pace2500N Live** launcher. The firmware
+   starts gathering listings in the background. On v0.7.4 the grid can fill
+   while All Channels is open. The first acquisition took about 75 seconds
+   after a cold launch. Later visits showed the grid in the first two-second
+   capture.
 3. Press **TV Guide** (F1), choose **All Channels**, highlight a channel and
    press **Select** (Enter). After a few seconds (the PC starts the transcode at
    the scheduled point) the picture and sound appear.
@@ -194,14 +191,18 @@ Channel numbering in the line-up maps to the box's services: channel *n*
 
 Quartus Prime Lite 17.0.2 (Cyclone V).
 
-1. In the repository root: `quartus_sh --flow compile Pace2500N`. The root
-   project (`Pace2500N.qsf`, `files.qip`) builds the current core (v0.7.0; the
-   CPU is VHDL in `rtl/r4k/`, see `rtl/r4k/UPSTREAM.md`).
-   No firmware is needed to build it: the Live core's boot-block memory is
-   filled from your `FLASH_U202.bin` as the launcher loads it
-   (`BOOT_LOAD(1)` in `rtl/Pace2500N_Transport.sv`, `rtl/pace_bootram.sv`).
-2. Copy `output_files/Pace2500N.rbf` to the MiSTer as
-   `/media/fat/_Other/Pace2500N_V070.rbf`.
+The root project builds the Live core. Its VHDL CPU is in `rtl/r4k/`.
+See `rtl/r4k/UPSTREAM.md` for its origin. Load the flash and checkpoint
+at runtime. Build from the repository root with the release fitter options:
+
+```text
+quartus_sh -t sys/build_id.tcl compile Pace2500N Pace2500N
+quartus_map --read_settings_files=on --write_settings_files=off Pace2500N -c Pace2500N
+quartus_fit Pace2500N --read_settings_files=on --write_settings_files=off --set=PHYSICAL_SYNTHESIS_COMBO_LOGIC=OFF --set=PHYSICAL_SYNTHESIS_COMBO_LOGIC_FOR_AREA=OFF
+quartus_asm Pace2500N
+quartus_sta Pace2500N
+quartus_cpf -c -o bitstream_compression=on output_files/Pace2500N.sof output_files/Pace2500N_V074.rbf
+```
 
 Older development tops (`rtl/Pace2500N.sv`, `rtl/Pace2500N_Guide.sv`) still
 cold-boot from an in-fabric boot ROM: make it from your own dump with

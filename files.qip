@@ -34,6 +34,7 @@ set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_ts_load_tracker.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_tot_clock.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_av_pes.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_mpeg_video.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_guide_still.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_mpeg_status.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_video_mix.sv
 set_global_assignment -name VERILOG_FILE rtl/mpeg2/framestore.v
