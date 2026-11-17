@@ -653,6 +653,12 @@ def load_lineup(path, settings, log=print, *, cfg=None):
         except (OSError, ValueError, TypeError) as e:
             log(redact(f"{c['name']}: not broadcast: {e}"))
     media.save()     # Plex synopses fetched while loading the line-up
+    seen = {}
+    for c in chans:
+        if c.number in seen:
+            log(f'WARNING: {c.name} and {seen[c.number]} are both channel {c.number} - the box shows '
+                'two rows and only one gets listings; give one of them another number')
+        seen.setdefault(c.number, c.name)
     return chans, media
 
 
@@ -743,7 +749,7 @@ def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID, stations=(
     # changes. 1-31, so a line-up never matches the version-0 tables the checkpoint was made with.
     shape = repr([(c.sid, c.number, c.listing, c.name, c.pmt_pid, c.video_pid, c.audio_pid) for c in chans]
                  + (['split', MUSIC_SID, 0x90] if music else [])
-                 + [(s.sid, s.number, s.listing, s.name) for s in stations])
+                 + [(s.sid, s.number, s.listing, s.name) for s in stations] + ['b1 flags 0xE'])
     ver = 1 + int(hashlib.md5(shape.encode()).hexdigest(), 16) % 31
     # The first B2 byte is the number of six-hour listing blocks available
     # from the current block. The grid uses it to bound both right and +24h.
@@ -754,11 +760,15 @@ def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID, stations=(
         sdt_ver = (sdt_ver - 1 + radio_version) % 31 + 1
     namespace = bytes.fromhex('5f0400000002')
     # per transport: [(service id, service type, its 0xB1 entry)]. B1 entry: service id, type,
-    # channel id, channel number (shown by the guide), then the field carrying the guide-visible
-    # flags 6. The background audio service alone has no guide number.
+    # channel id, channel number (shown by the guide), then number<<4 | flags. The background
+    # audio service alone has no guide number.
+    # The last field is the number again (12 bits) over four flag bits. Measured on hardware
+    # (17 Nov): bit 3 makes a service selectable by typing its number - without it every typed
+    # number gives "NNN Channel Unavailable" - and the box shows field 4 as the channel number.
+    # Bits 1 and 2 (6) are what the line-up has always sent; bit 0 has no visible effect yet.
     def numbered(service, kind):
         return (service.sid, kind, u16(service.sid) + bytes((kind,)) + u16(service.listing)
-                + u16(service.number) + u16(service.number << 4 | 6))
+                + u16(service.number) + u16(service.number << 4 | 0xE))
 
     tv = [numbered(c, 1) for c in chans]
     live_radio = [numbered(s, 2) for s in stations]

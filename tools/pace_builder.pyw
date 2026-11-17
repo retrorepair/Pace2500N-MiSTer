@@ -529,9 +529,19 @@ class App(tk.Tk):
             return
         c['name'] = self.v_name.get().strip() or c['name']
         try:
-            c['number'] = int(self.v_num.get())
+            number = int(self.v_num.get())
         except ValueError:
-            pass
+            number = c['number']
+        if number != c['number']:
+            # one number, one service: the box shows a second row with that number and never
+            # gives it listings, so a number already in use is refused
+            owner = next((o.get('name', '?') for o in self.lineup['channels'] + list(self.lineup.get('radio') or [])
+                          if o is not c and isinstance(o, dict) and str(o.get('number')) == str(number)), None)
+            if owner:
+                self.v_num.set(str(c['number']))
+                messagebox.showerror(APP, f'Channel number {number} is already used by {owner}.')
+            else:
+                c['number'] = number
         c['style'] = next((k for k, v in STYLES.items() if v == self.v_style.get()), 'bbc')
         c['start'] = self.v_start.get().strip() or '06:00'
         names = self.set_names()
@@ -542,7 +552,10 @@ class App(tk.Tk):
 
     def add_channel(self):
         n = len(self.lineup['channels'])
-        self.lineup['channels'].append({'name': f'Channel {n + 1}', 'number': 101 + n, 'style': 'bbc', 'start': '06:00',
+        used = {str(o.get('number')) for o in self.lineup['channels'] + list(self.lineup.get('radio') or [])
+                if isinstance(o, dict)}
+        number = next(k for k in range(101, 1000) if str(k) not in used)
+        self.lineup['channels'].append({'name': f'Channel {n + 1}', 'number': number, 'style': 'bbc', 'start': '06:00',
                                         'interstitials': [], 'programmes': []})
         self.refresh_channels(n)
         self.changed()
