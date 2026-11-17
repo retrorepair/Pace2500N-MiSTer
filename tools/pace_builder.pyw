@@ -24,6 +24,11 @@ import pace_playout  # noqa: E402
 APP = 'Pace Channel Builder'
 STYLES = {'bbc': 'BBC style - continuity, no adverts', 'itv': 'ITV style - terrestrial advert breaks',
           'sky': 'Sky style - satellite advert breaks'}
+# Guide genre pages (TV Guide 2-8). Automatic: Plex films make a movie channel, otherwise the
+# commonest Plex genre of the channel's programmes; Entertainment when Plex cannot say.
+GENRES = {'auto': 'Automatic (from Plex)', 'entertainment': 'Entertainment', 'movies': 'Movies',
+          'sports': 'Sports', 'news': 'News & Documentaries', 'kids': 'Kids', 'music': 'Music & Radio',
+          'specialist': 'Specialist'}
 VIDEO_EXT = '*.mpg *.mpeg *.ts *.mkv *.mp4 *.avi *.m4v *.mov *.webm'
 NO_WINDOW = pc.NO_WINDOW
 
@@ -438,7 +443,7 @@ class App(tk.Tk):
         body.add(right, weight=3)
         form = ttk.Frame(right)
         form.pack(fill='x')
-        self.v_name, self.v_num, self.v_style, self.v_start = (tk.StringVar() for _ in range(4))
+        self.v_name, self.v_num, self.v_style, self.v_start, self.v_genre = (tk.StringVar() for _ in range(5))
         ttk.Label(form, text='Name').grid(row=0, column=0, sticky='w')
         ttk.Entry(form, textvariable=self.v_name, width=30).grid(row=0, column=1, sticky='w', pady=2)
         ttk.Label(form, text='Channel number').grid(row=1, column=0, sticky='w')
@@ -446,14 +451,17 @@ class App(tk.Tk):
         ttk.Label(form, text='Style').grid(row=2, column=0, sticky='w')
         ttk.Combobox(form, textvariable=self.v_style, values=list(STYLES.values()), state='readonly', width=40).grid(
             row=2, column=1, sticky='w', pady=2)
-        ttk.Label(form, text='Broadcast day starts (UTC)').grid(row=3, column=0, sticky='w')
-        ttk.Entry(form, textvariable=self.v_start, width=8).grid(row=3, column=1, sticky='w', pady=2)
-        ttk.Label(form, text='Adverts / continuity sets').grid(row=4, column=0, sticky='nw')
+        ttk.Label(form, text='Guide genre').grid(row=3, column=0, sticky='w')
+        ttk.Combobox(form, textvariable=self.v_genre, values=list(GENRES.values()), state='readonly', width=40).grid(
+            row=3, column=1, sticky='w', pady=2)
+        ttk.Label(form, text='Broadcast day starts (UTC)').grid(row=4, column=0, sticky='w')
+        ttk.Entry(form, textvariable=self.v_start, width=8).grid(row=4, column=1, sticky='w', pady=2)
+        ttk.Label(form, text='Adverts / continuity sets').grid(row=5, column=0, sticky='nw')
         self.sets_box = tk.Listbox(form, selectmode='multiple', exportselection=False, height=4, width=40)
-        self.sets_box.grid(row=4, column=1, sticky='w', pady=2)
-        ttk.Label(form, text='Changes are saved as you make them.', foreground='#555').grid(row=5, column=1, sticky='w', pady=6)
+        self.sets_box.grid(row=5, column=1, sticky='w', pady=2)
+        ttk.Label(form, text='Changes are saved as you make them.', foreground='#555').grid(row=6, column=1, sticky='w', pady=6)
         self._showing = False
-        for v in (self.v_name, self.v_num, self.v_style, self.v_start):
+        for v in (self.v_name, self.v_num, self.v_style, self.v_start, self.v_genre):
             v.trace_add('write', lambda *a: self.field_edited())
         self.sets_box.bind('<<ListboxSelect>>', lambda e: self.field_edited())
         ttk.Label(right, text='Programmes (play in this order, repeating through the day)', style='Head.TLabel').pack(anchor='w', pady=(6, 2))
@@ -501,6 +509,7 @@ class App(tk.Tk):
         self.v_num.set(c.get('number', ''))
         self.v_style.set(STYLES.get(c.get('style', 'bbc')))
         self.v_start.set(c.get('start', '06:00'))
+        self.v_genre.set(GENRES.get(c.get('genre', 'auto'), GENRES['auto']))
         self.sets_box.delete(0, 'end')
         names = self.set_names()
         for n in names:
@@ -544,6 +553,7 @@ class App(tk.Tk):
                 c['number'] = number
         c['style'] = next((k for k, v in STYLES.items() if v == self.v_style.get()), 'bbc')
         c['start'] = self.v_start.get().strip() or '06:00'
+        c['genre'] = next((k for k, v in GENRES.items() if v == self.v_genre.get()), 'auto')
         names = self.set_names()
         c['interstitials'] = [names[i] for i in self.sets_box.curselection()]
         sel = self.chan_list.curselection()

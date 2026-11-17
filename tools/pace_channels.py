@@ -265,6 +265,36 @@ class Media:
                 self._dirty.add(source)
         return hit['summary'] if isinstance(hit['summary'], str) else ''
 
+    def plex_kind(self, source):
+        """('movie' | 'show' | '', [genre tags]) for a plex: source, fetched once and cached.
+        An episode's genres are its show's (Plex tags shows, not episodes)."""
+        if not source.startswith('plex:'):
+            return '', []
+        hit = self.cache.setdefault(source, {})
+        if 'plex_genres' not in hit:
+            try:
+                meta = self.plex_metadata(source[5:])
+                kind = meta.get('type', '')
+                tags = [g.get('tag', '') for g in meta.get('Genre') or [] if isinstance(g, dict)]
+                show = meta.get('grandparentRatingKey')
+                if kind == 'episode' and show and not tags:
+                    shows = self.cache.setdefault(f'plex:{show}', {})
+                    if 'plex_genres' not in shows:
+                        smeta = self.plex_metadata(str(show))
+                        with self.cache_lock:
+                            shows['plex_kind'] = 'show'
+                            shows['plex_genres'] = [g.get('tag', '') for g in smeta.get('Genre') or []
+                                                    if isinstance(g, dict)]
+                            self._dirty.add(f'plex:{show}')
+                    tags = shows['plex_genres']
+            except Exception:
+                return '', []
+            with self.cache_lock:
+                hit['plex_kind'] = 'movie' if kind == 'movie' else 'show'
+                hit['plex_genres'] = tags
+                self._dirty.add(source)
+        return hit.get('plex_kind', ''), hit.get('plex_genres', [])
+
     def probe(self, source):
         if source.startswith('plex:'):
             error = None
@@ -389,11 +419,17 @@ def set_excluded(folder, ids):
     (set_folder(folder) / 'excluded.json').write_text(json.dumps(sorted(ids), indent=1))
 
 
-def usable(length):
-    return 2.0 <= length <= 240.0
+def usable(length, longest=240.0):
+    return 2.0 <= length <= longest
 
 
-def interstitial_runs(media, folders, log=print):
+# Longest single segment a break may use. A commercial break is adverts and trailers - 60 s
+# at most in the period, the odd 90 s - so anything longer in an off-air recording is
+# programme footage the cut finder could not split. BBC-style continuity runs longer.
+LONGEST_SPOT = {'itv': 90.0, 'sky': 90.0, 'bbc': 240.0}
+
+
+def interstitial_runs(media, folders, log=print, longest=240.0):
     """Usable spots of every recording in the sets: lists of (source, start, length)
     that were broadcast back to back. A run is broken wherever a segment is
     unusable (too short/long, e.g. a programme excerpt) or excluded by the user,
@@ -417,7 +453,7 @@ def interstitial_runs(media, folders, log=print):
                 continue
             run = []
             for a, ln in spots:
-                if usable(ln) and spot_id(f, a) not in excluded:
+                if usable(ln, longest) and spot_id(f, a) not in excluded:
                     run.append((str(f), a, ln))
                 elif run:
                     runs.append(run)
@@ -434,6 +470,37 @@ STYLE = {
     'sky': dict(every=1200, centre=(180, 240), end=(150, 240)),
     'bbc': dict(every=None, centre=None, end=(40, 150)),
 }
+
+
+# The Guide's genre pages list channels by the 3-bit genre in their SDT 0xB2 descriptor
+# (radio's 4 is what fills Music & Radio). A line-up channel's "genre" names one of these or
+# is "auto": Plex films make a movie channel, otherwise the commonest Plex genre of its
+# programmes decides, and anything Plex cannot place is Entertainment.
+SKY_GENRES = {'specialist': 1, 'kids': 2, 'entertainment': 3, 'music': 4, 'news': 5, 'movies': 6, 'sports': 7}
+PLEX_GENRE = [(('children', 'kids', 'animation'), 'kids'),
+              (('documentary', 'news', 'history', 'nature', 'biography', 'travel', 'food'), 'news'),
+              (('sport',), 'sports'),
+              (('music',), 'music')]
+
+
+def plex_genre(kind, tags):
+    if kind == 'movie':
+        return 'movies'
+    for words, genre in PLEX_GENRE:
+        if any(w in t.lower() for t in tags for w in words):
+            return genre
+    return 'entertainment'
+
+
+def channel_genre(cfg, programmes, media):
+    name = str(cfg.get('genre') or 'auto').lower()
+    if name in SKY_GENRES:
+        return SKY_GENRES[name]
+    votes = {}
+    for p in [p for p in programmes if p['source'].startswith('plex:')][:24]:
+        g = plex_genre(*media.plex_kind(p['source']))
+        votes[g] = votes.get(g, 0) + 1
+    return SKY_GENRES[max(votes, key=votes.get)] if votes else SKY_GENRES['entertainment']
 
 
 class Channel:
@@ -474,7 +541,9 @@ class Channel:
                 log(redact(f"{self.name}: skipping {p['title']} ({p['source']}): {e}"))
         if not self.programmes:
             raise ValueError('no usable programmes')
-        self.runs = interstitial_runs(media, cfg.get('interstitials', []), log)
+        self.runs = interstitial_runs(media, cfg.get('interstitials', []), log,
+                                      longest=LONGEST_SPOT.get(self.style, 240.0))
+        self.genre = channel_genre(cfg, self.programmes, media)
         self._days = {}
 
     def _break(self, rng, lo, hi):
@@ -749,7 +818,7 @@ def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID, stations=(
     # The service tables' version_number follows the channel set, as a broadcaster's does:
     # a box keeps the service list it has (the Guide checkpoint holds one) until the version
     # changes. 1-31, so a line-up never matches the version-0 tables the checkpoint was made with.
-    shape = repr([(c.sid, c.number, c.listing, c.name, c.pmt_pid, c.video_pid, c.audio_pid) for c in chans]
+    shape = repr([(c.sid, c.number, c.listing, c.name, c.pmt_pid, c.video_pid, c.audio_pid, c.genre) for c in chans]
                  + (['split', MUSIC_SID, 0x90] if music else [])
                  + [(s.sid, s.number, s.listing, s.name) for s in stations] + ['b1 flags 0xE'])
     ver = 1 + int(hashlib.md5(shape.encode()).hexdigest(), 16) % 31
@@ -810,7 +879,7 @@ def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID, stations=(
                     it, _, _ = c.at(now)
                     current = it['title'] or next((t for s, l, t, _ in c.events_utc(when.date())
                                                    if s <= now % 86400 < s + l), c.name)
-                    genre = 3
+                    genre = c.genre
                 desc += descriptor(0xb2, bytes((schedule_blocks, 0, genre << 5))
                                    + codec.encode(guide_text(codec, current, 200)))
             records.append(u16(sid) + b'\xfc' + u16(0x8000 | len(desc)) + desc)
@@ -895,7 +964,7 @@ def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID, stations=(
             for ev, sm in zip(events, synopses):
                 groups.setdefault(ev[1] // 21600, []).append((ev, sm))
                 if dd == 0 and full:
-                    index_events.append((c.listing, ev, 4 if radio else 3))
+                    index_events.append((c.listing, ev, 4 if radio else c.genre))
             for block, group in groups.items():
                 titles = [ev for ev, _ in group]
                 # A long section has 1012 bytes of payload, two reserved for MJD.
@@ -922,7 +991,7 @@ def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID, stations=(
 
     for letter in range(ord('A'), ord('Z') + 1) if full else ():
         add_index(letter, (index_record(l, e) for l, e, _ in index_events if e[3][:1].upper() == chr(letter)))
-    genres = (0, 3, 4) if stations else (0, 3)
+    genres = (0,) + tuple(sorted({g for _l, _e, g in index_events}))
     for genre in genres if full else ():
         for block in range(4):
             add_index(0x100 | block << 6 | genre, (index_record(l, e) for l, e, g in index_events
