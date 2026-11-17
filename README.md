@@ -31,7 +31,8 @@ checkpoint.
 | **New CPU**: pipelined NEC VR4110 with instruction and data caches, MIPS16, 75 MHz (~70 million instructions/s, the old CPU managed ~5) | **v0.7.0** |
 | Keys respond straight away; TV Guide, Box Office and Services menus; back to the Guide from a channel | **working (v0.7.0)** |
 | Interactive | shows the firmware's "no interactive services available" (none are broadcast) |
-| Typing a channel number | **not working**: the box shows "NNN Channel Unavailable" (rechecked on v0.7.7-rc1). Pick channels from the Guide or the Up/Down banner |
+| Typing a channel number | **working** with the current Channel Builder (17 Nov): TV and radio. Each channel needs its own number - Channel Builder refuses a number that is already used |
+| Reminders | **not working**: "The reminder can't be set for this programme" (being investigated) |
 | Widescreen pictures on a 4:3 TV | MiSTer OSD option **Widescreen on 4:3** letterboxes 16:9 and wider (v0.7.6) |
 | Sound recovering after a damaged MP2 frame | about 50-75 ms instead of silence for the rest of the stream (v0.7.7, verified in simulation) |
 | TV sound in the EPG | muted while the firmware tunes to the Guide transponder |

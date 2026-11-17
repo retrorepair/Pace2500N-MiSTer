@@ -4,6 +4,27 @@
 Quartus results and HDL regressions. The latest session is directly below; the original
 7 Nov snapshot further down is retained for history only (it predates everything that works).
 
+## Session 17 Nov 2026 (afternoon) - channel numbers fixed; reminders open
+
+- Line-up renumbered (backup `roms/lineup_mock.before-renumber.json`): BBC1 101, BBC2 102,
+  ITV 103, Channel4 104, Sky One 106, Sky Movies 301 (Sky's 2002 movie block); radio 800-817.
+- TYPED NUMBERS FIXED (`150e4fd`), measured on hardware: the 0xB1 entry's last field is
+  number<<4 | four flag bits; bit 3 = selectable by typing the number. We sent 6 (bits 1,2) so
+  every typed number said "Channel Unavailable"; with 0xE typing 103/104/301/805 tunes ITV,
+  Channel4, Sky Movies, Groove Classic. Field 4 is the number the box displays (offsetting
+  field 5 by 500 left the banner on 801). Bit 0: no visible effect found. Channel Builder now
+  refuses a duplicate number; playout logs a warning for one.
+- REMINDERS still refused ("The reminder can't be set for this programme") even an hour ahead,
+  with flags 0xE and 0xF. The message is the Guide's own string (RAM 0x804754CD = globals base
+  0x8045CB64 + 0x18969, loaded by o-code at 9FC7A04D). Just before, the o-code calls native
+  (12,0x16) = 800C66D0, which fetches a programme's stored details by handle
+  (group<<12 | index into the request table 0x80165048) and fills a details struct
+  (800C9F58 copies the stored record's fields). Next: find which details field the o-code
+  tests - candidates are the title record's genre/flag bytes (we send 00 00 00 after start and
+  duration) and the event id scheme. Decoding needs an o-code trace: the reference
+  disassembler (`re/reference_goretrotv/tools/ocode-disasm.py`) wants a bytecode-trace CSV.
+  User: reminders worked on an earlier build.
+
 ## Session 17 Nov 2026 - cleanup and v0.7.7-rc1
 
 - Cleanup: the uncommitted v0.7.6/0.7.7 work was committed (`be64fa9`). `.gitignore` now keeps
