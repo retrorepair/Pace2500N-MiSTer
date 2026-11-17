@@ -61,6 +61,12 @@ class FirmwareHuffman:
         self.padding = max(self.symbols, key=len)
         if len(self.padding) <= 7:
             raise ValueError('No safe final-byte padding path')
+        # Phrases by first byte, in the dictionary's order (the parse's tie-break), and the
+        # encodings already made: a week of listings repeats most titles many times.
+        self._by_first = {}
+        for value, bits in self.codes.items():
+            self._by_first.setdefault(value[0], []).append((value, bits))
+        self._cache = {}
 
     @classmethod
     def from_file(cls, path):
@@ -68,20 +74,40 @@ class FirmwareHuffman:
 
     def encode(self, text):
         source = text.encode('ascii') if isinstance(text, str) else bytes(text)
+        hit = self._cache.get(source)
+        if hit is not None:
+            return hit
         # Minimum-bit parse supports multi-character phrases without greedy
-        # phrase choices making later characters more expensive.
-        best = [None] * (len(source) + 1)
-        best[-1] = ''
-        for offset in range(len(source) - 1, -1, -1):
-            candidates = [bits + best[offset + len(value)]
-                          for value, bits in self.codes.items()
-                          if source.startswith(value, offset) and best[offset + len(value)] is not None]
-            if not candidates:
+        # phrase choices making later characters more expensive. Costs in bits from each
+        # offset to the end; ties go to the earlier phrase in the dictionary.
+        n = len(source)
+        cost = [None] * (n + 1)
+        cost[n] = 0
+        choice = [None] * n
+        for offset in range(n - 1, -1, -1):
+            best = None
+            for value, bits in self._by_first.get(source[offset], ()):
+                rest = cost[offset + len(value)] if offset + len(value) <= n else None
+                if rest is None or not source.startswith(value, offset):
+                    continue
+                total = len(bits) + rest
+                if best is None or total < best:
+                    best, choice[offset] = total, (value, bits)
+            if best is None:
                 raise ValueError(f'Unencodable text byte at {offset}')
-            best[offset] = min(candidates, key=len)
-        bits = '00' + best[0]  # dictionary selector 0; first byte has six data bits
+            cost[offset] = best
+        pieces, offset = [], 0
+        while offset < n:
+            value, bits = choice[offset]
+            pieces.append(bits)
+            offset += len(value)
+        bits = '00' + ''.join(pieces)  # dictionary selector 0; first byte has six data bits
         bits += self.padding[:(-len(bits)) % 8]
-        return bytes(int(bits[i:i + 8], 2) for i in range(0, len(bits), 8))
+        out = bytes(int(bits[i:i + 8], 2) for i in range(0, len(bits), 8))
+        if len(self._cache) >= 50000:
+            self._cache.clear()
+        self._cache[source] = out
+        return out
 
     def decode(self, encoded):
         if not encoded or encoded[0] >> 6:

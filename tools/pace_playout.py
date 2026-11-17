@@ -124,6 +124,7 @@ class Session:
         self.start = time.time()
         self.sent = 0
         self.item = None
+        self.first_data = False
         self.stopped = threading.Event()
         self.si_interval = 5 if self.srv.stations else 60
         self.refresh = time.monotonic() + self.si_interval
@@ -238,6 +239,10 @@ class Session:
                         if time.monotonic() >= deadline:
                             raise RuntimeError('FFmpeg produced no data for 15 seconds')
                         continue
+                    if not self.first_data and chunk:
+                        self.first_data = True
+                        self.srv.log(f'{getattr(self.chan, "name", self.chan)}: programme data '
+                                     f'{time.time() - self.start:.1f} s after the tune')
                     if not chunk:
                         if proc.wait(timeout=2):
                             errors.seek(max(0, errors.seek(0, os.SEEK_END) - 1600))
@@ -337,6 +342,7 @@ class Session:
     def channel(self):
         c = self.chan
         w = Weaver(self.si(), (c.video_pid, c.audio_pid))
+        failed, failures = None, 0
         while True:
             on_air = self.schedule_time()
             it, offset, day = c.at(on_air)
@@ -351,10 +357,20 @@ class Session:
             try:
                 cmd = self.srv.ffmpeg_cmd(c, it['source'], it['inpoint'] + offset, remaining, letterbox=self.letterbox)
                 self.transcode(cmd, w, target)
+                failed, failures = None, 0
             except ClientDisconnected:
                 raise
             except (OSError, ValueError, KeyError, RuntimeError, subprocess.SubprocessError) as e:
                 self.srv.log(f"{c.name}: {it['title']} unavailable: {e}")
+                key = (it['source'], it['inpoint'], it.get('start'))
+                failures = failures + 1 if key == failed else 1
+                failed = key
+                if failures < 3 and self.sent < target:
+                    # A conversion that fails part way (a network hiccup, a damaged stretch of a
+                    # recording) resumes from where the schedule has got to after a short gap,
+                    # instead of leaving the rest of the programme's slot black.
+                    self.stuff(w, min(target, self.sent + 2 * RATE // P * P))
+                    continue
             # hold the schedule: pad (or the next run starts early) to the item's exact end
             self.stuff(w, target)
 
@@ -400,9 +416,23 @@ class Server(ThreadingHTTPServer):
         self.codec = FirmwareHuffman.from_file(settings['huffman_ram'])
         self._si = {}
         self._si_lock = threading.Lock()
+        self._si_build_lock = threading.Lock()      # one carousel build at a time
+        self._si_building, self._si_stale = set(), set()
         self._radio_titles, self._radio_version = {}, 0
         super().__init__(('0.0.0.0', port), Handler)
         self.radio_metadata = RadioMetadata(self.stations)
+        # Both transponders' carousels, built before the box first tunes and kept fresh, so no
+        # tune waits for listings to be built.
+        threading.Thread(target=self._keep_carousels, name='SI refresh', daemon=True).start()
+
+    def _keep_carousels(self):
+        while not self.closing:
+            for on in (HOME_TSID, CHAN_TSID):
+                try:
+                    self.carousel(time.time(), on)
+                except Exception as e:          # a broken line-up must not kill the refresher
+                    self.log(f'listings build failed: {e}')
+            time.sleep(20)
 
     def server_close(self):
         if hasattr(self, 'radio_metadata'):
@@ -461,27 +491,57 @@ class Server(ThreadingHTTPServer):
         override = os.environ.get('PACE_SI_FILE')       # diagnostics: send a fixed carousel
         if override:
             return Path(override).read_bytes()
+        # Building a carousel takes up to a couple of seconds (a week of listings). A session
+        # never waits for it once one exists: it gets the newest finished carousel at once and a
+        # stale one is rebuilt in the background. Waiting in the session was 16-21 s on the home
+        # transponder (the Guide's slow start) and a stall each minute in a playing channel,
+        # longer than the core's 0.67 s of buffered stream.
         with self._si_lock:
             titles = self.radio_metadata.snapshot()
             if titles != self._radio_titles:
                 self._radio_titles = titles
                 self._radio_version += 1
-                self._si.clear()
+                self._si_stale.update(self._si)
             stamp, si = self._si.get(on, (0, None))
             slot_changed = self.stations and int(when) // 1800 != int(stamp) // 1800
-            if si is None or slot_changed or abs(when - stamp) > 60 or int(when) // 86400 != int(stamp) // 86400:
+            stale = (si is None or on in self._si_stale or slot_changed or abs(when - stamp) > 60
+                     or int(when) // 86400 != int(stamp) // 86400)
+            if not stale:
+                return si
+            if si is not None and int(when) // 86400 == int(stamp) // 86400:
+                if on not in self._si_building:
+                    self._si_building.add(on)
+                    threading.Thread(target=self._build_carousel, args=(when, on), name='SI build',
+                                     daemon=True).start()
+                return si
+        return self._build_carousel(when, on)        # none yet, or a new day: build it now
+
+    def _build_carousel(self, when, on):
+        with self._si_build_lock:
+            try:
+                with self._si_lock:
+                    titles, version = self._radio_titles, self._radio_version
                 tables, today = lineup_tables(when, self.codec, self.chans, int(self.settings['days']),
                                               music=True, on=on, stations=self.stations, radio_tracks=titles,
-                                              radio_version=self._radio_version)
+                                              radio_version=version)
                 si = carousel(tables, today)
-                self._si[on] = (when, si)
-            return si
+                with self._si_lock:
+                    self._si[on] = (when, si)
+                    if version == self._radio_version:
+                        self._si_stale.discard(on)
+                return si
+            finally:
+                with self._si_lock:
+                    self._si_building.discard(on)
 
     def ffmpeg_cmd(self, c, source, start, length, *, letterbox=False):
         info = self.media.probe(source)
         if not info.get('video'):
             raise ValueError('source contains no video stream')
+        # The streams were probed when the line-up loaded: a short probe here saves ~0.5 s of
+        # every programme start over HTTP (Plex), which is time the box waits on black.
         cmd = [self.settings['ffmpeg'], '-hide_banner', '-loglevel', 'error', '-nostdin',
+               '-probesize', '262144', '-analyzeduration', '500000',
                '-ss', f'{start:.3f}', '-t', f'{length:.3f}', '-i', info.get('input', source)]
         amap = '0:a:0'
         audio_filter = STEREO_48K

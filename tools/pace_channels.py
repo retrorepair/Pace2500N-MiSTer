@@ -803,22 +803,29 @@ def iptv_guide_index():
 
 
 def iptv_guide(cfg):
-    """(XMLTV url, channel id) for an IPTV channel: the line-up's "epg"; for a Pluto TV link
-    (jmp2.uk/plu-<id>.m3u8) Pluto's UK guide as published by i.mjh.nz; otherwise the hosted
-    guide iptv-org lists for the channel's iptv-org id ("tvg_id", kept by the picker)."""
+    """(XMLTV url, channel id) for an IPTV channel: the line-up's "epg"; otherwise the first
+    of these that has programmes: the UK guide iptv-org lists for the channel's iptv-org id
+    ("tvg_id", kept by the picker), and for a Pluto TV link (jmp2.uk/plu-<id>.m3u8) Pluto's UK
+    guide under the link's id (the two ids differ for some channels), and last the guide for
+    another region (channels such as Red Bull TV run one feed everywhere)."""
     epg = cfg.get('epg')
     if isinstance(epg, dict) and epg.get('url') and epg.get('id'):
         return str(epg['url']), str(epg['id'])
-    m = re.search(r'jmp2\.uk/plu-([0-9a-f]{24})', cfg.get('iptv', ''))
-    if m:
-        return 'https://i.mjh.nz/PlutoTV/gb.xml.gz', m.group(1)
+    candidates, elsewhere = [], []
     tvg = str(cfg.get('tvg_id') or '').strip()
     if tvg:
         index = iptv_guide_index()
         hit = index.get(tvg) or index.get(tvg.split('@')[0])
         if hit:
-            return hit[0], hit[1]
-    return None
+            (candidates if hit[0].lower().endswith('/gb.xml.gz') else elsewhere).append((hit[0], hit[1]))
+    m = re.search(r'jmp2\.uk/plu-([0-9a-f]{24})', cfg.get('iptv', ''))
+    if m:
+        candidates.append(('https://i.mjh.nz/PlutoTV/gb.xml.gz', m.group(1)))
+    candidates += elsewhere
+    for url, gid in candidates:
+        if XMLTV.programmes(url, gid):
+            return url, gid
+    return candidates[0] if candidates else None
 
 
 # iptv-org lists link to anything that streams, including unofficial re-streams of paid
@@ -1036,6 +1043,25 @@ def record_groups(records, size, budget):
     return groups
 
 
+def event_ids(mjd, starts):
+    """Event ids for one service's programmes on day `mjd` (start times in seconds of the day):
+    the day and the start minute, (mjd % 22) * 1440 + minute + 1, so a programme keeps its id
+    when the rest of the schedule changes (an IPTV guide refresh, an edited line-up). A booking
+    in the Personal Planner is kept by event id: numbering programmes by their place in the day
+    moved bookings onto other programmes. Programmes starting in the same minute take the next
+    free id. At most 31,681: below 0x8000 (the firmware may hold ids as signed 16-bit values;
+    the ids it saw before were all small) and unique over 22 days, three weeks beyond the 7-day
+    guide."""
+    used, out = set(), []
+    for start in starts:
+        eid = (mjd % 22) * 1440 + int(start) // 60 + 1
+        while eid in used:
+            eid += 1
+        used.add(eid)
+        out.append(eid)
+    return out
+
+
 def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID, stations=(), radio_tracks=None, radio_version=0):
     """Guide data on the home transport and, when split, on the TV/radio transport."""
     when = datetime.fromtimestamp(int(now), timezone.utc)
@@ -1178,8 +1204,8 @@ def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID, stations=(
             radio = isinstance(c, RadioStation)
             title, description = radio_tracks.get(c.number, ('', '')) if radio and dd == 0 else ('', '')
             schedule = c.events_utc(d, sod, title) if radio else c.events_utc(d)
-            events = [(dd * 1000 + (s // 1800 if radio else n) + 1, s, l, guide_text(codec, t, 200))
-                      for n, (s, l, t, _) in enumerate(schedule)]
+            events = [(eid, s, l, guide_text(codec, t, 200))
+                      for eid, (s, l, t, _) in zip(event_ids(mjd, [s for s, *_ in schedule]), schedule)]
             # The firmware decodes a 0xB9 synopsis into a 0x101-byte buffer (800CA028 ->
             # 800BECF0 dstmax 0x101): 256 characters and the terminator.
             synopses = [guide_text(codec, description or sm, 255, max_chars=255) for *_, sm in schedule]
@@ -1198,13 +1224,19 @@ def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID, stations=(
                 groups.setdefault(ev[1] // 21600, []).append((ev, sm))
                 if dd == 0 and full:
                     index_events.append((c.listing, ev, 4 if radio else c.genre))
-            if not full:
-                # The current and next six-hour blocks, as the very same sections the home
-                # transponder carries (same events, same versions). A cut-down now/next section
-                # under the same table/extension had a different version, so tuning a channel
-                # replaced the box's full block with two events and the Guide dropped any
-                # reminder whose programme was no longer listed.
-                groups = {b: g for b, g in groups.items() if sod // 21600 <= b <= sod // 21600 + 1}
+            # Off the home transponder only the sections holding the programme on air and the
+            # next one go out - the very same sections as on the home transponder (same records,
+            # section numbers and versions), so the box's full listings are never replaced:
+            #  - the box needs the current programme's title record before it starts a channel
+            #    (with none, it showed the banner over black and never selected the PIDs);
+            #  - a cut-down now/next section under the same table/extension (another version)
+            #    replaced the box's full block, and the Guide dropped bookings whose programme
+            #    had gone from it;
+            #  - whole blocks here made the box spend ~10 s on them before retuning for the
+            #    Guide.
+            wanted = None if full else {ev[0] for ev in [e for e in events if e[1] + e[2] > sod][:2]}
+            if wanted is not None and not wanted:
+                groups = {}
             for block, group in groups.items():
                 titles = [ev for ev, _ in group]
                 # A long section has 1012 bytes of payload, two reserved for MJD.
@@ -1215,6 +1247,8 @@ def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID, stations=(
                 # native (12,0x16) and tests the details' +0x2C, which 800C9F58 copies from
                 # the stored record's +4.
                 for i, chunk in enumerate(chunks):
+                    if wanted is not None and not wanted & {ev[0] for ev in chunk}:
+                        continue
                     tables.append((0x30 | (mjd & 7), title_section(0xa0 | block, c.listing, mjd, chunk,
                                                                   codec, i, len(chunks) - 1,
                                                                   version=radio_version if radio and dd == 0 else None,
@@ -1225,6 +1259,8 @@ def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID, stations=(
                 encoded = [(ev[0], codec.encode(sm)) for ev, sm in group if sm]
                 chunks = record_groups(encoded, lambda e: 6 + len(e[1]), 1010)
                 for i, chunk in enumerate(chunks):
+                    if wanted is not None and not wanted & {eid for eid, _ in chunk}:
+                        continue
                     tables.append((0x40 | (mjd & 7), summary_section(0xa8 | block, c.listing, mjd, chunk,
                                                                     i, len(chunks) - 1)))
     def index_record(listing, ev):

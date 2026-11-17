@@ -4,6 +4,61 @@
 Quartus results and HDL regressions. The latest session is directly below; the original
 7 Nov snapshot further down is retained for history only (it predates everything that works).
 
+## Session 17 Nov 2026 (night) - speed, stability, stable event ids, 48 channels, EEPROM save
+
+- LISTINGS BUILD WAS 16-21 s (home) / 1.3 s (channels): `FirmwareHuffman.encode` tried every
+  phrase at every offset (98 M startswith). Now phrases indexed by first byte, costs not strings,
+  cache: identical output (308 strings checked vs the old encoder), 35x faster; home tables 0.3 s.
+- The build ran in the session thread holding `_si_lock`: a channels-transponder session waited
+  for any home rebuild (7-13 s before the box picked PIDs after leaving the Guide) and a playing
+  channel stalled ~1.3 s each minute (> the core's 0.67 s ring prefill). Now `Server.carousel`
+  returns the newest finished carousel at once and rebuilds stale ones in a background thread;
+  `_keep_carousels` builds both transponders every 20 s from start-up.
+- Measured after: channel change -> programme data 0.5-1.3 s after the tune (new log line
+  "<channel>: programme data N s after the tune"); leaving the Guide -> PIDs at once. ffmpeg
+  starts use `-probesize 262144 -analyzeduration 500000` (~0.5 s off Plex starts). The loudness
+  normaliser costs 0.2-1 s more but was asked for, so kept. IPTV (HLS) starts take 4-7 s
+  (segment fetch; `-live_start_index -1` was within noise, not used).
+- A programme whose ffmpeg run fails part way now retries from the schedule position after a
+  2 s gap (3 tries per programme) instead of black for the rest of the slot. BBC1's
+  "Children's BBC 1989.mpg" died twice today with "Error submitting a packet to the muxer";
+  a full 5380 s run through the same command passes, so it is not one bad spot in the file.
+- EVENT IDS were each programme's place in the day: an IPTV guide refresh moved bookings onto
+  other programmes (a phantom "Count Duckula 10.38pm"). Now `event_ids()`: (mjd % 22) * 1440 +
+  start minute + 1, next free id on a clash; kept < 0x8000 (ids of ~38000 were seen while
+  banner tests failed - not proven to matter, but the firmware may hold them signed).
+- CHANNELS TRANSPONDER LISTINGS: (a) none at all -> the box showed the banner over black and never
+  selected PIDs, and stayed wedged even after data came back (needed a core reload); (b) the full
+  current blocks -> the box waited ~10 s on them before retuning for the Guide; (c) final: only
+  the home sections (byte-identical, same versions) that hold now and next, plus their synopsis
+  sections. Guide entry still retunes ~10 s after TV Guide (the Guide draws at once; only the
+  music waits) - looks like the firmware's own timer when it already holds the listings.
+- Box wedge seen twice (banner over black, stale now/next, no PID selection for any channel;
+  core streaming fine at 778 kB/s, 0 underruns): (a) above, and once after a playout restart that
+  changed every listing version (event-id change) while the box was acquiring. Not reproduced by
+  rapid channel changes or Guide exit + immediate typing. Core reload clears it.
+- IPTV guides: `iptv_guide` now takes the first candidate WITH programmes: the UK guide iptv-org
+  lists for tvg_id, then the Pluto link id (they differ for some channels), then another
+  region's guide. Line-up: +40 official IPTV channels with listings (105, 107-125 ent, 302-306
+  movies, 401-403 sport, 451-453 music, 501-505 docs, 603-606 kids); 48 TV + 18 radio. Backup
+  `roms/lineup_mock.before-more-iptv.json`. Married with Children, The Nanny, That's 70s/80s
+  have no guide anywhere (Live TV). SIDs follow line-up order, so deleting a channel in the
+  middle renumbers later services (bookings follow the SID).
+- Key injection: the first key on a new uinput device is often lost - /tmp/mister_keys.py on the
+  MiSTer now sends a Left Shift warm-up first. Several earlier "banner reminder fails" results
+  were the lost Enter; the user confirms banner reminders work.
+- EEPROM SAVE (core V078, `rtl/pace_eeprom_save.sv`, MiSTer slot S1 "EEPROM save"): bookings are
+  the firmware's /eeprom/book file (o-code 9FC7DB9C: open/read/write, 76 bytes x <= 50; 19
+  readers, 12 writers), so a persistent EEPROM keeps them. EEPROM BRAM made true dual-port
+  (port A unchanged for the firmware, sharing one address between the I2C read pointer and the
+  commit - they never overlap; port B for the saver). Blank (all-FF) file is filled from the
+  checkpoint EEPROM; otherwise loaded with the guest held; changed 512-byte blocks written back
+  after ~0.2 s of no writes. Testbench `sim/eeprom_save/tb_eeprom_save.sv` (iverilog): PASS.
+  The MGL needs `<file delay="1" type="s" index="1" path=".../EEPROM.bin"/>` and a 64 KiB 0xFF
+  file. Quartus synthesis hung twice at RAM inference with 9 frozen quartus_map workers (PC at
+  57 GB committed of 57.4, ~28 GB not attributable to any process); rebuilding with
+  `--parallel=1`. NOT yet tested on hardware.
+
 ## Session 17 Nov 2026 (late night) - reminders from the Guide grid fixed
 
 - CAUSE 1, the refusal ("The reminder can't be set for this programme"): the Guide's o-code
