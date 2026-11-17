@@ -3,7 +3,7 @@
 module emu (
 `include "sys/emu_ports.vh"
 );
-localparam CONF_STR={"Pace2500N_TS;;","F0,BIN,Load FLASH_U202.bin;","F1,BIN,Load RAM checkpoint;","F2,BIN,Load CPU state;","F3,TS,Load transport stream (64MiB max);","S0,TS,Stream transport stream / live ring;","O3,Display,Guide,Diagnostics;","O4,Diagnostic RF lock,From TS,Off;","O5,Broadcast clock (TOT),MiSTer RTC,TS file;","-;","R0,Reset (reload checkpoint);","V,0.7.0 (pipelined VR4110)"};
+localparam CONF_STR={"Pace2500N_TS;;","F0,BIN,Load FLASH_U202.bin;","F1,BIN,Load RAM checkpoint;","F2,BIN,Load CPU state;","F3,TS,Load transport stream (64MiB max);","S0,TS,Stream transport stream / live ring;","O6,Widescreen on 4:3,Stretch,Letterbox;","O3,Display,Guide,Diagnostics;","O4,Diagnostic RF lock,From TS,Off;","O5,Broadcast clock (TOT),MiSTer RTC,TS file;","-;","R0,Reset (reload checkpoint);","V,0.7.7 (audio recovery)"};
 wire clk_sys,clk_video,clk_mem,clk_dec,clk_dot,pll_locked;
 wire clk_cpu2x,clk_cpu1x;
 pll pll(.refclk(CLK_50M),.rst(1'b0),.outclk_0(clk_sys),.outclk_1(clk_video),
@@ -175,7 +175,7 @@ pace_ts_stream ts_stream(.clk(clk_sys),.reset(core_reset),.now_seconds(utc_secon
  .img_mounted(img_mounted),.img_size(img_size),
  .sd_lba(sd_lba),.sd_blk_cnt(sd_blk_cnt),.sd_rd(sd_rd),.sd_wr(sd_wr),.sd_ack(sd_ack),
  .sd_buff_addr(sd_buff_addr),.sd_buff_dout(sd_buff_dout),.sd_buff_wr(sd_buff_wr),.sd_buff_din(sd_buff_din),
- .video_pid(av_video),.audio_pid(av_audio),.underruns(stream_underruns),.boundary(ts_boundary),
+ .video_pid(av_video),.audio_pid(av_audio),.underruns(stream_underruns),.letterbox(status[6]),.boundary(ts_boundary),
  .resync(stream_resync),.live(stream_live),.epg_mode(epg_mode),.epg_music(epg_music),
  .played(stream_played),.active(streaming),.restart(stream_restart),.written(stream_written),.loops(stream_loops),.start_byte(stream_start),
  .mem_req(sq),.mem_addr(sad),.mem_wdata(swd),.mem_be(sbe),.mem_accept(sa));

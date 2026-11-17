@@ -2,13 +2,32 @@ import json
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
 from sky_media import Programme, ffmpeg_command, load_schedule, select, timestamp
+from pace_channels import Media
 
 
 class ScheduleTests(unittest.TestCase):
+    def test_probe_prefers_english_programme_audio(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            clip = root / 'clip.mkv'
+            clip.touch()
+            probe = dict(format=dict(duration='4'), streams=[
+                dict(index=0, codec_type='video'),
+                dict(index=1, codec_type='audio', tags=dict(language='ces'), disposition=dict(default=1)),
+                dict(index=2, codec_type='audio', tags=dict(language='eng', title='Cast commentary')),
+                dict(index=3, codec_type='audio', tags=dict(language='eng')),
+            ])
+            media = Media(dict(ffmpeg='ffmpeg', library_cache=str(root / 'cache.json')))
+            with patch('pace_channels.subprocess.run') as run:
+                run.return_value.returncode = 0
+                run.return_value.stdout = json.dumps(probe)
+                self.assertEqual(media.probe(str(clip))['audio_index'], 3)
+
     def test_half_open_boundaries_and_offsets(self):
         start = timestamp('2002-09-01T12:00:00+01:00')
         a = Programme(start, start + timedelta(hours=1), Path('a.mkv'), 120, 'A')

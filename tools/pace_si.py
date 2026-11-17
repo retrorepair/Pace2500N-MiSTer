@@ -57,6 +57,20 @@ def tot(when):
     return with_crc(b'\x73' + u16(0x7000 | (len(body) + 4)) + body)
 
 
+def present_following(table, sid, tsid, onid, version, section, event):
+    body = u16(tsid) + u16(onid) + bytes((1, table))
+    if event is not None:
+        event_id, start, duration, title, summary = event
+        name = title.encode('ascii', 'replace')[:80]
+        text = summary.encode('ascii', 'replace')[:250 - len(name)]
+        desc = descriptor(0x4d, b'eng' + bytes((len(name),)) + name + bytes((len(text),)) + text)
+        hours, seconds = divmod(duration, 3600)
+        record = (u16(event_id) + dvb_utc(start) + bytes(map(bcd, (hours, seconds // 60, seconds % 60)))
+                  + u16((0x8000 if section == 0 else 0x2000) | len(desc)) + desc)
+        body += record
+    return long_section(table, sid, body, version=version, section=section, last=1)
+
+
 def title_section(table, listing, mjd, events, codec, section=0, last=0, version=0):
     records = bytearray()
     for event_id, start, duration, title in events:

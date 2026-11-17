@@ -87,7 +87,8 @@ re/transport/*64.hex
 /re/application_lsi_strict_01.json
 /re/application_entry_09.json
 /re/application_i2c_demod_probe_01.json
-/re/application_i2c_ack_02.jsonbig_files.tmp
+/re/application_i2c_ack_02.json
+big_files.tmp
 checkpoints/*/firmware/
 
 # --- Private ROM assets (archived broadcast audio etc.); never pushed ---
@@ -98,3 +99,33 @@ third_party/
 
 # --- Packaged Windows app (tools/build_app.bat) ---
 dist/
+
+# --- Local evidence and tool output, kept on the dev PC only ---
+# hardware screenshots, ring/UART captures and deployment telemetry
+re/deployment/
+re/transport/*.log
+re/transport/*_state.txt
+re/transport/*.json
+# Ghidra / decompiler output from the firmware (firmware-derived: never published)
+re/*_decompile.txt
+re/*_v07[0-9].txt
+re/dec_*.txt
+re/av_mmio_users.txt
+re/natives_*.txt
+re/*.log
+re/v0[0-9][0-9]_*.png
+# stills / streams extracted from the firmware or captured off air
+*.m2v
+# Quartus and simulation output
+compile_*.log
+map_*.log
+sim/*.log
+sim/*.hex
+sim/*_out/
+sim/r4k/work/
+sim/r4k/r4k_*.txt
+# per-build MiSTer launchers made while testing (releases carry their own)
+/Pace2500N_V06[0-9]_Live.mgl
+/Pace2500N_V07[1-3]_Live.mgl
+serv_req_info.txt
+re/*_ghidra.txt

@@ -4,6 +4,68 @@
 Quartus results and HDL regressions. The latest session is directly below; the original
 7 Nov snapshot further down is retained for history only (it predates everything that works).
 
+## Audio decoder recovery
+
+- The user reported a prolonged audio cutoff around loud material. A live
+  Sky Movies transport capture decoded cleanly on the PC and peaked at about
+  -12.6 dBFS. The FPGA decoder model could play a synthetic near-full-scale
+  stream. A damaged MP2 frame reproduced a separate persistent loss of PCM.
+- When the parser read past a frame's declared end at a non-byte offset, the
+  byte-wise sync hunt continued at that offset. The fix re-aligns before the
+  hunt and uses the modular distance to the end of the frame, including when
+  the 32-bit bit counter wraps. The error flag remains sticky for diagnostics.
+- Two 192 kbps, 48 kHz test streams with one corrupted allocation field lost
+  PCM for the remaining 2.1 seconds with the old decoder. The patched RTL
+  resumed in about 74 ms and 54 ms respectively. The shorter-PES and larger
+  PCM FIFO experiments were dropped. They did not improve the real capture.
+
+## 4:3 letterbox and portable installation
+
+- The MiSTer OSD's `Widescreen on 4:3` option reports status bit 6 in an
+  optional `LB1` extension to the live-ring status block. The relay requests
+  letterboxing per video tune. Playout fits the stream's display aspect,
+  including anamorphic sample aspect, into the 720×576 4:3 PAL raster. The
+  Guide and radio stay on their existing audio and transport paths.
+- A packaged `portable.flag` keeps the app's settings, Plex sign-in, lineup
+  and cache in `data` next to the executable. In-folder settings paths are
+  relative. The normal app still uses its existing per-user settings path.
+- The private kit's Windows installer copies the app and seeds missing data
+  files. Its MiSTer SD tree includes a Scripts entry that asks for the server
+  address and installs the relay. The required hardware files are
+  `FLASH_U202.bin`, `RAM.bin` and `STATE.bin`. Keep those and the private zip
+  out of Git and public releases.
+- The private v0.7.6 package is in Downloads. The compressed core was built
+  with Quartus 17.0.2, seed 4 and combo-for-area off. CPU setup slack was
+  +0.698 ns. Letterbox mode delivered 72-line bars for 16:9, 124-line bars
+  for 2.35:1 and full height for 4:3 in the decoded live MPEG-2 test. The
+  portable app passed a smoke test from a separate folder, and the installer
+  copy test preserved an existing lineup.
+
+## Session 15 Nov 2026 - Plex audio and Info
+
+- Plex's media URLs returned 404 before decoding. `checkFileAvailability=1`
+  confirmed that all 32 imported Green Wing and Spaced items referenced
+  unavailable files on the Plex server's Q: drive. Four of the 77 imported
+  Red Dwarf entries referenced missing files in an older J: folder. The other
+  73 had an accessible version. The app now skips unavailable media when
+  probing, tries alternative versions for the same Plex item, and avoids
+  reporting normal playout socket shutdowns as errors.
+- Red Dwarf's first audio track is Czech on multiple episodes. Audio selection
+  prefers an English programme track and falls back to available programme
+  audio. Verified decoding the English stream on two Plex episodes, including
+  the episode used in the MiSTer check.
+- DVB present/following EIT supplies Info while tuned. TV gets the Plex episode
+  synopsis. Radio gets the stream's `icy-description`, or the SomaFM blurb
+  carried in `icy-name`. On hardware, Info showed the Red Dwarf episode
+  synopsis in All Channels and while tuned. Drum and Bass UK Radio showed
+  its station description while tuned.
+- Ghidra confirmed that `800C9CA0` handles a type-2 OpenTV synopsis request
+  by matching listing ID, MJD, block and event ID before decoding descriptor
+  `0xB9`. Live BBC2 Info showed request type 2 go from `0x3EA` to `0x3EC`.
+  The Music & Radio grid uses a station-specific Info popup. It showed the
+  track and issued no type-2 synopsis request. Adding the description to the
+  SDT row text did not change the popup. The tuned Info overlay shows it.
+
 ## Session 14 Nov 2026 - internet radio
 
 - Music & Radio uses private SDT descriptor `0xB2` with genre 4. Numbered

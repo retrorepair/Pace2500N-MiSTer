@@ -22,6 +22,7 @@ File layout (big-endian; must match rtl/pace_ts_stream.sv):
   24    "AV1" flags(u8): bit 0 = EPG mode, bit 1 = home background audio active
   512   "PACESTAT" session(u32) read_pos(u32) video(u16) audio(u16) seq(u32)
         played(u32) underruns(u32)                      -- written by the core
+  544   "LB1" flags(u8): bit 0 = fit widescreen into the 4:3 picture
   1024  ring data: session byte n at 1024 + n % ring_bytes
 
 Usage: pace_live_relay.py [--server HOST:PORT] [--file /tmp/pace_live.ts]
@@ -102,12 +103,12 @@ class Ring:
         self.header()
 
     def status(self):
-        b = os.pread(self.fd, 32, 512)
+        b = os.pread(self.fd, 36, 512)
         if b[:8] != b'PACESTAT':
             return None
         session, read_pos, video, audio, seq, played, underruns = struct.unpack('>IIHHIII', b[8:32])
         return dict(session=session, read_pos=read_pos, video=video, audio=audio, seq=seq,
-                    played=played, underruns=underruns)
+                    played=played, underruns=underruns, letterbox=b[32:35] == b'LB1' and bool(b[35] & 1))
 
     def space(self, st):
         core = st['read_pos'] if st and st['session'] == self.session else 0
@@ -120,17 +121,18 @@ class Ring:
         self.header()
 
 
-def query(video, audio, freq):
-    return f'video=0x{video:04x}&audio=0x{audio:04x}' + (f'&freq={freq:08x}' if freq else '')
+def query(video, audio, freq, letterbox=False):
+    return (f'video=0x{video:04x}&audio=0x{audio:04x}' + (f'&freq={freq:08x}' if freq else '')
+            + ('&letterbox=1' if letterbox else ''))
 
 
 class Upstream:
     """One HTTP request to the playout server for one tuning."""
-    def __init__(self, server, video, audio, freq=None):
+    def __init__(self, server, video, audio, freq=None, letterbox=False):
         host, port = server.rsplit(':', 1)
         self.sock = socket.create_connection((host, int(port)), timeout=2)
         try:
-            self.sock.sendall(f'GET /tune?{query(video, audio, freq)} HTTP/1.0\r\n'
+            self.sock.sendall(f'GET /tune?{query(video, audio, freq, letterbox)} HTTP/1.0\r\n'
                               f'Host: {host}\r\n\r\n'.encode())
             head = b''
             while b'\r\n\r\n' not in head:
@@ -238,12 +240,12 @@ def step(ring, guest, server, up, tuned, want, want_since, last_seq, alive_at, r
         # firmware takes the audio PID off its own route between menus.
         # The server also defaults to this transport during initial acquisition.
         # Retain the stream when the guest first publishes the home frequency.
-        current = (0x1fff, 0x4288, HOME_FREQ)
+        current = (0x1fff, 0x4288, HOME_FREQ, False)
     else:
         video = st['video'] if st['video'] & 0x4000 and not epg else 0x1fff
         radio = st['audio'] & 0x4000 and (st['audio'] & 0x1fff) in RADIO_PIDS and not epg
         audio = st['audio'] if video == 0x1fff and radio else 0x1fff
-        current = (video, audio, freq)
+        current = (video, audio, freq, video != 0x1fff and st['letterbox'])
     if current != want:
         want, want_since = current, now
 
@@ -257,7 +259,8 @@ def step(ring, guest, server, up, tuned, want, want_since, last_seq, alive_at, r
         retry_at = 0
         if tuned:
             log(f'tuned: video {tuned[0]:04x} audio {tuned[1]:04x} freq {tuned[2] or 0:08x}'
-                f' -> session {ring.session:08x}')
+                + (' letterbox' if tuned[3] else '')
+                + f' -> session {ring.session:08x}')
         else:
             log('core not running: nothing requested')
 

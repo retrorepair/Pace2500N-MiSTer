@@ -55,6 +55,7 @@ module pace_ts_stream #(
  output reg [15:0] sd_buff_din=0,
  // live mode: status reported to the relay, and the player's packet phase
  input wire [15:0] video_pid,audio_pid,input wire [31:0] underruns,
+ input wire letterbox,
  input wire boundary,                // the player is between two TS packets
  // player position (bytes consumed since the stream started)
  input wire [31:0] played,
@@ -111,12 +112,12 @@ module pace_ts_stream #(
  reg [21:0] poll_timer=0;
  wire [31:0] src_ahead=src_written-file_pos[31:0];   // relay bytes not yet read (modular)
  wire src_chunk=!src_ahead[31] && src_ahead>=CHUNK;
- // status block (first 32 bytes of block 1), latched when the write is
+ // status block (32-byte base plus the 4-byte "LB1" extension), latched when the write is
  // requested; hps_io fetches 16-bit words, low byte first in the file
- reg [255:0] stat=0;
- wire [3:0] stat_w=sd_buff_addr[3:0];
+ reg [287:0] stat=0;
+ wire [4:0] stat_w=sd_buff_addr[4:0];
  always @(posedge clk)
-  sd_buff_din<=sd_buff_addr[12:4]==0 ? {stat[247-16*stat_w-:8],stat[255-16*stat_w-:8]} : 16'h0000;
+  sd_buff_din<=sd_buff_addr<18 ? {stat[279-16*stat_w-:8],stat[287-16*stat_w-:8]} : 16'h0000;
  reg [1:0] lane=0;           // 16-bit word within the 64-bit DDR word
  reg [31:0] copy_word=0;     // 16-bit words of this chunk copied so far
  reg [31:0] copy_words=0;
@@ -194,7 +195,7 @@ module pace_ts_stream #(
       session<=new_session;src_written<=new_written;file_pos<=0;written<=0;wr_ptr<=0;loops<=loops+1'b1;
      end else if(poll_timer==0 || (!src_chunk && poll_timer<22'(POLL_MAX-POLL_MIN)))begin
       poll_timer<=22'(POLL_MAX);
-      stat<={"PACESTAT",session,file_pos[31:0],video_pid,audio_pid,seq,played,underruns};
+      stat<={"PACESTAT",session,file_pos[31:0],video_pid,audio_pid,seq,played,underruns,"LB1",7'b0,letterbox};
       state<=STAT_REQ;
      end else if(room>=CHUNK && src_chunk)begin
       sd_lba<=32'd2+((file_pos[31:0]&ring_mask)>>9);sd_blk_cnt<=6'(CHUNK_BLOCKS-1);

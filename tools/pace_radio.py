@@ -9,13 +9,20 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 
-def stream_title(url):
+def stream_metadata(url):
     request = Request(url, headers={'Icy-MetaData': '1', 'User-Agent': 'Pace2500N'})
     deadline = time.monotonic() + 6
     with urlopen(request, timeout=4) as response:
+        description = response.headers.get('icy-description', '')
+        if not description:
+            # SomaFM supplies its station blurb after the name in icy-name.
+            name = response.headers.get('icy-name', '')
+            if name.endswith('[SomaFM]'):
+                description = name.removesuffix('[SomaFM]').partition(': ')[2]
+        description = ' '.join(html.unescape(description).split())[:500]
         interval = int(response.headers.get('icy-metaint', '0'))
         if not 0 < interval <= 256 * 1024:
-            return ''
+            return '', description
 
         def read(size, keep=False):
             data = bytearray()
@@ -40,8 +47,8 @@ def stream_title(url):
                     title = match[1].decode('utf-8')
                 except UnicodeDecodeError:
                     title = match[1].decode('cp1252', errors='replace')
-                return ' '.join(html.unescape(title).split())[:160]
-    return ''
+                return ' '.join(html.unescape(title).split())[:160], description
+    return '', description
 
 
 class RadioMetadata:
@@ -57,23 +64,24 @@ class RadioMetadata:
         if self.stop.is_set():
             return None
         try:
-            title = stream_title(station.url)
+            title, description = stream_metadata(station.url)
         except HTTPError as exc:
             exc.close()
             return None
         except (OSError, EOFError, HTTPException, ValueError):
             return None
-        return station.number, title, time.monotonic()
+        return station.number, title, description, time.monotonic()
 
     def poll(self):
         with ThreadPoolExecutor(max_workers=8, thread_name_prefix='ICY') as pool:
             while not self.stop.is_set():
                 updates = [track for track in pool.map(self.refresh, self.stations) if track]
                 with self.lock:
-                    self.tracks.update((number, (title, stamp)) for number, title, stamp in updates)
+                    self.tracks.update((number, (title, description, stamp)) for number, title, description, stamp in updates)
                 self.stop.wait(20)
 
     def snapshot(self):
         expires = time.monotonic() - 180
         with self.lock:
-            return {number: title for number, (title, stamp) in self.tracks.items() if title and stamp > expires}
+            return {number: (title, description) for number, (title, description, stamp) in self.tracks.items()
+                    if stamp > expires and (title or description)}

@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools'))
-from pace_si import diagnostic_tables, dvb_utc
+from pace_si import diagnostic_tables, dvb_utc, present_following
 from pace_huffman import FirmwareHuffman
 from pace_transport import validate_section
 
@@ -13,6 +13,16 @@ class NativeSITests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.codec = FirmwareHuffman.from_file(ROOT / 're/fpga_guide_checkpoint/RAM.bin')
+
+    def test_present_following_carries_synopsis(self):
+        when = datetime(2002, 9, 1, 12, tzinfo=timezone.utc)
+        section = present_following(0x4e, 1001, 1, 0x20, 4, 0,
+                                    (3, when, 1800, 'Red Dwarf', 'An episode synopsis.'))
+        validate_section(section)
+        self.assertEqual(section[6:14], bytes.fromhex('000100010020014e'))
+        self.assertEqual(section[14:24], bytes.fromhex('0003cd26120000003000'))
+        self.assertEqual(section[26], 0x4d)
+        self.assertEqual(section[28:-4], b'eng\x09Red Dwarf\x14An episode synopsis.')
 
     def test_known_clock_and_title_record_arithmetic(self):
         when = datetime(2002, 9, 1, 12, tzinfo=timezone.utc)

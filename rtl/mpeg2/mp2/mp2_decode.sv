@@ -939,9 +939,15 @@ module mp2_decode #(
             ST_SKIP: begin
                 skip_target = sync_bitpos + {15'd0, frame_bytes, 3'd0};   // *8
                 skip_rem    = skip_target - br_bitpos;
-                if (br_bitpos >= skip_target) begin
-                    if (br_bitpos > skip_target) err_unsupported <= 1'b1;
-                    st <= ST_HUNT0;
+                if (skip_rem == 0 || skip_rem[31]) begin
+                    if (skip_rem[31]) err_unsupported <= 1'b1;
+                    // A damaged frame can parse past its advertised length.
+                    // The sync hunt reads bytes, so realign before searching.
+                    if (br_bitpos[2:0] != 0) begin
+                        br_req <= 1'b1;
+                        br_nbits <= 6'd8 - {3'd0, br_bitpos[2:0]};
+                        st <= ST_SKIPW;
+                    end else st <= ST_HUNT0;
                 end else begin
                     br_req <= 1'b1;
                     br_nbits <= (skip_target - br_bitpos >= 32'd16)

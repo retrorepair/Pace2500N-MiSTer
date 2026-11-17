@@ -567,7 +567,9 @@ class App(tk.Tk):
         if not c:
             return
         for f in filedialog.askopenfilenames(title='Programmes', filetypes=[('Video', VIDEO_EXT), ('All files', '*.*')]):
-            c['programmes'].append({'title': Path(f).stem, 'source': Path(f).as_posix()})
+            path = Path(f)
+            source = path.relative_to(pc.ROOT) if pc.portable() and path.is_relative_to(pc.ROOT) else path
+            c['programmes'].append({'title': path.stem, 'source': source.as_posix()})
         self.show_channel()
         self.changed()
 
@@ -1007,7 +1009,7 @@ class App(tk.Tk):
         self.v_autostart = tk.BooleanVar(value=self.settings.get('autostart', True))
         ttk.Checkbutton(f, text='Start playout when the app opens', variable=self.v_autostart).grid(row=11, column=1, sticky='w', pady=4)
         ttk.Button(f, text='Save settings', command=self.save_settings).grid(row=12, column=1, sticky='w', pady=10)
-        ttk.Label(f, text=f'Settings are stored in {pc.settings_path()} (never in the project or on GitHub).',
+        ttk.Label(f, text=f'Settings are stored in {pc.settings_path()}.',
                   foreground='#555').grid(row=13, column=0, columnspan=3, sticky='w')
         self.show_plex_state()
 

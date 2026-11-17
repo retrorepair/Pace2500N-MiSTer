@@ -28,7 +28,7 @@ filled with contiguous runs of spots exactly as they were recorded off air.
 Service numbering: channel i (0-based) is SID 1001+i, PMT PID 0x1000+i,
 video PID 0x200+0x10*i, audio PID 0x102+0x10*i, OpenTV listing 3000+i.
 """
-import argparse, hashlib, json, math, os, random, re, subprocess, sys, tempfile, threading
+import argparse, hashlib, json, math, os, random, re, subprocess, sys, tempfile, threading, time
 from datetime import date, datetime, timedelta, timezone
 from functools import lru_cache
 from pathlib import Path
@@ -42,7 +42,7 @@ APP_DIR = Path(sys.executable).parent if FROZEN else None
 # no console window flashing up for every ffmpeg/ffprobe run from the GUI
 NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 sys.path.insert(0, str(HERE))
-from pace_si import u16, loop, descriptor, long_section, tot, title_section, summary_section  # noqa: E402
+from pace_si import u16, loop, descriptor, long_section, tot, title_section, summary_section, present_following  # noqa: E402
 from pace_transport import Packetizer  # noqa: E402
 
 RATE = 781250                    # stream bytes per second (6.25 Mbit/s, the core's replay rate)
@@ -64,8 +64,17 @@ def default_ffmpeg():
 
 
 def settings_path():
+    if portable():
+        return APP_DIR / 'data' / 'settings.json'
     base = os.environ.get('APPDATA') or str(Path.home() / '.config')
     return Path(base) / 'Pace2500N' / 'settings.json'
+
+
+def portable():
+    return APP_DIR is not None and (APP_DIR / 'portable.flag').is_file()
+
+
+PORTABLE_PATHS = ('data_root', 'last_lineup', 'ffmpeg', 'huffman_ram', 'library_cache', 'ytdlp')
 
 
 def read_json(path):
@@ -99,8 +108,7 @@ def load_settings(log=print):
     except (OSError, ValueError) as e:
         log(f'Could not read settings {p}: {e}. Using defaults for this run.')
         s = {}
-    for key in ('data_root', 'last_lineup', 'ffmpeg', 'huffman_ram', 'library_cache',
-                'plex_url', 'plex_token', 'plex_client_id', 'ytdlp'):
+    for key in (*PORTABLE_PATHS, 'plex_url', 'plex_token', 'plex_client_id'):
         if key in s and not isinstance(s[key], str):
             log(f'Ignoring invalid {key} setting')
             del s[key]
@@ -115,6 +123,15 @@ def load_settings(log=print):
         s[key] = value
     global ROOT
     ROOT = SOURCE_ROOT
+    if portable():
+        ROOT = p.parent
+        s.setdefault('data_root', str(ROOT))
+        if (ROOT / 'lineup.json').is_file():
+            s.setdefault('last_lineup', str(ROOT / 'lineup.json'))
+        s.setdefault('huffman_ram', str(ROOT / 'firmware' / 'RAM.bin'))
+        for key in PORTABLE_PATHS:
+            if s.get(key) and not Path(s[key]).is_absolute():
+                s[key] = str(APP_DIR / s[key])
     if s.get('data_root') and Path(s['data_root']).is_dir():
         ROOT = Path(s['data_root'])
     if FROZEN and bundled('ffmpeg.exe') and not Path(s.get('ffmpeg') or 'ffmpeg').is_file():
@@ -126,6 +143,11 @@ def load_settings(log=print):
 
 
 def save_settings(s):
+    if portable():
+        s = dict(s)
+        for key in PORTABLE_PATHS:
+            if s.get(key) and Path(s[key]).is_relative_to(APP_DIR):
+                s[key] = Path(s[key]).relative_to(APP_DIR).as_posix()
     write_json(settings_path(), s)
 
 
@@ -149,6 +171,7 @@ class Media:
         self.cache = self.read_cache()
         self._keys = {}
         self._dirty = set()
+        self._plex_items = {}
 
     def read_cache(self):
         try:
@@ -191,21 +214,36 @@ class Media:
             raise RuntimeError('Plex source used but plex_url/plex_token are not set')
         if not rating_key.isdecimal():
             raise ValueError(f'Invalid Plex rating key: {rating_key}')
-        req = urllib.request.Request(f"{base.rstrip('/')}/library/metadata/{rating_key}",
+        with self.cache_lock:
+            cached = self._plex_items.get(rating_key)
+        if cached and time.monotonic() < cached[0]:
+            return cached[1]
+        req = urllib.request.Request(f"{base.rstrip('/')}/library/metadata/{rating_key}?checkFileAvailability=1",
                                      headers={'Accept': 'application/json', 'X-Plex-Token': token})
         with urllib.request.urlopen(req, timeout=10) as response:
             rows = json.load(response).get('MediaContainer', {}).get('Metadata', [])
         if not rows:
             raise ValueError(f'Plex item {rating_key} is unavailable')
-        return rows[0]
+        meta = rows[0]
+        with self.cache_lock:
+            self._plex_items[rating_key] = (time.monotonic() + 300, meta)
+        return meta
+
+    def plex_parts(self, rating_key):
+        meta = self.plex_metadata(rating_key)
+        parts = [m['Part'][0] for m in meta.get('Media', []) if m.get('Part')]
+        usable = [p for p in parts if p.get('key', '').startswith('/library/parts/')
+                  and all(p.get(s) not in (False, 0, '0', 'false') for s in ('exists', 'accessible'))]
+        if not usable:
+            raise ValueError('Plex reports the source file is missing or inaccessible on the server' if parts else
+                             'Plex item has no playable media')
+        return usable
 
     def plex_part(self, rating_key):
+        return self.plex_url(self.plex_parts(rating_key)[0]['key'])
+
+    def plex_url(self, part):
         from urllib.parse import urlencode
-        meta = self.plex_metadata(rating_key)
-        part = next((p['key'] for m in meta.get('Media', []) for p in m.get('Part', [])
-                     if p.get('key', '').startswith('/library/parts/')), None)
-        if part is None:
-            raise ValueError(f'Plex item {rating_key} has no playable media part')
         query = urlencode({'X-Plex-Token': self.s['plex_token']})
         sep = '&' if '?' in part else '?'
         return f"{self.s['plex_url'].rstrip('/')}{part}{sep}{query}"
@@ -228,12 +266,25 @@ class Media:
         return hit['summary'] if isinstance(hit['summary'], str) else ''
 
     def probe(self, source):
-        k = self.key(source)
+        if source.startswith('plex:'):
+            error = None
+            for part in self.plex_parts(source[5:]):
+                url = self.plex_url(part['key'])
+                key = source + '|' + part['key']
+                try:
+                    return {**self.probe_file(source, key, url), 'input': url}
+                except (OSError, ValueError, KeyError, RuntimeError, subprocess.SubprocessError) as exc:
+                    error = exc
+            raise error
+        return self.probe_file(source, self.key(source), source)
+
+    def probe_file(self, source, k, url):
         hit = self.cache.get(k, {})
-        if not isinstance(hit.get('duration'), (float, int)) or not 0 < hit['duration'] < math.inf:
+        if not isinstance(hit.get('duration'), (float, int)) or not 0 < hit['duration'] < math.inf or 'audio_index' not in hit:
             out = subprocess.run(creationflags=NO_WINDOW, args=[self.ffprobe, '-v', 'error', '-show_entries',
-                                  'format=duration:stream=codec_type,codec_name,width,height',
-                                  '-of', 'json', self.url(source)], capture_output=True, text=True,
+                                  'format=duration:stream=index,codec_type,codec_name,width,height:'
+                                  'stream_tags=language,title:stream_disposition=default,comment,visual_impaired',
+                                  '-of', 'json', url], capture_output=True, text=True,
                                  encoding='utf-8', errors='replace', timeout=20)
             if out.returncode:
                 raise RuntimeError(redact(f'ffprobe failed for {source}: {out.stderr.strip()}'))
@@ -241,10 +292,18 @@ class Media:
             duration = float(info['format']['duration'])
             if not 0 < duration < math.inf:
                 raise ValueError(f'Invalid media duration for {source}')
+            audio = [s for s in info.get('streams', []) if s['codec_type'] == 'audio']
+            def preference(stream):
+                tags, flags = stream.get('tags', {}), stream.get('disposition', {})
+                language = tags.get('language', '').lower().split('-')[0]
+                secondary = flags.get('comment') or flags.get('visual_impaired') or re.search(
+                    r'\b(commentary|audio description|descriptive audio)\b', tags.get('title', ''), re.I)
+                return not secondary, language in ('en', 'eng', 'english'), bool(flags.get('default'))
+            track = max(audio, key=preference, default={})
             with self.cache_lock:
                 hit = self.cache.setdefault(k, {})
                 hit.update(duration=duration,
-                           audio=any(s['codec_type'] == 'audio' for s in info['streams']),
+                           audio=bool(audio), audio_index=track.get('index'),
                            video=next(({k: s.get(k) for k in ('codec_name', 'width', 'height')}
                                        for s in info['streams'] if s['codec_type'] == 'video'), None))
                 self._dirty.add(k)
@@ -394,13 +453,21 @@ class Channel:
             try:
                 source = p['source']
                 if not source.startswith('plex:'):
+                    if portable() and not Path(source).is_absolute():
+                        source = str(Path(media.s.get('data_root') or ROOT) / source)
                     media.key(source)
                 inpoint = float(p.get('inpoint') or 0)
                 duration = p.get('duration')
+                if source.startswith('plex:') and duration is None:
+                    part = media.plex_parts(source[5:])[0]
+                    if part.get('duration'):
+                        duration = float(part['duration']) / 1000 - inpoint
                 dur = float(duration) if duration is not None else media.probe(source)['duration'] - inpoint
                 if not 0 <= inpoint < math.inf or not 2 <= dur < math.inf:
                     raise ValueError('invalid duration or in-point')
-                summary = p['summary'] if isinstance(p.get('summary'), str) else media.summary(source)
+                summary = p.get('summary')
+                if not isinstance(summary, str) or not summary.strip():
+                    summary = media.summary(source)
                 self.programmes.append(dict(title=p['title'], source=source, inpoint=inpoint, duration=dur,
                                             breaks=p.get('breaks', 'auto'), summary=summary))
             except (OSError, ValueError, TypeError, KeyError, RuntimeError, subprocess.SubprocessError) as e:
@@ -663,11 +730,11 @@ def record_groups(records, size, budget):
     return groups
 
 
-def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID, stations=(), radio_titles=None, radio_version=0):
+def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID, stations=(), radio_tracks=None, radio_version=0):
     """Guide data on the home transport and, when split, on the TV/radio transport."""
     when = datetime.fromtimestamp(int(now), timezone.utc)
     sod = int(now) % 86400
-    radio_titles = radio_titles or {}
+    radio_tracks = radio_tracks or {}
     split = bool(music or stations)
     if not split:
         on = HOME_TSID
@@ -726,7 +793,7 @@ def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID, stations=(
                 name = c.name.encode('latin-1', 'replace')[:40]
                 desc = namespace + descriptor(0x48, bytes((kind,)) + b'\x05PLAYO' + bytes((len(name),)) + name)
                 if kind == 2:
-                    current, genre = radio_titles.get(c.number, 'Live Radio'), 4
+                    current, genre = radio_tracks.get(c.number, ('', ''))[0] or 'Live Radio', 4
                 else:
                     it, _, _ = c.at(now)
                     current = it['title'] or next((t for s, l, t, _ in c.events_utc(when.date())
@@ -792,14 +859,24 @@ def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID, stations=(
         mjd = (d - EPOCH).days
         for c in services_to_list:
             radio = isinstance(c, RadioStation)
-            title = radio_titles.get(c.number, '') if radio and dd == 0 else ''
+            title, description = radio_tracks.get(c.number, ('', '')) if radio and dd == 0 else ('', '')
             schedule = c.events_utc(d, sod, title) if radio else c.events_utc(d)
             events = [(dd * 1000 + (s // 1800 if radio else n) + 1, s, l, guide_text(codec, t, 200))
                       for n, (s, l, t, _) in enumerate(schedule)]
-            synopses = [guide_text(codec, sm, 255) if full else '' for *_, sm in schedule]
+            synopses = [guide_text(codec, description or sm, 255) for *_, sm in schedule]
+            if dd == 0:
+                midnight = when.replace(hour=0, minute=0, second=0)
+                service_tsid = CHAN_TSID if split else HOME_TSID
+                table = 0x4e if service_tsid == on else 0x4f
+                entries = [(event_id, midnight + timedelta(seconds=s), l, t, sm)
+                           for (event_id, s, l, t), sm in zip(events, synopses) if s + l > sod][:2]
+                version = (radio_version if radio else (entries[0][0] if entries else 0)) % 32
+                for i in range(2):
+                    tables.append((0x12, present_following(table, c.sid, service_tsid, ONID, version, i,
+                                                          entries[i] if i < len(entries) else None)))
             if not full:     # now and next: the event on air and the one after it
                 keep = [i for i, e in enumerate(events) if e[1] + e[2] > sod][:2]
-                events, synopses = [events[i] for i in keep], ['' for i in keep]
+                events, synopses = [events[i] for i in keep], [synopses[i] for i in keep]
             groups = {}
             for ev, sm in zip(events, synopses):
                 groups.setdefault(ev[1] // 21600, []).append((ev, sm))

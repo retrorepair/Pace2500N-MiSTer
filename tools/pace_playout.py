@@ -53,6 +53,18 @@ def normalised_audio(target):
     return f'{STEREO_48K},loudnorm=I={target}:TP={TRUE_PEAK}:LRA=18,aresample=48000'
 
 
+def pal_video_filter(letterbox):
+    if letterbox:
+        # Fit the source display aspect (including anamorphic SAR) into a
+        # 720x576 PAL 4:3 raster whose samples are 16:15. Keep interlaced
+        # height divisible by four so both fields get the same border.
+        geometry = ("scale='min(720,round(576*dar*15/32)*2)':'min(576,round(720*16/60/dar)*4)'"
+                    ':flags=lanczos:interl=-1,pad=720:576:(ow-iw)/2:(oh-ih)/2:black')
+    else:
+        geometry = 'scale=720:576:flags=lanczos'
+    return geometry + ',setsar=16/15,fps=25,format=yuv420p,setfield=tff'
+
+
 def pid_of(p):
     return ((p[1] & 0x1f) << 8) | p[2]
 
@@ -105,9 +117,10 @@ class Weaver:
 class Session:
     """One /tune request."""
 
-    def __init__(self, server, chan, on, connection):
+    def __init__(self, server, chan, on, connection, *, letterbox=False):
         self.srv, self.connection = server, connection
         self.chan, self.on = chan, on
+        self.letterbox = letterbox
         self.start = time.time()
         self.sent = 0
         self.item = None
@@ -302,7 +315,7 @@ class Session:
             self.srv.log(f"{c.name}: {it['kind']} '{it['title']}' {Path(it['source']).name} "
                          f"@{it['inpoint'] + offset:.1f}s for {remaining:.1f}s")
             try:
-                cmd = self.srv.ffmpeg_cmd(c, it['source'], it['inpoint'] + offset, remaining)
+                cmd = self.srv.ffmpeg_cmd(c, it['source'], it['inpoint'] + offset, remaining, letterbox=self.letterbox)
                 self.transcode(cmd, w, target)
             except ClientDisconnected:
                 raise
@@ -318,6 +331,8 @@ class Server(ThreadingHTTPServer):
     def handle_error(self, request, client_address):
         """Request errors go to the log (a windowed app has no stderr)."""
         import traceback
+        if isinstance(sys.exc_info()[1], ConnectionError):
+            return  # normal disconnect, including sockets closed during a line-up reload
         self.log(f'request from {client_address[0]} failed:\n' + traceback.format_exc())
 
     def __init__(self, port, lineup, settings, log=None):
@@ -356,7 +371,8 @@ class Server(ThreadingHTTPServer):
         self.radio_metadata = RadioMetadata(self.stations)
 
     def server_close(self):
-        self.radio_metadata.stop.set()
+        if hasattr(self, 'radio_metadata'):
+            self.radio_metadata.stop.set()
         with self.session_lock:
             self.closing = True
             for session in self.sessions:
@@ -421,27 +437,29 @@ class Server(ThreadingHTTPServer):
             slot_changed = self.stations and int(when) // 1800 != int(stamp) // 1800
             if si is None or slot_changed or abs(when - stamp) > 60 or int(when) // 86400 != int(stamp) // 86400:
                 tables, today = lineup_tables(when, self.codec, self.chans, int(self.settings['days']),
-                                              music=True, on=on, stations=self.stations, radio_titles=titles,
+                                              music=True, on=on, stations=self.stations, radio_tracks=titles,
                                               radio_version=self._radio_version)
                 si = carousel(tables, today)
                 self._si[on] = (when, si)
             return si
 
-    def ffmpeg_cmd(self, c, source, start, length):
+    def ffmpeg_cmd(self, c, source, start, length, *, letterbox=False):
         info = self.media.probe(source)
         if not info.get('video'):
             raise ValueError('source contains no video stream')
         cmd = [self.settings['ffmpeg'], '-hide_banner', '-loglevel', 'error', '-nostdin',
-               '-ss', f'{start:.3f}', '-t', f'{length:.3f}', '-i', self.media.url(source)]
+               '-ss', f'{start:.3f}', '-t', f'{length:.3f}', '-i', info.get('input', source)]
         amap = '0:a:0'
         audio_filter = STEREO_48K
         if info.get('audio'):
+            if info.get('audio_index') is not None:
+                amap = f"0:{info['audio_index']}"
             audio_filter = normalised_audio(TV_LUFS)
         else:
             cmd += ['-f', 'lavfi', '-t', f'{length:.3f}', '-i', 'anullsrc=r=48000:cl=stereo']
             amap = '1:a:0'
         cmd += ['-map', '0:v:0', '-map', amap,
-                '-vf', 'scale=720:576:flags=lanczos,setsar=16/15,fps=25,format=yuv420p,setfield=tff',
+                '-vf', pal_video_filter(letterbox),
                 '-af', audio_filter,
                 '-c:v', 'mpeg2video', '-flags', '+ilme+ildct', '-g', '12', '-bf', '2',
                 '-b:v', f'{VIDEO_KBPS}k', '-maxrate', f'{VIDEO_KBPS + 600}k', '-bufsize', '1835k',
@@ -473,7 +491,7 @@ class Server(ThreadingHTTPServer):
                                                   source=Path(s.item['source']).name))
                         for s in self.sessions]
         tracks = self.radio_metadata.snapshot()
-        radio = [dict(number=s.number, name=s.name, now=tracks.get(s.number, '')) for s in self.stations]
+        radio = [dict(number=s.number, name=s.name, now=tracks.get(s.number, ('', ''))[0]) for s in self.stations]
         return dict(utc=datetime.now(timezone.utc).strftime('%H:%M:%S'), channels=out, radio=radio, streaming=sessions,
                     log=list(self.history.copy())[-15:])
 
@@ -492,6 +510,7 @@ class Handler(BaseHTTPRequestHandler):
                 video = int(q.get('video', ['0x1fff'])[0], 0)
                 audio = int(q.get('audio', ['0x1fff'])[0], 0)
                 freq = int(q['freq'][0], 16) if q.get('freq') else None
+                letterbox = q.get('letterbox') == ['1']
                 if not (0 <= video <= 0xffff and 0 <= audio <= 0xffff and
                         (freq is None or 0 <= freq <= 0xffffffff)):
                     raise ValueError
@@ -511,9 +530,10 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header('X-Pace-Service', f'{ident}@{on}')
             self.end_headers()
             self.server.log(f'tune from {self.client_address[0]}: video {video:04x} audio {audio:04x}'
-                            + (f' at {freq >> 8:x}.{freq & 0xff:02x} MHz' if freq else ''))
+                            + (f' at {freq >> 8:x}.{freq & 0xff:02x} MHz' if freq else '')
+                            + (' (4:3 letterbox)' if letterbox else ''))
             self.server.last_box = (time.time(), self.client_address[0])
-            Session(self.server, channel, on, self.connection).run()
+            Session(self.server, channel, on, self.connection, letterbox=letterbox).run()
         elif url.path == '/now.json':
             body = json.dumps(self.server.now(), indent=1).encode()
             self.send_response(200)

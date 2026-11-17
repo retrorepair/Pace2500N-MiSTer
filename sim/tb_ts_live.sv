@@ -91,6 +91,7 @@ module tb_ts_live;
   else if(sq && !sa && ($random&1))begin sa<=1;mem[sad-29'h06600000]<=swd;end
  end
  wire restart,resync,streaming,live,epg_mode,epg_music;
+ reg letterbox=0;
  wire [39:0] start_byte;
  reg [7:0] phase=0;
  wire valid;wire [7:0] data;
@@ -100,7 +101,7 @@ module tb_ts_live;
   .img_mounted(img_mounted),.img_size(img_size),
   .sd_lba(sd_lba),.sd_blk_cnt(sd_blk_cnt),.sd_rd(sd_rd),.sd_wr(sd_wr),.sd_ack(sd_ack),.sd_buff_addr(sd_buff_addr),
   .sd_buff_dout(sd_buff_dout),.sd_buff_wr(sd_buff_wr),.sd_buff_din(sd_buff_din),
-  .video_pid(16'h4200),.audio_pid(16'h4102),.underruns(underruns),.boundary(phase==0),
+  .video_pid(16'h4200),.audio_pid(16'h4102),.underruns(underruns),.letterbox(letterbox),.boundary(phase==0),
   .played(played),.active(streaming),.restart(restart),.resync(resync),.live(live),
   .epg_mode(epg_mode),.epg_music(epg_music),.written(written),.loops(loops),
   .mem_req(sq),.mem_addr(sad),.mem_wdata(swd),.mem_be(sbe),.mem_accept(sa && sq));
@@ -132,6 +133,9 @@ module tb_ts_live;
   // play session 1 through several ring wraps, then switch mid-packet
   wait(total==5*RING+1001);
   stat_ok=file[512]=="P" && file[519]=="T" && get32(512+8)==1 && {file[528],file[529]}==16'h4200 && {file[530],file[531]}==16'h4102;
+  if(get32(544)!==32'h4c423100)$fatal(1,"missing LB1 status extension");
+  letterbox=1;
+  while(get32(544)!==32'h4c423101)@(negedge clk);
   if(epg_mode || epg_music)$fatal(1,"legacy header enabled EPG routing");
   file[24]="A";file[25]="V";file[26]="1";file[27]=8'h01;
   wait(epg_mode);
