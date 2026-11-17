@@ -11,9 +11,9 @@ programmes.
 > notes are in `CURRENT_STATUS.md`, `handoff.md` and `re/`.
 
 **Downloads:** [Releases](https://github.com/retrorepair/Pace2500N-MiSTer/releases)
-(**v0.7.7-rc2**, release candidate) — `Pace2500N_V077.rbf` (the core),
-`Pace2500N-MiSTer-files-v0.7.7-rc2.zip` (launcher and relay) and
-`PaceChannelBuilder-v0.7.7-rc2-windows.zip` (the Windows app). The last
+(**v0.7.7-rc3**, release candidate) — `Pace2500N_V077.rbf` (the core),
+`Pace2500N-MiSTer-files-v0.7.7-rc3.zip` (launcher and relay) and
+`PaceChannelBuilder-v0.7.7-rc3-windows.zip` (the Windows app). The last
 stable release is v0.7.5 (v0.7.4 core). Supply your own firmware and Guide
 checkpoint.
 
@@ -98,7 +98,7 @@ box is built into it.
 A normal Windows program - nothing else to install (Python, ffmpeg and yt-dlp
 are inside its folder).
 
-- **Get it:** unzip `PaceChannelBuilder-v0.7.7-rc2-windows.zip` from
+- **Get it:** unzip `PaceChannelBuilder-v0.7.7-rc3-windows.zip` from
   [Releases](https://github.com/retrorepair/Pace2500N-MiSTer/releases) anywhere
   (e.g. `C:\PaceChannelBuilder`) and run `PaceChannelBuilder.exe`. Keep the
   whole folder together. Windows SmartScreen may warn the first time (the exe
