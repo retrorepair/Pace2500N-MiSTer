@@ -1,0 +1,59 @@
+--- a/sys/ascal.vhd
++++ b/sys/ascal.vhd
+@@ -474,7 +474,7 @@
+ 	SIGNAL o_iendframe0,o_iendframe02,o_iendframe1,o_iendframe12 : std_logic;
+ 	SIGNAL o_bufup0,o_bufup1,o_inter : std_logic;
+ 	SIGNAL o_ibuf0,o_ibuf1,o_obuf0,o_obuf1 : natural RANGE 0 TO 2;
+-	TYPE enum_o_state IS (sDISP,sHSYNC,sREAD,sWAITREAD);
++	TYPE enum_o_state IS (sDISP,sHSYNC,sADDRESS,sREAD,sWAITREAD);
+ 	SIGNAL o_state : enum_o_state;
+ 	TYPE enum_o_copy IS (sWAIT,sSHIFT,sCOPY);
+ 	SIGNAL o_copy : enum_o_copy;
+@@ -483,6 +483,7 @@
+ 	SIGNAL o_readdataack,o_readdataack_sync,o_readdataack_sync2 : std_logic;
+ 	SIGNAL o_copyv : unsigned(0 TO 14);
+ 	SIGNAL o_adrs : unsigned(31 DOWNTO 0); -- Avalon address
++	SIGNAL o_adrs_line : unsigned(11 DOWNTO 0);
+ 	SIGNAL o_adrs_pre : natural RANGE 0 TO 2**24-1;
+ 	SIGNAL o_stride : unsigned(13 DOWNTO 0);
+ 	SIGNAL o_adrsa,o_adrsb,o_rline : std_logic;
+@@ -2109,12 +2110,16 @@
+ 					o_divstart<=to_std_logic(NOT vcarry_v);
+ 					IF NOT vcarry_v  OR o_fload>0 THEN
+ 						IF (o_vpe='1' AND o_vcarrym) OR o_fload>0 THEN
+-							o_state<=sREAD;
++							o_state<=sADDRESS;
+ 						ELSE
+ 							o_state<=sDISP;
+ 						END IF;
+ 					END IF;
+ 
++				WHEN sADDRESS =>
++					-- Allow the registered line selection to reach the stride multiplier.
++					o_state<=sREAD;
++
+ 				WHEN sREAD =>
+ 					-- Read a block
+ 					IF o_readlev<2 AND o_adrsb='1' THEN
+@@ -2161,16 +2166,17 @@
+ 			IF o_inter='1' AND o_bob_deint='1' THEN
+ 				IF o_iwfl(o_obuf0)='0' THEN
+ 					IF o_vacpt=0 OR o_rline='1' THEN
+-						o_adrs_pre <= to_integer(o_vacpt) * to_integer(o_stride);
++						o_adrs_line <= o_vacpt;
+ 					ELSE
+-						o_adrs_pre <= (to_integer(o_vacpt)-1) * to_integer(o_stride);
++						o_adrs_line <= o_vacpt - 1;
+ 					END IF;
+ 				ELSE
+-					o_adrs_pre <= to_integer(o_vacpt(11 DOWNTO 1) & "0") * to_integer(o_stride);
++					o_adrs_line <= o_vacpt(11 DOWNTO 1) & "0";
+ 				END IF;
+ 			ELSE
+-				o_adrs_pre<=to_integer(o_vacpt) * to_integer(o_stride);
++				o_adrs_line <= o_vacpt;
+ 			END IF;
++			o_adrs_pre <= to_integer(o_adrs_line) * to_integer(o_stride);
+ 
+ 			IF o_adrsa='1' THEN
+ 				IF o_fload=2 THEN
