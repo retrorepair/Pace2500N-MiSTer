@@ -4,6 +4,16 @@
 Quartus results and HDL regressions. The latest session is directly below; the original
 7 Nov snapshot further down is retained for history only (it predates everything that works).
 
+## Session 17 Nov 2026 (late) - reminders route, stale listings, screenshots
+
+- REMINDERS: the user set one successfully FROM THE CHANNEL (banner Search Time -> future
+  programme -> Select). Every refusal seen by the agent was from the ALL CHANNELS grid
+  (incl. from a grid synopsis). So the grid route is what fails - compare the two paths.
+- STALE LISTINGS FIXED (`7fe4b55`): TV title/synopsis sections now carry a content-derived
+  version (they were always 0, so a box kept stale blocks after any schedule change -> "..no
+  listings available"). Not in rc2.
+- Screenshots in `docs/screenshots/`, gallery in README (`9ec1c85`).
+
 ## Session 17 Nov 2026 (evening) - genres, advert spots, Guide music timing
 
 - GENRES (`4b29652`): the Guide's genre pages list channels by the 3-bit genre in SDT 0xB2.
