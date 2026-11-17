@@ -4,6 +4,7 @@ This is not a historical listings database or a generic OpenTV title encoder.
 Private descriptor field layouts follow the same-ROM RE recorded in
 re/TRANSPORT_INTEGRATION.md; standard DVB tables are encoded independently.
 """
+import hashlib
 from datetime import datetime, timezone
 from pace_transport import crc32_mpeg
 
@@ -71,7 +72,14 @@ def present_following(table, sid, tsid, onid, version, section, event):
     return long_section(table, sid, body, version=version, section=section, last=1)
 
 
-def title_section(table, listing, mjd, events, codec, section=0, last=0, version=0):
+def content_version(payload):
+    """A section version that follows its contents: stable while they are unchanged, different
+    when they change - a box keeps a section it already has unless the version moves, so a
+    fixed version leaves stale listings ("no listings available") after a schedule change."""
+    return int(hashlib.md5(payload).hexdigest(), 16) % 32
+
+
+def title_section(table, listing, mjd, events, codec, section=0, last=0, version=None):
     records = bytearray()
     for event_id, start, duration, title in events:
         if start % 2 or duration % 2 or not 0 <= start < 86400 or not 0 < duration <= 86400:
@@ -80,7 +88,9 @@ def title_section(table, listing, mjd, events, codec, section=0, last=0, version
         desc = descriptor(0xb5, body)
         # packet_length counts AFTER the four-byte event/length header.
         records += u16(event_id) + u16(0xf000 | len(desc)) + desc
-    return long_section(table, listing, u16(mjd) + records, version=version, section=section, last=last)
+    payload = u16(mjd) + records
+    version = content_version(payload) if version is None else version
+    return long_section(table, listing, payload, version=version, section=section, last=last)
 
 
 def summary_section(table, listing, mjd, summaries, section=0, last=0):
@@ -91,7 +101,8 @@ def summary_section(table, listing, mjd, summaries, section=0, last=0):
     for event_id, coded in summaries:
         desc = descriptor(0xb9, coded)
         records += u16(event_id) + u16(0xf000 | len(desc)) + desc
-    return long_section(table, listing, u16(mjd) + records, section=section, last=last)
+    payload = u16(mjd) + records
+    return long_section(table, listing, payload, version=content_version(payload), section=section, last=last)
 
 
 def loop_events(title, duration, anchor):

@@ -979,7 +979,7 @@ def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID, stations=(
                 for i, chunk in enumerate(chunks):
                     tables.append((0x30 | (mjd & 7), title_section(0xa0 | block, c.listing, mjd, chunk,
                                                                   codec, i, len(chunks) - 1,
-                                                                  version=radio_version if radio and dd == 0 else 0)))
+                                                                  version=radio_version if radio and dd == 0 else None)))
                 # OpenTV summaries: same channel id / day / block addressing as the titles,
                 # table 0xA8-0xAB on PID 0x40-0x47, descriptor 0xB9 per event id; a section
                 # holds as many as fit (a synopsis is up to 255 coded bytes)
