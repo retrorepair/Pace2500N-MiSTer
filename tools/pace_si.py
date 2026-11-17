@@ -79,12 +79,16 @@ def content_version(payload):
     return int(hashlib.md5(payload).hexdigest(), 16) % 32
 
 
-def title_section(table, listing, mjd, events, codec, section=0, last=0, version=None):
+def title_section(table, listing, mjd, events, codec, section=0, last=0, version=None, theme=0):
+    """OpenTV title section. `theme` is the programmes' Sky theme byte (descriptor body +4):
+    category << 5 | sub-genre, the category being the same 3-bit code as the SDT 0xB2 genre
+    (1 Specialist, 2 Kids, 3 Entertainment, 4 Music, 5 News & Documentaries, 6 Movies,
+    7 Sports); 0 is "no genre"."""
     records = bytearray()
     for event_id, start, duration, title in events:
         if start % 2 or duration % 2 or not 0 <= start < 86400 or not 0 < duration <= 86400:
             raise ValueError('OpenTV times need positive durations and even seconds')
-        body = u16(start // 2) + u16(duration // 2) + b'\x00\x00\x00' + codec.encode(title)
+        body = u16(start // 2) + u16(duration // 2) + bytes((theme, 0, 0)) + codec.encode(title)
         desc = descriptor(0xb5, body)
         # packet_length counts AFTER the four-byte event/length header.
         records += u16(event_id) + u16(0xf000 | len(desc)) + desc

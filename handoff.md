@@ -4,6 +4,39 @@
 Quartus results and HDL regressions. The latest session is directly below; the original
 7 Nov snapshot further down is retained for history only (it predates everything that works).
 
+## Session 17 Nov 2026 (late night) - reminders from the Guide grid fixed
+
+- CAUSE 1, the refusal ("The reminder can't be set for this programme"): the Guide's o-code
+  (function at 9FC79F01, listed with the reference o-code table: `re/reference_goretrotv/tools/
+  ocode-disasm.py` opcodes, scratch decoder synchronised on 9FC7A04D) calls native (12,0x16)
+  = 800C66D0 into a 0x17C-byte details buffer and tests details +0x2C at 9FC79FCC. 800C9F58
+  copies that from the stored record +4 = the title descriptor's theme byte (our r+10), which we
+  sent as 0. Refused only if +0x2C == 0 AND o-code 9FC75AFB(item) == 0 AND row type != 0x10.
+  FIX: title records carry Sky's theme byte = genre category << 5 (tvheadend's skyuk table:
+  0x40 Kids, 0x60 Ent, 0x80 Music, 0xA0 News/Doc, 0xC0 Movies, 0xE0 Sports; same 3-bit code as
+  SDT 0xB2), from the channel genre (radio 0x80). Decompile: `re/reminder_details_ghidra.txt`
+  (Ghidra 12.1.4 - the 11.4.2 one cannot open the project; `re/scripts/DecompileMips16.java`
+  sets ISA_MODE and makes MIPS16 functions where none exist).
+- CAUSE 2, bookings vanished after leaving the Guide: the channels transponder sent cut-down
+  now/next title sections under the same table/extension with a different (content) version,
+  so tuning a channel replaced the box's full block and the Guide dropped bookings whose
+  programme had gone. FIX: the channels transponder carries the current and next six-hour
+  blocks as the very same sections (checked: 36 of 36 byte-identical to home ones). Side
+  effect: banner Search Time now shows the real programme after next (was "0:00am").
+- Verified on hardware: grid Select adds to the Personal Planner (BBC2 Red Dwarf, Retro Toons
+  Count Duckula, Tiny Pop Sunny Bunnies), the firmware's REMINDER CLASH screen for overlaps,
+  booking kept after leaving the Guide for a channel and returning. Selecting the programme on
+  air goes to the planner without adding (expected).
+- Reminder FIRES: 7:12pm "Personal Planner - Reminder / This programme is about to start /
+  Sunny Bunnies 7:12pm Tiny Pop"; Select tuned Tiny Pop; the 7:14 Count Duckula one followed and
+  Select tuned Retro Toons. OPEN: banner look-ahead Select ("Press SELECT to set reminder")
+  returns silently and adds nothing, even with no clash (Super Mario 7:39 Retro Toons). The
+  user believed banner reminders worked earlier - none showed in the planner here. In 800C66D0
+  the record-type-2 path (+0x1D == 2, mask 0xBC read) never fills details +0x2C, so that route
+  depends on o-code 9FC75AFB / the row type; the banner o-code is not decoded yet.
+- Seen once, not chased: after leaving the Guide the box retuned 12207 with no PIDs (black
+  BBC2) - log "guide data only (no channel tuned)" with no follow-up tune.
+
 ## Session 17 Nov 2026 (night, later) - IPTV guides for any channel; genre index versions; rc3
 
 - GUIDE INDEX: `iptv_guide_index()` (pace_channels.py) builds iptv-org channel id ->

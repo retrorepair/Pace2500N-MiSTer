@@ -1161,8 +1161,8 @@ def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID, stations=(
     tables = [(0x14, tot(when)), (0x10, nit)] + [(0x11, x) for x in sdts + bats] + [(0, pat)] + pmts
     index_events = []
     # The full guide (every day, synopses, the A-Z/genre index) is on the home transponder only;
-    # another transponder carries just the programmes around now - Sky's other transponders
-    # had "a couple of hours of Now and Next" for the banner, the 7 days needed the EPG one.
+    # another transponder carries just the hours around now - Sky's other transponders had
+    # "a couple of hours of Now and Next" for the banner, the 7 days needed the EPG one.
     full = on == HOME_TSID
     if music:
         # Present/following for the background-audio service as well (empty: no programme),
@@ -1193,22 +1193,32 @@ def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID, stations=(
                 for i in range(2):
                     tables.append((0x12, present_following(table, c.sid, service_tsid, ONID, version, i,
                                                           entries[i] if i < len(entries) else None)))
-            if not full:     # now and next: the event on air and the one after it
-                keep = [i for i, e in enumerate(events) if e[1] + e[2] > sod][:2]
-                events, synopses = [events[i] for i in keep], [synopses[i] for i in keep]
             groups = {}
             for ev, sm in zip(events, synopses):
                 groups.setdefault(ev[1] // 21600, []).append((ev, sm))
                 if dd == 0 and full:
                     index_events.append((c.listing, ev, 4 if radio else c.genre))
+            if not full:
+                # The current and next six-hour blocks, as the very same sections the home
+                # transponder carries (same events, same versions). A cut-down now/next section
+                # under the same table/extension had a different version, so tuning a channel
+                # replaced the box's full block with two events and the Guide dropped any
+                # reminder whose programme was no longer listed.
+                groups = {b: g for b, g in groups.items() if sod // 21600 <= b <= sod // 21600 + 1}
             for block, group in groups.items():
                 titles = [ev for ev, _ in group]
                 # A long section has 1012 bytes of payload, two reserved for MJD.
                 chunks = record_groups(titles, lambda e: 13 + len(codec.encode(e[3])), 1010)
+                # Theme byte: the channel's genre as Sky's category (high three bits), general
+                # sub-genre. The Guide refuses a reminder for a programme stored with theme 0
+                # ("The reminder can't be set for this programme"): o-code at 9FC79FC2 calls
+                # native (12,0x16) and tests the details' +0x2C, which 800C9F58 copies from
+                # the stored record's +4.
                 for i, chunk in enumerate(chunks):
                     tables.append((0x30 | (mjd & 7), title_section(0xa0 | block, c.listing, mjd, chunk,
                                                                   codec, i, len(chunks) - 1,
-                                                                  version=radio_version if radio and dd == 0 else None)))
+                                                                  version=radio_version if radio and dd == 0 else None,
+                                                                  theme=(4 if radio else c.genre) << 5)))
                 # OpenTV summaries: same channel id / day / block addressing as the titles,
                 # table 0xA8-0xAB on PID 0x40-0x47, descriptor 0xB9 per event id; a section
                 # holds as many as fit (a synopsis is up to 255 coded bytes)
