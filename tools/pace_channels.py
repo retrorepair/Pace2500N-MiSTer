@@ -770,6 +770,43 @@ def iptv_guide(cfg):
     return None
 
 
+# iptv-org lists link to anything that streams, including unofficial re-streams of paid
+# channels from bare IP addresses. These hosts are the broadcasters' own and the free
+# ad-supported platforms that carry channels with their owners' permission.
+OFFICIAL_IPTV_HOSTS = ('jmp2.uk/plu-', 'pluto.tv', 'amagi.tv', 'mediatailor.', 'samsung', 'wurl.',
+                       'bbci.co.uk', 'akamaized.net/x=4/i=urn:bbc', 'plex.tv', 'stv.tv', 'channel5')
+IPTV_GENRES = [(('kids', 'animation', 'children'), 'kids'), (('movie',), 'movies'), (('sport',), 'sports'),
+               (('news', 'documentary', 'education', 'science', 'culture', 'weather'), 'news'),
+               (('music',), 'music')]
+GENRE_BLOCK = {'entertainment': 101, 'movies': 301, 'sports': 401, 'music': 451, 'news': 501, 'kids': 601,
+               'specialist': 901}
+
+
+def iptv_playlist(country='uk', url=None):
+    """An iptv-org country list as [{name, url, group, genre, official, notes}] (raw entries;
+    `official` marks the hosts above)."""
+    import urllib.request
+    url = url or f'https://iptv-org.github.io/iptv/countries/{country}.m3u'
+    req = urllib.request.Request(url, headers={'User-Agent': 'Pace2500N'})
+    with urllib.request.urlopen(req, timeout=20) as r:
+        lines = r.read(32 << 20).decode('utf-8', 'replace').splitlines()
+    out = []
+    for i, line in enumerate(lines):
+        if not line.startswith('#EXTINF'):
+            continue
+        stream = next((x.strip() for x in lines[i + 1:i + 5] if x.strip() and not x.startswith('#')), '')
+        if not stream.lower().startswith(('http://', 'https://')):
+            continue
+        name = line.rsplit(',', 1)[-1].strip()
+        notes = ' '.join(re.findall(r'\[[^\]]*\]', name))
+        clean = re.sub(r'\s*\[[^\]]*\]|\s*\(\d+p\)', '', name).strip()
+        group = (re.search(r'group-title="([^"]*)"', line) or [None, ''])[1]
+        genre = next((g for words, g in IPTV_GENRES if any(w in group.lower() for w in words)), 'entertainment')
+        out.append(dict(name=clean, url=stream, group=group, genre=genre, notes=notes,
+                        official=any(h in stream for h in OFFICIAL_IPTV_HOSTS)))
+    return out
+
+
 class LiveChannel:
     """A numbered TV channel fed by a live internet stream (IPTV: HLS or MPEG-TS over HTTP).
     Same service/PID layout as a scheduled channel; nothing is transcoded until the box tunes

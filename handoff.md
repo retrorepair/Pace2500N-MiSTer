@@ -24,8 +24,14 @@ Quartus results and HDL regressions. The latest session is directly below; the o
   links Pluto's UK guide https://i.mjh.nz/PlutoTV/gb.xml.gz (~16 h ahead). Programmes become the
   listings, synopses (sub-title + desc) and now/next; gaps are "Live TV". Verified on hardware:
   KIDS page lists 601 (genre 2 = Kids confirmed), real cells, and Info shows "Danger Mouse: The
-  Day of the Suds..." Next: an M3U/channel picker in Channel Builder; non-Pluto guides
-  (iptv-org/epg is a grabber you run, not hosted files).
+  Day of the Suds...".
+- PICKER: Channel Builder **Add IPTV** opens `IPTVPicker` (pace_builder.pyw): iptv-org country
+  list via `pc.iptv_playlist()`, search, "Official sources only" (OFFICIAL_IPTV_HOSTS: Pluto,
+  Amagi, MediaTailor, Samsung, Wurl, BBC, Plex...; UK list: 170 of 308), genre from group-title,
+  number in GENRE_BLOCK (601 Kids, 301 Movies, 401 Sports, 451 Music, 501 News, 101 Ent, 901
+  Specialist; never 800-899), then an ffprobe check logged. Headless smoke test passed.
+  Hardware: 602 Tiny Pop (Amagi, needs -extension_picky 0) plays, 782 kB/s, 0 underruns.
+  Next: non-Pluto guides (iptv-org/epg is a grabber you run, not hosted files).
 
 ## Session 17 Nov 2026 (late) - reminders route, stale listings, screenshots
 

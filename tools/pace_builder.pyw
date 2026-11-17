@@ -10,7 +10,7 @@ Tabs
 
 Everything is metadata: nothing is transcoded until the box tunes a channel.
 """
-import json, os, queue, socket, subprocess, sys, threading, time, urllib.parse, urllib.request, uuid, webbrowser
+import json, os, queue, re, socket, subprocess, sys, threading, time, urllib.parse, urllib.request, uuid, webbrowser
 import tkinter as tk
 from datetime import datetime, timezone
 from pathlib import Path
@@ -572,27 +572,43 @@ class App(tk.Tk):
         self.changed()
 
     def add_iptv(self):
-        """A live TV channel from an internet stream (HLS .m3u8 or MPEG-TS over HTTP), e.g. an
-        official free channel from the iptv-org or Free-TV lists. Converted only while tuned."""
-        url = simpledialog.askstring(APP, 'Live stream URL (http/https, e.g. an .m3u8 playlist):')
-        if not url:
-            return
-        url = url.strip()
-        if not url.lower().startswith(('http://', 'https://')):
-            messagebox.showerror(APP, 'The stream needs an http:// or https:// address.')
-            return
-        name = simpledialog.askstring(APP, 'Channel name shown in the guide:', initialvalue='Live TV')
-        if not name or not name.strip():
-            return
+        """A live TV channel from an internet stream: chosen from an iptv-org country list, or
+        any stream URL typed in. Converted only while the box is tuned to it."""
+        IPTVPicker(self, self.add_live_channel)
+
+    def add_live_channel(self, name, url, genre='entertainment'):
         used = {str(o.get('number')) for o in self.lineup['channels'] + list(self.lineup.get('radio') or [])
                 if isinstance(o, dict)}
-        number = next(k for k in range(101, 800) if str(k) not in used)
+        first = pc.GENRE_BLOCK.get(genre, 101)
+        number = next((k for k in range(first, 1000) if str(k) not in used and not 800 <= k <= 899),
+                      next(k for k in range(101, 1000) if str(k) not in used and not 800 <= k <= 899))
         n = len(self.lineup['channels'])
-        self.lineup['channels'].append({'name': name.strip(), 'number': number, 'style': 'sky', 'genre': 'auto',
+        self.lineup['channels'].append({'name': name, 'number': number, 'style': 'sky', 'genre': genre,
                                         'iptv': url, 'interstitials': [], 'programmes': []})
         self.refresh_channels(n)
         self.changed()
-        self.log(f'IPTV channel {number} {name.strip()} added - change its number and genre on the right')
+        self.log(f'IPTV channel {number} {name} added ({GENRES.get(genre, genre)}) - checking the stream...')
+
+        def check():
+            probe = re.sub(r'ffmpeg(\.exe)?$', lambda m: 'ffprobe' + (m.group(1) or ''), self.settings['ffmpeg'])
+            args = [probe, '-v', 'error', '-rw_timeout', '10000000']
+            if '.m3u8' in url:
+                args += ['-extension_picky', '0']
+            args += ['-show_entries', 'stream=codec_type,codec_name,width,height', '-of', 'compact', url]
+            try:
+                out = subprocess.run(args, capture_output=True, text=True, timeout=40,
+                                     creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0)).stdout
+            except (OSError, subprocess.SubprocessError) as e:
+                out = ''
+                self.log(f'{name}: stream check failed: {e}')
+            video = re.search(r'codec_name=(\w+)\|codec_type=video\|width=(\d+)\|height=(\d+)', out)
+            audio = 'codec_type=audio' in out
+            if video and audio:
+                self.log(f'{name}: stream OK - {video.group(1)} {video.group(2)}x{video.group(3)} with sound')
+            else:
+                self.log(f'{name}: WARNING - the stream did not answer with picture and sound; it may be '
+                         'offline, geo-blocked or not a video stream')
+        threading.Thread(target=check, name='IPTV check', daemon=True).start()
 
     def del_channel(self):
         sel = self.chan_list.curselection()
@@ -1263,6 +1279,98 @@ class RadioPanel(ttk.Frame):
         self.app.lineup['radio'] = stations
         self.app.changed()
         self.refresh(select)
+
+
+class IPTVPicker(tk.Toplevel):
+    """Pick a live channel from an iptv-org country list (official sources by default), or
+    paste any stream URL."""
+    def __init__(self, app, done):
+        super().__init__(app)
+        self.title('Add an IPTV channel')
+        self.geometry('900x560')
+        self.app, self.done, self.rows = app, done, []
+        top = ttk.Frame(self, padding=8)
+        top.pack(fill='x')
+        ttk.Label(top, text='Country list').pack(side='left')
+        self.country = ttk.Combobox(top, values=['uk', 'us', 'ie', 'au', 'ca', 'fr', 'de'], width=5)
+        self.country.set('uk')
+        self.country.pack(side='left', padx=4)
+        ttk.Button(top, text='Load', command=self.load).pack(side='left', padx=4)
+        ttk.Label(top, text='Search').pack(side='left', padx=(16, 0))
+        self.search = tk.StringVar()
+        self.search.trace_add('write', lambda *a: self.show())
+        ttk.Entry(top, textvariable=self.search, width=24).pack(side='left', padx=4)
+        self.official = tk.BooleanVar(value=True)
+        ttk.Checkbutton(top, text='Official sources only (Pluto TV, Samsung TV Plus, BBC, ...)', variable=self.official,
+                        command=self.show).pack(side='left', padx=8)
+        cols = ('name', 'genre', 'notes', 'source')
+        self.tree = ttk.Treeview(self, columns=cols, show='headings', selectmode='extended')
+        for c, t, w in (('name', 'Channel', 230), ('genre', 'Guide genre', 110), ('notes', 'Notes', 140), ('source', 'Stream', 380)):
+            self.tree.heading(c, text=t)
+            self.tree.column(c, width=w, anchor='w')
+        self.tree.pack(fill='both', expand=True, padx=8)
+        row = ttk.Frame(self, padding=8)
+        row.pack(fill='x')
+        ttk.Button(row, text='Add selected', command=self.add).pack(side='left')
+        ttk.Button(row, text='Paste a stream URL instead...', command=self.paste).pack(side='left', padx=8)
+        self.status = ttk.Label(row, text='', foreground='#555')
+        self.status.pack(side='left', padx=8)
+        ttk.Label(self, text='Many unofficial entries in these lists are re-streams of paid channels; the filter keeps '
+                             'to broadcasters\' own and free ad-supported services.', foreground='#555',
+                  padding=(8, 0, 8, 8)).pack(anchor='w')
+        self.load()
+
+    def load(self):
+        country = self.country.get().strip().lower() or 'uk'
+        self.status.config(text=f'Loading the {country} list...')
+
+        def run():
+            try:
+                rows = pc.iptv_playlist(country)
+            except Exception as e:
+                msg = f'Could not load the iptv-org list: {e}'
+                self.app.ui(lambda: self.winfo_exists() and self.status.config(text=msg))
+                return
+            self.app.ui(lambda: self.winfo_exists() and self.loaded(rows))
+        threading.Thread(target=run, name='iptv-org list', daemon=True).start()
+
+    def loaded(self, rows):
+        self.rows = rows
+        self.show()
+
+    def show(self):
+        text = self.search.get().strip().lower()
+        self.tree.delete(*self.tree.get_children())
+        shown = 0
+        for i, r in enumerate(self.rows):
+            if self.official.get() and not r['official']:
+                continue
+            if text and text not in (r['name'] + ' ' + r['group']).lower():
+                continue
+            self.tree.insert('', 'end', iid=str(i), values=(r['name'], GENRES.get(r['genre'], r['genre']),
+                                                            r['notes'], r['url']))
+            shown += 1
+        self.status.config(text=f'{shown} of {len(self.rows)} channels')
+
+    def add(self):
+        picked = [self.rows[int(i)] for i in self.tree.selection()]
+        for r in picked:
+            self.done(r['name'], r['url'], r['genre'])
+        if picked:
+            self.destroy()
+
+    def paste(self):
+        url = simpledialog.askstring(APP, 'Live stream URL (http/https, e.g. an .m3u8 playlist):', parent=self)
+        if not url:
+            return
+        url = url.strip()
+        if not url.lower().startswith(('http://', 'https://')):
+            messagebox.showerror(APP, 'The stream needs an http:// or https:// address.', parent=self)
+            return
+        name = simpledialog.askstring(APP, 'Channel name shown in the guide:', initialvalue='Live TV', parent=self)
+        if name and name.strip():
+            self.done(name.strip(), url, 'entertainment')
+            self.destroy()
 
 
 class PlexPicker(tk.Toplevel):

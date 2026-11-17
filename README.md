@@ -173,9 +173,12 @@ In the app:
   it, *Exclude / include* drops anything that is not an advert, ident or
   continuity. Breaks use runs of spots exactly as they were broadcast, and never
   run across an excluded or over-long segment (e.g. a programme excerpt).
-- **Live TV channels (IPTV)** - on the **Channels** tab choose **Add IPTV**, paste a live
-  stream address (an `.m3u8` playlist or an MPEG-TS URL) and give it a name, then set its
-  channel number and Guide genre on the right. Use official free channels, e.g. from the
+- **Live TV channels (IPTV)** - on the **Channels** tab choose **Add IPTV**. A picker loads an
+  [iptv-org](https://github.com/iptv-org/iptv) country list (UK by default); search it, keep
+  *Official sources only* ticked, select channels and **Add selected**. Each gets a Guide genre
+  from the list's category and a number in Sky's block for it (Kids 601+, Movies 301+, Sports
+  401+, News 501+, Entertainment 101+), and the stream is checked (see the Playout log). Or use
+  *Paste a stream URL instead* for any `.m3u8` or MPEG-TS address. Use official free channels, e.g. from the
   [Free-TV](https://github.com/Free-TV/IPTV) or [iptv-org](https://github.com/iptv-org/iptv)
   lists (Pluto TV, Samsung TV Plus, the BBC's own UK streams); many other entries in those lists
   are unofficial re-streams of paid channels. The stream is converted only while the box is
