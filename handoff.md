@@ -4,6 +4,24 @@
 Quartus results and HDL regressions. The latest session is directly below; the original
 7 Nov snapshot further down is retained for history only (it predates everything that works).
 
+## Session 17 Nov 2026 (night, later) - IPTV guides for any channel; genre index versions; rc3
+
+- GUIDE INDEX: `iptv_guide_index()` (pace_channels.py) builds iptv-org channel id ->
+  (i.mjh.nz XMLTV url, guide id) from iptv-org's guides.json (site i.mjh.nz, site_id
+  `Path#id`; ~25 MB, 3,066 keys kept, UK guide preferred), cached weekly as
+  `%APPDATA%\Pace2500N\iptv_guides.json`. `iptv_guide(cfg)` order: line-up `epg`, Pluto link,
+  then `tvg_id`. `iptv_playlist()` now keeps `tvg-id`; the picker stores it as `tvg_id` and has
+  a *Listings* column (UK official: 98 of 170 have a guide). After adding, the Playout log says
+  where the guide data comes from.
+- Tiny Pop 602 (`tvg_id` TinyPop.uk@SD -> Plex/gb) verified on hardware: Info "Jeremy and Jazzy
+  Compilations" + synopsis, All Channels and Kids rows full, grid Info synopsis for Sunny Bunnies.
+  Line-up backup: `roms/lineup_mock.before-tvgid.json`.
+- BUG FIXED: the genre and A-Z index sections (0xC1, PID 0x52) had a fixed version 0, so the
+  box kept the Kids index from before Tiny Pop had listings and the Kids page showed only
+  now/next for both channels. Index sections now carry one content-derived version per
+  index (all its sections). All Channels was fine (titles already had content versions).
+- Selecting a future programme in a genre grid still says "The reminder can't be set" (known).
+
 ## Session 17 Nov 2026 (night) - IPTV channels
 
 - A line-up channel with `"iptv": URL` (no programmes) is a `LiveChannel` (pace_channels.py):
@@ -31,7 +49,6 @@ Quartus results and HDL regressions. The latest session is directly below; the o
   number in GENRE_BLOCK (601 Kids, 301 Movies, 401 Sports, 451 Music, 501 News, 101 Ent, 901
   Specialist; never 800-899), then an ffprobe check logged. Headless smoke test passed.
   Hardware: 602 Tiny Pop (Amagi, needs -extension_picky 0) plays, 782 kB/s, 0 underruns.
-  Next: non-Pluto guides (iptv-org/epg is a grabber you run, not hosted files).
 
 ## Session 17 Nov 2026 (late) - reminders route, stale listings, screenshots
 

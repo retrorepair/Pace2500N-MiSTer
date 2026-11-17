@@ -576,15 +576,18 @@ class App(tk.Tk):
         any stream URL typed in. Converted only while the box is tuned to it."""
         IPTVPicker(self, self.add_live_channel)
 
-    def add_live_channel(self, name, url, genre='entertainment'):
+    def add_live_channel(self, name, url, genre='entertainment', tvg_id=''):
         used = {str(o.get('number')) for o in self.lineup['channels'] + list(self.lineup.get('radio') or [])
                 if isinstance(o, dict)}
         first = pc.GENRE_BLOCK.get(genre, 101)
         number = next((k for k in range(first, 1000) if str(k) not in used and not 800 <= k <= 899),
                       next(k for k in range(101, 1000) if str(k) not in used and not 800 <= k <= 899))
         n = len(self.lineup['channels'])
-        self.lineup['channels'].append({'name': name, 'number': number, 'style': 'sky', 'genre': genre,
-                                        'iptv': url, 'interstitials': [], 'programmes': []})
+        channel = {'name': name, 'number': number, 'style': 'sky', 'genre': genre,
+                   'iptv': url, 'interstitials': [], 'programmes': []}
+        if tvg_id:
+            channel['tvg_id'] = tvg_id      # playout finds the channel's guide data by it
+        self.lineup['channels'].append(channel)
         self.refresh_channels(n)
         self.changed()
         self.log(f'IPTV channel {number} {name} added ({GENRES.get(genre, genre)}) - checking the stream...')
@@ -603,6 +606,9 @@ class App(tk.Tk):
                 self.log(f'{name}: stream check failed: {e}')
             video = re.search(r'codec_name=(\w+)\|codec_type=video\|width=(\d+)\|height=(\d+)', out)
             audio = 'codec_type=audio' in out
+            guide = pc.iptv_guide(channel)
+            self.log(f'{name}: ' + (f'guide data from {guide[0]}' if guide else
+                                    'no guide data found - the Guide will show "Live TV"'))
             if video and audio:
                 self.log(f'{name}: stream OK - {video.group(1)} {video.group(2)}x{video.group(3)} with sound')
             else:
@@ -1303,9 +1309,10 @@ class IPTVPicker(tk.Toplevel):
         self.official = tk.BooleanVar(value=True)
         ttk.Checkbutton(top, text='Official sources only (Pluto TV, Samsung TV Plus, BBC, ...)', variable=self.official,
                         command=self.show).pack(side='left', padx=8)
-        cols = ('name', 'genre', 'notes', 'source')
+        cols = ('name', 'genre', 'listings', 'notes', 'source')
         self.tree = ttk.Treeview(self, columns=cols, show='headings', selectmode='extended')
-        for c, t, w in (('name', 'Channel', 230), ('genre', 'Guide genre', 110), ('notes', 'Notes', 140), ('source', 'Stream', 380)):
+        for c, t, w in (('name', 'Channel', 220), ('genre', 'Guide genre', 100), ('listings', 'Listings', 70),
+                        ('notes', 'Notes', 120), ('source', 'Stream', 360)):
             self.tree.heading(c, text=t)
             self.tree.column(c, width=w, anchor='w')
         self.tree.pack(fill='both', expand=True, padx=8)
@@ -1327,6 +1334,8 @@ class IPTVPicker(tk.Toplevel):
         def run():
             try:
                 rows = pc.iptv_playlist(country)
+                for r in rows:      # programme listings available for the channel (else "Live TV")
+                    r['listings'] = bool(pc.iptv_guide({'iptv': r['url'], 'tvg_id': r['tvg_id']}))
             except Exception as e:
                 msg = f'Could not load the iptv-org list: {e}'
                 self.app.ui(lambda: self.winfo_exists() and self.status.config(text=msg))
@@ -1348,6 +1357,7 @@ class IPTVPicker(tk.Toplevel):
             if text and text not in (r['name'] + ' ' + r['group']).lower():
                 continue
             self.tree.insert('', 'end', iid=str(i), values=(r['name'], GENRES.get(r['genre'], r['genre']),
+                                                            'yes' if r.get('listings') else '-',
                                                             r['notes'], r['url']))
             shown += 1
         self.status.config(text=f'{shown} of {len(self.rows)} channels')
@@ -1355,7 +1365,7 @@ class IPTVPicker(tk.Toplevel):
     def add(self):
         picked = [self.rows[int(i)] for i in self.tree.selection()]
         for r in picked:
-            self.done(r['name'], r['url'], r['genre'])
+            self.done(r['name'], r['url'], r['genre'], r.get('tvg_id', ''))
         if picked:
             self.destroy()
 

@@ -42,7 +42,7 @@ APP_DIR = Path(sys.executable).parent if FROZEN else None
 # no console window flashing up for every ffmpeg/ffprobe run from the GUI
 NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 sys.path.insert(0, str(HERE))
-from pace_si import u16, loop, descriptor, long_section, tot, title_section, summary_section, present_following  # noqa: E402
+from pace_si import u16, loop, descriptor, long_section, tot, title_section, summary_section, present_following, content_version  # noqa: E402
 from pace_transport import Packetizer  # noqa: E402
 
 RATE = 781250                    # stream bytes per second (6.25 Mbit/s, the core's replay rate)
@@ -758,15 +758,66 @@ class XMLTVGuides:
 XMLTV = XMLTVGuides()
 
 
+_guide_index = {'loaded': 0, 'map': None}
+_guide_index_lock = threading.Lock()
+
+
+def iptv_guide_index():
+    """iptv-org channel id ("TinyPop.uk", "TinyPop.uk@SD") -> (XMLTV url, guide channel id) for
+    the channels i.mjh.nz publishes ready-made XMLTV guides for (Plex, Pluto, Samsung TV Plus,
+    Sky Go...). Built from iptv-org's guides.json (~25 MB) once a week and kept as a small file
+    beside the settings; {} if it cannot be fetched (channels then show "Live TV")."""
+    path = settings_path().with_name('iptv_guides.json')
+    with _guide_index_lock:
+        if _guide_index['map'] is not None and time.time() - _guide_index['loaded'] < 3600:
+            return _guide_index['map']
+        index = None
+        try:
+            if path.exists() and time.time() - path.stat().st_mtime < 7 * 86400:
+                index = json.loads(path.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            index = None
+        if index is None:
+            try:
+                import urllib.request
+                req = urllib.request.Request('https://iptv-org.github.io/api/guides.json',
+                                             headers={'User-Agent': 'Pace2500N'})
+                with urllib.request.urlopen(req, timeout=60) as r:
+                    rows = json.loads(r.read(128 << 20))
+                index = {}
+                for e in rows:
+                    if e.get('site') != 'i.mjh.nz' or '#' not in str(e.get('site_id', '')):
+                        continue
+                    where, gid = str(e['site_id']).split('#', 1)
+                    entry = [f'https://i.mjh.nz/{where}.xml.gz', gid]
+                    uk = '/gb' in where.lower() or where.lower().endswith('gb')
+                    for key in (e['channel'], f"{e['channel']}@{e.get('feed') or 'SD'}"):
+                        if key not in index or uk:          # prefer the UK guide of a channel
+                            index[key] = entry
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(json.dumps(index), encoding='utf-8')
+            except Exception:
+                index = {}
+        _guide_index.update(loaded=time.time(), map=index)
+        return index
+
+
 def iptv_guide(cfg):
-    """(XMLTV url, channel id) for an IPTV channel: the line-up's "epg", or for a Pluto TV link
-    (jmp2.uk/plu-<id>.m3u8) Pluto's UK guide as published by i.mjh.nz."""
+    """(XMLTV url, channel id) for an IPTV channel: the line-up's "epg"; for a Pluto TV link
+    (jmp2.uk/plu-<id>.m3u8) Pluto's UK guide as published by i.mjh.nz; otherwise the hosted
+    guide iptv-org lists for the channel's iptv-org id ("tvg_id", kept by the picker)."""
     epg = cfg.get('epg')
     if isinstance(epg, dict) and epg.get('url') and epg.get('id'):
         return str(epg['url']), str(epg['id'])
     m = re.search(r'jmp2\.uk/plu-([0-9a-f]{24})', cfg.get('iptv', ''))
     if m:
         return 'https://i.mjh.nz/PlutoTV/gb.xml.gz', m.group(1)
+    tvg = str(cfg.get('tvg_id') or '').strip()
+    if tvg:
+        index = iptv_guide_index()
+        hit = index.get(tvg) or index.get(tvg.split('@')[0])
+        if hit:
+            return hit[0], hit[1]
     return None
 
 
@@ -801,8 +852,9 @@ def iptv_playlist(country='uk', url=None):
         notes = ' '.join(re.findall(r'\[[^\]]*\]', name))
         clean = re.sub(r'\s*\[[^\]]*\]|\s*\(\d+p\)', '', name).strip()
         group = (re.search(r'group-title="([^"]*)"', line) or [None, ''])[1]
+        tvg_id = (re.search(r'tvg-id="([^"]*)"', line) or [None, ''])[1]
         genre = next((g for words, g in IPTV_GENRES if any(w in group.lower() for w in words)), 'entertainment')
-        out.append(dict(name=clean, url=stream, group=group, genre=genre, notes=notes,
+        out.append(dict(name=clean, url=stream, group=group, genre=genre, notes=notes, tvg_id=tvg_id,
                         official=any(h in stream for h in OFFICIAL_IPTV_HOSTS)))
     return out
 
@@ -1170,8 +1222,13 @@ def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID, stations=(
 
     def add_index(extension, records):
         chunks = record_groups(records, len, 1012) or [[]]
+        # The version follows the index's contents, one for all its sections: with a fixed
+        # version the box kept the genre/A-Z index it already had, so a genre page went on
+        # showing the old schedule's events (only now/next) after the listings changed.
+        version = content_version(b''.join(b''.join(chunk) for chunk in chunks))
         for i, chunk in enumerate(chunks):
-            tables.append((0x52, long_section(0xc1, extension, b''.join(chunk), section=i, last=len(chunks) - 1)))
+            tables.append((0x52, long_section(0xc1, extension, b''.join(chunk), version=version,
+                                              section=i, last=len(chunks) - 1)))
 
     for letter in range(ord('A'), ord('Z') + 1) if full else ():
         add_index(letter, (index_record(l, e) for l, e, _ in index_events if e[3][:1].upper() == chr(letter)))
