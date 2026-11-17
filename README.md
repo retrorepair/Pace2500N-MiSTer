@@ -11,9 +11,9 @@ programmes.
 > notes are in `CURRENT_STATUS.md`, `handoff.md` and `re/`.
 
 **Downloads:** [Releases](https://github.com/retrorepair/Pace2500N-MiSTer/releases)
-(**v0.7.7-rc1**, release candidate) — `Pace2500N_V077.rbf` (the core),
-`Pace2500N-MiSTer-files-v0.7.7-rc1.zip` (launcher and relay) and
-`PaceChannelBuilder-v0.7.7-rc1-windows.zip` (the Windows app). The last
+(**v0.7.7-rc2**, release candidate) — `Pace2500N_V077.rbf` (the core),
+`Pace2500N-MiSTer-files-v0.7.7-rc2.zip` (launcher and relay) and
+`PaceChannelBuilder-v0.7.7-rc2-windows.zip` (the Windows app). The last
 stable release is v0.7.5 (v0.7.4 core). Supply your own firmware and Guide
 checkpoint.
 
@@ -32,6 +32,7 @@ checkpoint.
 | Keys respond straight away; TV Guide, Box Office and Services menus; back to the Guide from a channel | **working (v0.7.0)** |
 | Interactive | shows the firmware's "no interactive services available" (none are broadcast) |
 | Typing a channel number | **working** with the current Channel Builder (17 Nov): TV and radio. Each channel needs its own number - Channel Builder refuses a number that is already used |
+| Guide genre pages (Movies, Entertainment, ...) | working: each channel's **Guide genre** in Channel Builder, Automatic from Plex by default (Movies and Entertainment verified) |
 | Reminders | **not working**: "The reminder can't be set for this programme" (being investigated) |
 | Widescreen pictures on a 4:3 TV | MiSTer OSD option **Widescreen on 4:3** letterboxes 16:9 and wider (v0.7.6) |
 | Sound recovering after a damaged MP2 frame | about 50-75 ms instead of silence for the rest of the stream (v0.7.7, verified in simulation) |
@@ -84,7 +85,7 @@ box is built into it.
 A normal Windows program - nothing else to install (Python, ffmpeg and yt-dlp
 are inside its folder).
 
-- **Get it:** unzip `PaceChannelBuilder-v0.7.7-rc1-windows.zip` from
+- **Get it:** unzip `PaceChannelBuilder-v0.7.7-rc2-windows.zip` from
   [Releases](https://github.com/retrorepair/Pace2500N-MiSTer/releases) anywhere
   (e.g. `C:\PaceChannelBuilder`) and run `PaceChannelBuilder.exe`. Keep the
   whole folder together. Windows SmartScreen may warn the first time (the exe
