@@ -691,6 +691,85 @@ class RadioStation:
         return events
 
 
+class XMLTVGuides:
+    """XMLTV guide files for IPTV channels, fetched on first use and every few hours after,
+    shared by every channel that names the same file. Programmes are kept as
+    (start, stop, title, description) in UTC seconds. A guide that cannot be fetched leaves its
+    channels on "Live TV" and is retried later."""
+    REFRESH, RETRY = 3 * 3600, 10 * 60
+
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.files = {}            # url -> (fetched_at, {channel id: [programmes]})
+
+    def programmes(self, url, channel_id):
+        with self.lock:
+            when, guide = self.files.get(url, (0, None))
+            stale = time.time() - when > (self.REFRESH if guide else self.RETRY)
+            if stale:
+                self.files[url] = (time.time(), guide)        # one fetch at a time per file
+        if stale:
+            try:
+                fetched = self._fetch(url)
+            except Exception:
+                fetched = None
+            with self.lock:
+                if fetched is not None:
+                    guide = fetched
+                self.files[url] = (time.time(), guide)
+        return (guide or {}).get(channel_id, [])
+
+    @staticmethod
+    def _fetch(url):
+        import gzip, urllib.request
+        import xml.etree.ElementTree as ET
+        req = urllib.request.Request(url, headers={'User-Agent': 'Pace2500N'})
+        with urllib.request.urlopen(req, timeout=20) as r:
+            data = r.read(64 << 20)
+        if data[:2] == b'\x1f\x8b':
+            data = gzip.decompress(data)
+        root = ET.fromstring(data)
+
+        def utc(stamp):
+            t = datetime.strptime(stamp.strip()[:14], '%Y%m%d%H%M%S')
+            off = stamp.strip()[14:].strip() or '+0000'
+            sign = -1 if off[0] == '-' else 1
+            delta = timedelta(hours=int(off[1:3]), minutes=int(off[3:5])) * sign
+            return (t - delta).replace(tzinfo=timezone.utc).timestamp()
+
+        guide = {}
+        for prog in root.iter('programme'):
+            try:
+                start, stop = utc(prog.get('start', '')), utc(prog.get('stop', ''))
+            except (ValueError, IndexError):
+                continue
+            if stop <= start:
+                continue
+            title = ' '.join((prog.findtext('title') or '').split())
+            episode = ' '.join((prog.findtext('sub-title') or '').split())
+            desc = ' '.join((prog.findtext('desc') or '').split())
+            synopsis = f'{episode}. {desc}' if episode and desc and episode not in desc else desc or episode
+            guide.setdefault(prog.get('channel', ''), []).append((start, stop, title, synopsis))
+        for progs in guide.values():
+            progs.sort()
+        return guide
+
+
+XMLTV = XMLTVGuides()
+
+
+def iptv_guide(cfg):
+    """(XMLTV url, channel id) for an IPTV channel: the line-up's "epg", or for a Pluto TV link
+    (jmp2.uk/plu-<id>.m3u8) Pluto's UK guide as published by i.mjh.nz."""
+    epg = cfg.get('epg')
+    if isinstance(epg, dict) and epg.get('url') and epg.get('id'):
+        return str(epg['url']), str(epg['id'])
+    m = re.search(r'jmp2\.uk/plu-([0-9a-f]{24})', cfg.get('iptv', ''))
+    if m:
+        return 'https://i.mjh.nz/PlutoTV/gb.xml.gz', m.group(1)
+    return None
+
+
 class LiveChannel:
     """A numbered TV channel fed by a live internet stream (IPTV: HLS or MPEG-TS over HTTP).
     Same service/PID layout as a scheduled channel; nothing is transcoded until the box tunes
@@ -713,13 +792,36 @@ class LiveChannel:
         self.sid, self.listing = 1001 + index, 3000 + index
         self.pmt_pid, self.video_pid, self.audio_pid = 0x1000 + index, 0x200 + 0x10 * index, 0x102 + 0x10 * index
         self.genre = SKY_GENRES.get(str(cfg.get('genre') or '').lower(), SKY_GENRES['entertainment'])
+        self.guide = iptv_guide(cfg)
 
-    def events_utc(self, _day):
-        return [(block, 21600, 'Live TV', '') for block in range(0, 86400, 21600)]
+    def programmes_utc(self):
+        return XMLTV.programmes(*self.guide) if self.guide else []
+
+    def events_utc(self, day):
+        """The guide's programmes on UTC day `day`, clipped to it and to even seconds, with
+        "Live TV" filling whatever the guide does not cover (the stream has no schedule)."""
+        midnight = datetime(day.year, day.month, day.day, tzinfo=timezone.utc).timestamp()
+        out, t = [], 0
+        for start, stop, title, synopsis in self.programmes_utc():
+            a, b = int(max(start - midnight, 0)) // 2 * 2, int(min(stop - midnight, 86400)) // 2 * 2
+            if b <= a or a < t:
+                continue
+            for gap in range(t, a, 21600) if a > t else ():
+                end = min(a, (gap // 21600 + 1) * 21600)
+                if end > gap:
+                    out.append((gap, end - gap, 'Live TV', ''))
+            out.append((a, b - a, title or 'Live TV', synopsis))
+            t = b
+        while t < 86400:
+            end = (t // 21600 + 1) * 21600
+            out.append((t, end - t, 'Live TV', ''))
+            t = end
+        return out
 
     def at(self, utc_seconds):
         n = int(utc_seconds // 86400)
-        return (dict(kind='live', title='Live TV', source=self.url, inpoint=0.0, start=0.0, length=86400.0),
+        title = next((p[2] for p in self.programmes_utc() if p[0] <= utc_seconds < p[1]), 'Live TV')
+        return (dict(kind='live', title=title, source=self.url, inpoint=0.0, start=0.0, length=86400.0),
                 utc_seconds % 86400, n)
 
 

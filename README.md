@@ -27,7 +27,7 @@ Captured from the core on a MiSTer (v0.7.7-rc2), firmware-drawn Sky Guide over l
 | ![Next day](docs/screenshots/next-day.png) 7-day listings (+24 Hours) | ![Movies](docs/screenshots/genre-movies.png) Genre page |
 | ![Music & Radio](docs/screenshots/music-radio.png) Music & Radio with live track titles | ![Synopsis](docs/screenshots/synopsis.png) Programme synopsis from Plex |
 | ![Now/next banner](docs/screenshots/now-next-banner.png) Now/next banner | ![Information](docs/screenshots/channel-info.png) Information while watching |
-| ![Radio](docs/screenshots/radio-tuned.png) Internet radio station tuned | |
+| ![Radio](docs/screenshots/radio-tuned.png) Internet radio station tuned | ![IPTV](docs/screenshots/iptv-guide.png) IPTV channel with its own guide (Pluto TV) |
 
 ## What works
 
@@ -45,7 +45,7 @@ Captured from the core on a MiSTer (v0.7.7-rc2), firmware-drawn Sky Guide over l
 | Interactive | shows the firmware's "no interactive services available" (none are broadcast) |
 | Typing a channel number | **working** with the current Channel Builder (17 Nov): TV and radio. Each channel needs its own number - Channel Builder refuses a number that is already used |
 | Guide genre pages (Movies, Entertainment, ...) | working: each channel's **Guide genre** in Channel Builder, Automatic from Plex by default (Movies and Entertainment verified) |
-| Live TV channels from internet streams (IPTV) | working (Channel Builder **Add IPTV**): picture, sound, typed number, banner |
+| Live TV channels from internet streams (IPTV) | working (Channel Builder **Add IPTV**): picture, sound, typed number, banner; schedule and synopses from XMLTV (Pluto TV automatic) |
 | Reminders | **not working** from the ALL CHANNELS grid (works from the channel banner): "The reminder can't be set for this programme" (being investigated) |
 | Widescreen pictures on a 4:3 TV | MiSTer OSD option **Widescreen on 4:3** letterboxes 16:9 and wider (v0.7.6) |
 | Sound recovering after a damaged MP2 frame | about 50-75 ms instead of silence for the rest of the stream (v0.7.7, verified in simulation) |
@@ -179,7 +179,10 @@ In the app:
   [Free-TV](https://github.com/Free-TV/IPTV) or [iptv-org](https://github.com/iptv-org/iptv)
   lists (Pluto TV, Samsung TV Plus, the BBC's own UK streams); many other entries in those lists
   are unofficial re-streams of paid channels. The stream is converted only while the box is
-  tuned to it; its Guide rows read "Live TV". Tested: Pluto TV Retro Toons on 601.
+  tuned to it. Pluto TV links (`jmp2.uk/plu-...`) get their real schedule and synopses from
+  Pluto's UK guide automatically; for another stream add `"epg": {"url": "<XMLTV file>",
+  "id": "<channel id>"}` to the channel in the line-up file. Without a guide the Guide rows
+  read "Live TV". Tested: Pluto TV Retro Toons on 601.
 - **Internet radio** - open the **Music & Radio** tab. Choose *Add starter
   stations* for channels 801–809, or *New* to enter a channel number in
   800–899, a station name and a direct HTTP(S) audio-stream URL. *Save station*

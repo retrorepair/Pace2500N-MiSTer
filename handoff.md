@@ -18,8 +18,14 @@ Quartus results and HDL regressions. The latest session is directly below; the o
 - Sources: iptv-org (11,558 entries; UK 308) and Free-TV. Only official streams are used: the
   iptv-org "Boomerang" entries (FR/IT/TH/US) are re-streams of the paid channel from bare IPs and
   scraper scripts, as are several "BBC One" entries; not used. UK Boomerang became Cartoonito
-  (2023). Next: XMLTV guide data (iptv-org/epg, tvg-id) for real titles; an M3U picker in the
-  app.
+  (2023).
+- IPTV GUIDE DATA: `XMLTVGuides` (pace_channels.py) fetches XMLTV (gz or plain), caches per URL
+  (refresh 3 h, retry 10 min). LiveChannel uses line-up `"epg": {url, id}`, or for jmp2.uk/plu-<id>
+  links Pluto's UK guide https://i.mjh.nz/PlutoTV/gb.xml.gz (~16 h ahead). Programmes become the
+  listings, synopses (sub-title + desc) and now/next; gaps are "Live TV". Verified on hardware:
+  KIDS page lists 601 (genre 2 = Kids confirmed), real cells, and Info shows "Danger Mouse: The
+  Day of the Suds..." Next: an M3U/channel picker in Channel Builder; non-Pluto guides
+  (iptv-org/epg is a grabber you run, not hosted files).
 
 ## Session 17 Nov 2026 (late) - reminders route, stale listings, screenshots
 
@@ -34,7 +40,7 @@ Quartus results and HDL regressions. The latest session is directly below; the o
 ## Session 17 Nov 2026 (evening) - genres, advert spots, Guide music timing
 
 - GENRES (`4b29652`): the Guide's genre pages list channels by the 3-bit genre in SDT 0xB2.
-  Verified: 6 Movies, 3 Entertainment, 4 Music & Radio (1 Specialist, 2 Kids, 5 News & Docs,
+  Verified: 6 Movies, 3 Entertainment, 4 Music & Radio, 2 Kids (1 Specialist, 5 News & Docs,
   7 Sports from Sky decoders, unverified). Line-up `genre` per channel ("auto" = Plex films ->
   Movies, else commonest Plex genre of the programmes via the show's tags, else
   Entertainment); Channel Builder has a Guide genre picker. Programme-level genre (the title
