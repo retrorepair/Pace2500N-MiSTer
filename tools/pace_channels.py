@@ -935,6 +935,13 @@ def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID, stations=(
     # another transponder carries just the programmes around now - Sky's other transponders
     # had "a couple of hours of Now and Next" for the banner, the 7 days needed the EPG one.
     full = on == HOME_TSID
+    if music:
+        # Present/following for the background-audio service as well (empty: no programme),
+        # as for every other service: after retuning for the Guide the box held the music
+        # for ~15 s on the home transponder without them.
+        music_table = 0x4e if on == HOME_TSID else 0x4f
+        for i in range(2):
+            tables.append((0x12, present_following(music_table, MUSIC_SID, HOME_TSID, ONID, 0, i, None)))
     for dd in range(days if full else 1):
         d = when.date() + timedelta(days=dd)
         mjd = (d - EPOCH).days

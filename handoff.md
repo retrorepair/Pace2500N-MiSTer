@@ -4,6 +4,24 @@
 Quartus results and HDL regressions. The latest session is directly below; the original
 7 Nov snapshot further down is retained for history only (it predates everything that works).
 
+## Session 17 Nov 2026 (evening) - genres, advert spots, Guide music timing
+
+- GENRES (`4b29652`): the Guide's genre pages list channels by the 3-bit genre in SDT 0xB2.
+  Verified: 6 Movies, 3 Entertainment, 4 Music & Radio (1 Specialist, 2 Kids, 5 News & Docs,
+  7 Sports from Sky decoders, unverified). Line-up `genre` per channel ("auto" = Plex films ->
+  Movies, else commonest Plex genre of the programmes via the show's tags, else
+  Entertainment); Channel Builder has a Guide genre picker. Programme-level genre (the title
+  record's genre byte) is still 0.
+- GAMESMASTER "random show": a centre break used a 145.7 s "spot" from an off-air ad-break rip
+  (programme footage the black+silence cut finder could not split). ITV/Sky-style breaks now
+  refuse segments over 90 s (BBC continuity keeps 240 s).
+- GUIDE MUSIC TIMING (musictime.py polls guest RAM + the ring status): the firmware retunes to
+  11778 within ~0.7 s of the TV Guide key and routes audio 0x288 either ~0.1 s later or ~14-15 s
+  later (5 runs: 0.9, 1.0, 0.9 s and 14.1, 14.7, 15.7 s). Routing happens before any data from
+  the new playout session arrives, so the wait is the firmware's own decision; PC + relay add
+  ~0.3 s. Empty present/following sections for the music service (as for every service) were
+  added; they did not clearly change it. Next: find what the Guide waits on in the slow case.
+
 ## Session 17 Nov 2026 (late afternoon) - 7-day listings, grid synopses
 
 - 7 DAYS: the user's settings had `days: 1` (left from the early "keep it at 1" advice), so
