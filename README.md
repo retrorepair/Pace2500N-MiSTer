@@ -37,7 +37,8 @@ checkpoint.
 | Sound recovering after a damaged MP2 frame | about 50-75 ms instead of silence for the rest of the stream (v0.7.7, verified in simulation) |
 | TV sound in the EPG | muted while the firmware tunes to the Guide transponder |
 | Plex library as a programme source (single titles or whole libraries) | working (Sky Movies from Plex, v0.7.0) |
-| 7-day listings | verified through the final grid slot on v0.7.4 |
+| 7-day listings | working: set **Days of listings** to 7 in Channel Builder's Settings. A day not viewed yet fills within a few seconds of opening it |
+| Programme synopsis (Information button) | working while tuned and in the grid for Plex titles that have a summary (cut to 255 characters, the box's limit) |
 | EPG background music | the updated relay keeps music playing across Guide, All Channels, Box Office and Services when a period audio file is configured. Sky returns to the TV channel. Background Music is in Services > System Setup > Sound Settings |
 | Teletext/VBI, A/V lip-sync | not yet |
 

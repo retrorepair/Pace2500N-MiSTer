@@ -4,6 +4,29 @@
 Quartus results and HDL regressions. The latest session is directly below; the original
 7 Nov snapshot further down is retained for history only (it predates everything that works).
 
+## Session 17 Nov 2026 (late afternoon) - 7-day listings, grid synopses
+
+- 7 DAYS: the user's settings had `days: 1` (left from the early "keep it at 1" advice), so
+  playout only ever sent today and +24 Hours said "Further schedule information is not
+  available". Set to 7 (backup `%APPDATA%\Pace2500N\settings.json.bak-days1`): Today..Monday
+  all present on V077. The box fetches a day when it is first shown; at one repeat per 9 s loop a
+  day took ~40 s to fill ("searching for listings"). The carousel now repeats later days and
+  synopses every 2 s when the 133-packet tick has room (every 4 s, else once a loop): ~94/133
+  packets per tick for this line-up, loop still exactly 9.0 s.
+- GRID SYNOPSES: BBC2 worked, Sky Movies showed "Programme synopsis is not available". The
+  type-2 request was correct and completed (listing 0x0BBD, event 8, MJD 0xEFB1, block 2,
+  state 1002 -> 1004). Cause: Plex film summaries decode to 300-400 characters, the firmware
+  decodes 0xB9 into a 0x101-byte buffer (800CA028 -> 800BECF0 dstmax 0x101), and one long text
+  (E.T., 412) spoiled its whole block. Synopses are now cut to 255 characters at a word: grid
+  Info on Ghostbusters shows its synopsis. Channel4 GamesMaster has no Plex summary at all.
+- REMINDERS: still refused on V074 with current playout AND on V077 with v0.7.4 playout
+  (`31ee306`, run from a worktree) - so not the playout or core changes since v0.7.4 (user
+  thought they worked between 0.7.2 and 0.7.4). Personal Planner is empty. Lead: bookings live in
+  an EEPROM file (`/eeprom/book`, flash string at 0x9FCC2F54); if our 24C128 model cannot write
+  or the checkpoint EEPROM lacks the file, every reminder fails - trace the I2C/EEPROM traffic
+  when Select is pressed on a future programme.
+- The MOVIES (and other genre) pages are empty: our title records carry genre 0. Separate item.
+
 ## Session 17 Nov 2026 (afternoon) - channel numbers fixed; reminders open
 
 - Line-up renumbered (backup `roms/lineup_mock.before-renumber.json`): BBC1 101, BBC2 102,

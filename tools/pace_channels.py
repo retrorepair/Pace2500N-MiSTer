@@ -676,10 +676,11 @@ _encodable = {}
 
 
 @lru_cache(maxsize=4096)
-def guide_text(codec, text, limit):
+def guide_text(codec, text, limit, max_chars=None):
     """Text as the box's own Huffman table can carry it: accents and typographic quotes
     folded to plain ASCII, characters the table has no code for dropped, whitespace
-    collapsed, and cut at a word so the coded form is at most `limit` bytes."""
+    collapsed, and cut at a word so the coded form is at most `limit` bytes and the
+    decoded text at most `max_chars` characters."""
     import unicodedata
     s = ''.join(_PLAIN.get(ch, ch) for ch in (text or ''))
     s = unicodedata.normalize('NFKD', s).encode('ascii', 'ignore').decode('ascii')
@@ -693,13 +694,14 @@ def guide_text(codec, text, limit):
         if _encodable[ch]:
             keep.append(ch)
     s = ''.join(keep)
-    if len(codec.encode(s)) <= limit:
+    chars = max_chars or len(s)
+    if len(s) <= chars and len(codec.encode(s)) <= limit:
         return s
     while s:
-        end = len(s) * 9 // 10
+        end = min(len(s) * 9 // 10, chars - 3)
         cut = s.rfind(' ', 0, end)
         s = s[:cut if cut > 0 else end].rstrip(' ,;:')
-        if len(codec.encode(s + '...')) <= limit:
+        if len(s) + 3 <= chars and len(codec.encode(s + '...')) <= limit:
             return s + '...'
     return ''
 
@@ -873,7 +875,9 @@ def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID, stations=(
             schedule = c.events_utc(d, sod, title) if radio else c.events_utc(d)
             events = [(dd * 1000 + (s // 1800 if radio else n) + 1, s, l, guide_text(codec, t, 200))
                       for n, (s, l, t, _) in enumerate(schedule)]
-            synopses = [guide_text(codec, description or sm, 255) for *_, sm in schedule]
+            # The firmware decodes a 0xB9 synopsis into a 0x101-byte buffer (800CA028 ->
+            # 800BECF0 dstmax 0x101): 256 characters and the terminator.
+            synopses = [guide_text(codec, description or sm, 255, max_chars=255) for *_, sm in schedule]
             if dd == 0:
                 midnight = when.replace(hour=0, minute=0, second=0)
                 service_tsid = CHAN_TSID if split else HOME_TSID
@@ -948,6 +952,14 @@ def carousel(tables, today_pid, seconds=8):
             service.append((pid, section))
     # Keep both service and title intervals across the end of the loop.
     ticks = 15 * ((max(seconds * 5, (len(indices) + 1) // 2) + 14) // 15)
+    # Later days and synopses: the box fetches a day when it is first shown, one channel and
+    # block at a time, so how often each section repeats sets how long "searching for
+    # listings" lasts (about 40 s for a day at once a loop). Repeat them as often as the
+    # 133-packet tick allows - every 2 s, 4 s, or once a loop for a big line-up.
+    def packets(group):
+        return sum((len(section) + 1 + 183) // 184 for _pid, section in group)
+    steady = packets(psi) + packets(service) / 3 + packets(titles) / 5 + 6
+    later_every = next((n for n in (10, 20) if steady + packets(later) / n <= 110), ticks)
     pk = Packetizer()
     data = bytearray()
     for tick in range(ticks):
@@ -959,7 +971,7 @@ def carousel(tables, today_pid, seconds=8):
                 data += pk.section(pid, section)
         for pid, section in titles[tick % 5::5]:
             data += pk.section(pid, section)
-        for pid, section in later[tick::ticks]:
+        for pid, section in later[tick % later_every::later_every]:
             data += pk.section(pid, section)
         if indices:
             while len(data) - start < 80 * 188:
