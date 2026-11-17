@@ -436,9 +436,9 @@ class App(tk.Tk):
         self.chan_list.bind('<<ListboxSelect>>', lambda e: self.show_channel())
         row = ttk.Frame(left)
         row.pack(fill='x', pady=2)
-        for text, cmd in (('Add', self.add_channel), ('Remove', self.del_channel), ('Up', lambda: self.move_channel(-1)),
-                          ('Down', lambda: self.move_channel(1))):
-            ttk.Button(row, text=text, command=cmd, width=8).pack(side='left', padx=1)
+        for text, cmd in (('Add', self.add_channel), ('Add IPTV', self.add_iptv), ('Remove', self.del_channel),
+                          ('Up', lambda: self.move_channel(-1)), ('Down', lambda: self.move_channel(1))):
+            ttk.Button(row, text=text, command=cmd, width=9 if text == 'Add IPTV' else 8).pack(side='left', padx=1)
         right = ttk.Frame(body, padding=(10, 0))
         body.add(right, weight=3)
         form = ttk.Frame(right)
@@ -488,7 +488,8 @@ class App(tk.Tk):
     def refresh_channels(self, select=None):
         self.chan_list.delete(0, 'end')
         for c in self.lineup['channels']:
-            self.chan_list.insert('end', f"{c.get('number', '')}   {c['name']}   ({len(c['programmes'])} programmes)")
+            kind = 'live IPTV' if c.get('iptv') else f"{len(c.get('programmes') or [])} programmes"
+            self.chan_list.insert('end', f"{c.get('number', '')}   {c['name']}   ({kind})")
         if select is not None and self.lineup['channels']:
             self.chan_list.selection_set(select)
             self.show_channel()
@@ -569,6 +570,29 @@ class App(tk.Tk):
                                         'interstitials': [], 'programmes': []})
         self.refresh_channels(n)
         self.changed()
+
+    def add_iptv(self):
+        """A live TV channel from an internet stream (HLS .m3u8 or MPEG-TS over HTTP), e.g. an
+        official free channel from the iptv-org or Free-TV lists. Converted only while tuned."""
+        url = simpledialog.askstring(APP, 'Live stream URL (http/https, e.g. an .m3u8 playlist):')
+        if not url:
+            return
+        url = url.strip()
+        if not url.lower().startswith(('http://', 'https://')):
+            messagebox.showerror(APP, 'The stream needs an http:// or https:// address.')
+            return
+        name = simpledialog.askstring(APP, 'Channel name shown in the guide:', initialvalue='Live TV')
+        if not name or not name.strip():
+            return
+        used = {str(o.get('number')) for o in self.lineup['channels'] + list(self.lineup.get('radio') or [])
+                if isinstance(o, dict)}
+        number = next(k for k in range(101, 800) if str(k) not in used)
+        n = len(self.lineup['channels'])
+        self.lineup['channels'].append({'name': name.strip(), 'number': number, 'style': 'sky', 'genre': 'auto',
+                                        'iptv': url, 'interstitials': [], 'programmes': []})
+        self.refresh_channels(n)
+        self.changed()
+        self.log(f'IPTV channel {number} {name.strip()} added - change its number and genre on the right')
 
     def del_channel(self):
         sel = self.chan_list.curselection()

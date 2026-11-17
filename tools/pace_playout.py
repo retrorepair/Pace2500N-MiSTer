@@ -33,7 +33,7 @@ from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from pace_channels import (RATE, RadioStation, load_radio, load_settings, load_lineup, read_lineup, redact,
+from pace_channels import (RATE, RadioStation, LiveChannel, load_radio, load_settings, load_lineup, read_lineup, redact,
                            lineup_tables, carousel,  # noqa: E402
                            MUSIC_PID, MUSIC_PMT, MUSIC_SID, HOME_TSID, CHAN_TSID, transport_of)
 from pace_radio import RadioMetadata
@@ -176,6 +176,8 @@ class Session:
                 self.guide_only()
             elif isinstance(self.chan, RadioStation):
                 self.radio()
+            elif isinstance(self.chan, LiveChannel):
+                self.live()
             else:
                 self.channel()
         except ClientDisconnected as e:
@@ -296,6 +298,38 @@ class Session:
             except (OSError, RuntimeError, subprocess.SubprocessError):
                 pass
             self.srv.log(f'{station.name}: radio stream ended, reconnecting')
+            self.stuff(w, self.sent + RATE // P * P)
+            if self.stopped.wait(1):
+                return
+
+    def live(self):
+        """An IPTV channel: the stream converted like a scheduled channel's programmes, for
+        as long as the box stays tuned; a dropped stream is reopened."""
+        c = self.chan
+        self.srv.log(f'{c.name}: opening live TV')
+        self.item = dict(kind='live', title='Live TV', source=c.url)
+        w = Weaver(self.si(), (c.video_pid, c.audio_pid))
+        cmd = [self.srv.settings['ffmpeg'], '-hide_banner', '-loglevel', 'error', '-nostdin',
+               '-rw_timeout', '10000000', '-protocol_whitelist', 'http,https,tcp,tls,crypto']
+        if '.m3u8' in c.url:
+            # FAST channels (Amagi etc.) splice adverts in as segments with unusual URL endings
+            cmd += ['-extension_picky', '0']
+        cmd += ['-i', c.url, '-map', '0:v:0', '-map', '0:a:0',
+                '-vf', pal_video_filter(self.letterbox), '-af', normalised_audio(TV_LUFS),
+                '-c:v', 'mpeg2video', '-flags', '+ilme+ildct', '-g', '12', '-bf', '2',
+                '-b:v', f'{VIDEO_KBPS}k', '-maxrate', f'{VIDEO_KBPS + 600}k', '-bufsize', '1835k',
+                '-c:a', 'mp2', '-ar', '48000', '-ac', '2', '-b:a', f'{AUDIO_KBPS}k',
+                '-streamid', f'0:{c.video_pid}', '-streamid', f'1:{c.audio_pid}',
+                '-mpegts_pmt_start_pid', str(c.pmt_pid), '-mpegts_service_id', str(c.sid),
+                '-muxrate', str(RATE * 8), '-pcr_period', '20', '-muxdelay', '0.7', '-f', 'mpegts', 'pipe:1']
+        while not self.stopped.is_set():
+            try:
+                self.transcode(cmd, w)
+            except ClientDisconnected:
+                raise
+            except (OSError, RuntimeError, subprocess.SubprocessError):
+                pass
+            self.srv.log(f'{c.name}: live stream ended, reconnecting')
             self.stuff(w, self.sent + RATE // P * P)
             if self.stopped.wait(1):
                 return

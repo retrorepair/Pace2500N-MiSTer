@@ -4,6 +4,23 @@
 Quartus results and HDL regressions. The latest session is directly below; the original
 7 Nov snapshot further down is retained for history only (it predates everything that works).
 
+## Session 17 Nov 2026 (night) - IPTV channels
+
+- A line-up channel with `"iptv": URL` (no programmes) is a `LiveChannel` (pace_channels.py):
+  same service/PID layout as a scheduled channel, "Live TV" in each six-hour block, genre from
+  the line-up. Playout `Session.live()` opens the stream with ffmpeg (HLS gets
+  `-extension_picky 0` - Amagi/FAST streams splice adverts as oddly named segments), converts
+  it like a channel (576i MPEG-2, levelled MP2, letterbox) and reopens it if it drops.
+  Channel Builder: **Add IPTV** (URL + name; next free number; genre/number editable).
+- Tested on hardware: 601 Retro Toons (Pluto TV Retro Toons GB, from iptv-org's UK list via
+  jmp2.uk) - typed 601 tunes it, picture + sound, banner "Live TV", 781 kB/s, 0 underruns/30 s.
+  Line-up backup before the change: `roms/lineup_mock.before-iptv.json`.
+- Sources: iptv-org (11,558 entries; UK 308) and Free-TV. Only official streams are used: the
+  iptv-org "Boomerang" entries (FR/IT/TH/US) are re-streams of the paid channel from bare IPs and
+  scraper scripts, as are several "BBC One" entries; not used. UK Boomerang became Cartoonito
+  (2023). Next: XMLTV guide data (iptv-org/epg, tvg-id) for real titles; an M3U picker in the
+  app.
+
 ## Session 17 Nov 2026 (late) - reminders route, stale listings, screenshots
 
 - REMINDERS: the user set one successfully FROM THE CHANNEL (banner Search Time -> future

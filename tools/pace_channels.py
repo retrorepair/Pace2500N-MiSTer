@@ -691,6 +691,38 @@ class RadioStation:
         return events
 
 
+class LiveChannel:
+    """A numbered TV channel fed by a live internet stream (IPTV: HLS or MPEG-TS over HTTP).
+    Same service/PID layout as a scheduled channel; nothing is transcoded until the box tunes
+    it. The stream has no schedule here, so the Guide shows "Live TV" in each block."""
+    style = 'live'
+    start = 0
+    programmes = ()
+    runs = ()
+
+    def __init__(self, index, cfg):
+        self.i = index
+        self.name = cfg['name'].strip()
+        self.number = int(cfg.get('number', 101 + index))
+        self.url = cfg['iptv'].strip()
+        url = urlsplit(self.url)
+        if not self.name or not 1 <= self.number <= 4095:
+            raise ValueError('IPTV channel needs a name and a channel number')
+        if url.scheme not in ('http', 'https') or not url.hostname:
+            raise ValueError('IPTV channel needs an HTTP or HTTPS stream URL')
+        self.sid, self.listing = 1001 + index, 3000 + index
+        self.pmt_pid, self.video_pid, self.audio_pid = 0x1000 + index, 0x200 + 0x10 * index, 0x102 + 0x10 * index
+        self.genre = SKY_GENRES.get(str(cfg.get('genre') or '').lower(), SKY_GENRES['entertainment'])
+
+    def events_utc(self, _day):
+        return [(block, 21600, 'Live TV', '') for block in range(0, 86400, 21600)]
+
+    def at(self, utc_seconds):
+        n = int(utc_seconds // 86400)
+        return (dict(kind='live', title='Live TV', source=self.url, inpoint=0.0, start=0.0, length=86400.0),
+                utc_seconds % 86400, n)
+
+
 def load_radio(cfg, log):
     stations = []
     numbers = {str(c.get('number', '')).strip() for c in cfg['channels']}
@@ -713,6 +745,12 @@ def load_lineup(path, settings, log=print, *, cfg=None):
     media = Media(settings)
     chans = []
     for i, c in enumerate(cfg['channels']):
+        if c.get('iptv'):
+            try:
+                chans.append(LiveChannel(i, c))
+            except (KeyError, TypeError, ValueError) as e:
+                log(f"{c.get('name', 'channel')}: not broadcast: {e}")
+            continue
         if not c.get('programmes'):
             # nothing to schedule: leave it off air rather than fail every channel's guide
             log(f"{c.get('name', 'channel')}: no programmes yet - not broadcast")
