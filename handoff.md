@@ -4,6 +4,38 @@
 Quartus results and HDL regressions. The latest session is directly below; the original
 7 Nov snapshot further down is retained for history only (it predates everything that works).
 
+## Session 17 Nov 2026 - cleanup and v0.7.7-rc1
+
+- Cleanup: the uncommitted v0.7.6/0.7.7 work was committed (`be64fa9`). `.gitignore` now keeps
+  local evidence (`re/deployment/`, captures), Ghidra/decompiler text (firmware-derived),
+  sim/Quartus output and per-build launchers off GitHub; a merged ignore line was fixed. The six
+  build copies beside the project (`Pace2500N_build070`-`075_scaler`) were moved to
+  `Downloads/Pace2500N_old_builds/` (nothing unique except the scaler experiment, now
+  `re/experiments/ascal_hdmi_line_register.patch`). Delete that folder when no longer wanted.
+  An empty stray file `R:fpu_fpga.txt` (from a broken redirect) is still in the project root -
+  the safety check would not let the agent delete it; remove it by hand.
+- Builds now happen in the project folder (no more copies): recipe in README "Building the
+  core". v0.7.7 = MP2 decoder recovery on top of v0.7.6: seed 4, fitter combo logic off.
+  81% ALMs, 57% block RAM, 91% DSP. Setup slack: core clocks all positive (worst +0.965 ns),
+  HDMI scaler -2.280 ns (known, CRT unaffected; v0.7.4 shipped at -1.946 ns). Hold positive.
+  Compressed RBF `Pace2500N_V077.rbf` SHA-256
+  4b2d73634f2e90aeadb270179f4c6cfc28daa0dcafced2113ba9b2bfaa0dd75b. Contains no firmware (the
+  release top never instantiates pace_bootrom; rom/bootloader_words.hex absent).
+- Hardware check of V077 (MiSTer, new relay with the LB1 letterbox flag installed; v0.7.5 relay
+  kept as `pace_live_relay.py.v075`): boots to the Guide with the sky guide logo and gradient
+  and Guide music on 11778; first All Channels visit filled within 45 s incl. radio titles;
+  BBC1 picture and sound, 782 kB/s for 60 s with 0 ring underruns; TV Guide mutes the channel
+  and starts music ~10 s later on 11778, Sky returns to the channel; Music & Radio 800 played
+  (audio 0x4700) with 0 underruns over 30 s. The MP2 recovery itself is simulation-verified only.
+- Known issues carried into rc1: typed channel numbers still give "NNN Channel Unavailable"
+  (README corrected - it claimed they worked); the user's line-up has Channel4 AND Sky One on
+  106, which shows two "106 Channel4" rows, the second stuck "searching for listings" (the app
+  should refuse or warn on duplicate numbers); first Guide music after boot ~10 s.
+- The RC app was built into `dist/rc` (the running production app untouched) and smoke-tested
+  in portable mode on port 8251 (playout up in ~6 s, service mapping and now/next for all six
+  channels). The packaged `--selftest` waits only ~15 s and gives up before a slow line-up
+  load finishes - lengthen it.
+
 ## Audio decoder recovery
 
 - The user reported a prolonged audio cutoff around loud material. A live

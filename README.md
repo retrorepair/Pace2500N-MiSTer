@@ -11,10 +11,11 @@ programmes.
 > notes are in `CURRENT_STATUS.md`, `handoff.md` and `re/`.
 
 **Downloads:** [Releases](https://github.com/retrorepair/Pace2500N-MiSTer/releases)
-(**v0.7.5**) — `Pace2500N_V074.rbf` (the v0.7.4 core),
-`Pace2500N-MiSTer-files-v0.7.5.zip` (launcher and relay) and
-`PaceChannelBuilder-v0.7.5-windows.zip` (the Windows app). Supply your own
-firmware and Guide checkpoint.
+(**v0.7.7-rc1**, release candidate) — `Pace2500N_V077.rbf` (the core),
+`Pace2500N-MiSTer-files-v0.7.7-rc1.zip` (launcher and relay) and
+`PaceChannelBuilder-v0.7.7-rc1-windows.zip` (the Windows app). The last
+stable release is v0.7.5 (v0.7.4 core). Supply your own firmware and Guide
+checkpoint.
 
 ## What works
 
@@ -30,7 +31,9 @@ firmware and Guide checkpoint.
 | **New CPU**: pipelined NEC VR4110 with instruction and data caches, MIPS16, 75 MHz (~70 million instructions/s, the old CPU managed ~5) | **v0.7.0** |
 | Keys respond straight away; TV Guide, Box Office and Services menus; back to the Guide from a channel | **working (v0.7.0)** |
 | Interactive | shows the firmware's "no interactive services available" (none are broadcast) |
-| Typing a channel number | working with the current line-up and relay |
+| Typing a channel number | **not working**: the box shows "NNN Channel Unavailable" (rechecked on v0.7.7-rc1). Pick channels from the Guide or the Up/Down banner |
+| Widescreen pictures on a 4:3 TV | MiSTer OSD option **Widescreen on 4:3** letterboxes 16:9 and wider (v0.7.6) |
+| Sound recovering after a damaged MP2 frame | about 50-75 ms instead of silence for the rest of the stream (v0.7.7, verified in simulation) |
 | TV sound in the EPG | muted while the firmware tunes to the Guide transponder |
 | Plex library as a programme source (single titles or whole libraries) | working (Sky Movies from Plex, v0.7.0) |
 | 7-day listings | verified through the final grid slot on v0.7.4 |
@@ -65,8 +68,8 @@ Copy to the MiSTer SD card:
 
 | File | Where |
 |------|-------|
-| `Pace2500N_V074.rbf` | `/media/fat/_Other/` |
-| `Pace2500N_V074_Live.mgl` (in the MiSTer files zip) | `/media/fat/_Other/` |
+| `Pace2500N_V077.rbf` | `/media/fat/_Other/` |
+| `Pace2500N_V077_Live.mgl` (in the MiSTer files zip) | `/media/fat/_Other/` |
 | Your firmware `FLASH_U202.bin` | `/media/fat/games/Pace2500N/` |
 | Guide checkpoint `RAM.bin`, `STATE.bin` | `/media/fat/games/Pace2500N_GUIDE/` |
 
@@ -79,7 +82,7 @@ box is built into it.
 A normal Windows program - nothing else to install (Python, ffmpeg and yt-dlp
 are inside its folder).
 
-- **Get it:** unzip `PaceChannelBuilder-v0.7.5-windows.zip` from
+- **Get it:** unzip `PaceChannelBuilder-v0.7.7-rc1-windows.zip` from
   [Releases](https://github.com/retrorepair/Pace2500N-MiSTer/releases) anywhere
   (e.g. `C:\PaceChannelBuilder`) and run `PaceChannelBuilder.exe`. Keep the
   whole folder together. Windows SmartScreen may warn the first time (the exe
@@ -212,7 +215,7 @@ quartus_map --read_settings_files=on --write_settings_files=off Pace2500N -c Pac
 quartus_fit Pace2500N --read_settings_files=on --write_settings_files=off --set=PHYSICAL_SYNTHESIS_COMBO_LOGIC=OFF --set=PHYSICAL_SYNTHESIS_COMBO_LOGIC_FOR_AREA=OFF
 quartus_asm Pace2500N
 quartus_sta Pace2500N
-quartus_cpf -c -o bitstream_compression=on output_files/Pace2500N.sof output_files/Pace2500N_V074.rbf
+quartus_cpf -c -o bitstream_compression=on output_files/Pace2500N.sof output_files/Pace2500N_V077.rbf
 ```
 
 Older development tops (`rtl/Pace2500N.sv`, `rtl/Pace2500N_Guide.sv`) still
