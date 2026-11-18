@@ -33,7 +33,25 @@ loader sent `0x12`). From the reset vector, the genuine loader reaches the appli
 was edited. So the board behaviour to model is: command `0x12` from the main CPU makes the
 front-panel controller reset the main CPU, RAM retained. (No public description of the
 2500N's front-panel controller was found; heyrick.eu covers only the 2500B's serial status
-messages.) The sections below are the history of the search.
+messages.)
+
+APPLICATION START-UP FROM THE GENUINE HANDOFF (`tools/run_application_after_handoff.py`, PyPy:
+`LD_LIBRARY_PATH=/opt/pace-pypy/usr/lib/x86_64-linux-gnu /opt/pace-pypy/usr/bin/pypy3`): CPU state
+and RAM carried from `warm_reset_handoff_01`, on-chip peripherals fresh, the SAME declared
+peripheral profile as `application_serial0_02` (read overrides, I2C ACK/NACK, LSI 512 no-RF,
+serial0, transport ACKs), blank EEPROM, NO RAM or flash edits:
+- the application decompresses itself, starts its tasks, reads the blank EEPROM 16,390 times and
+  formats it (3,477 writes) - it reads EEPROM at start-up, as a real box does;
+- stops at 173,736,929 on LSI group3 APR001C (unmodelled front-end status, as the old run did);
+  with the old run's declared `--lsi-extended-status-zero` it idles normally to 304M;
+- the old checkpoint's SECOND RAM edit is not needed: root readiness `80430A28` = 1 by itself;
+- the FIRST edit's gate `av_selection_or_default` (80054DDC) still returns its default: the A/V
+  byte `80161D3C` = 1, but `80161D40` (A/V manager's current selection, written throughout
+  `av_manager_dispatch`) still equals `8010161C` (none). Nothing is selected because the
+  simulator has no transport/MPEG decoder; TV Guide (CC) draws nothing (GPU 8/8). On the FPGA,
+  which has both, the selection should happen in the firmware - to be measured there.
+
+The sections below are the history of the search.
 
 
 8 November2026. Software research only; current FPGA is still v046 EXP.
