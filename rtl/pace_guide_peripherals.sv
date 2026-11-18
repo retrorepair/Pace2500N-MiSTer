@@ -99,6 +99,12 @@ module pace_guide_peripherals #(
  reg [7:0] ee_pending_data[0:255];reg [15:0] ee_pending_addr[0:255];
  reg [8:0] ee_pending_count=0,ee_commit_count=0,ee_commit_index=0;
  reg [7:0] uart[0:7];
+ // B0009010 holds one bit per DMA channel (5 = memory-to-transport, 12 = graphics). A channel's
+ // bit stays set while it runs and clears when it completes, so a start is the bit going 0 -> 1:
+ // the application sets other channels' bits with read-modify-write while a graphics job runs,
+ // and the loader starts its second transport transfer by writing 0x20 again without clearing it.
+ reg dma5_done_q=0;
+ wire dma5_finished=dma5_done && !dma5_done_q;
  // Boot data port at B00020B0 (the loader's first self-test, BFC0AEF4): B00020B4 = 1 selects
  // writing (entering it empties the port), 2 reading; words written are read back in order.
  // The test writes 60 words of each pattern, then reads and checks 60
@@ -314,7 +320,10 @@ module pace_guide_peripherals #(
      end
     end
    end
-   if(gpu_done)begin gpu_pending<=1;csr[csr_index(32'hb0009010)]<=regval(32'hb0009010)&32'hffffefff;end
+   dma5_done_q<=dma5_done;
+   if(gpu_done)gpu_pending<=1;
+   if(gpu_done || dma5_finished)
+    csr[csr_index(32'hb0009010)]<=regval(32'hb0009010)&~(gpu_done?32'h1000:32'd0)&~(dma5_finished?32'h20:32'd0);
    if(io_req && io_ready && !io_we && io_addr==32'hb00020b0 && boot_fifo_mode==2 && !boot_fifo_empty)
     boot_fifo_read<=boot_fifo_read+1'b1;
    if(io_req && io_ready && io_we)begin
@@ -333,7 +342,10 @@ module pace_guide_peripherals #(
      // No card is modelled, so nothing sets these bits. Plain storage here
      // made the acknowledge read back as a new card event every 20 ms.
      32'hb000b814:csr[csr_index(32'hb000b814)]<=regval(32'hb000b814)&~io_wdata;
-     32'hb0009010:begin if(io_wdata[12])gpu_start<=1;if(io_wdata[5])dma5_start<=1;end
+     32'hb0009010:begin
+      if(io_wdata[12] && (regval(32'hb0009010)&32'h1000)==0)gpu_start<=1;
+      if(io_wdata[5] && (regval(32'hb0009010)&32'h20)==0)dma5_start<=1;
+     end
      32'hb0009090:dma5_descriptor<=io_wdata;
      32'hb00020b4:begin
       boot_fifo_mode<=io_wdata[1:0];

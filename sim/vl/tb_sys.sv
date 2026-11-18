@@ -201,6 +201,59 @@ module tb_sys;
             $fflush;
         end
     end
+    // +printf: the application's own diagnostic printf (0x8007D06C, MIPS16, 373 call sites; o32 varargs:
+    // format in a0, arguments a1..a3, t0..t3 - re/reference_goretrotv digibox-emulation.md).
+    // Each call is printed with its arguments formatted. Strings are read from the bench's RAM
+    // and flash arrays (data still in the CPU's D-cache is not visible to this sim diagnostic).
+    reg printf_on = 0; integer printf_n = 0;
+    function automatic [7:0] guest_byte(input [31:0] v);
+        reg [28:0] p;
+        p = v[28:0];
+        if (p < 29'h01000000) guest_byte = ram[p[23:3]][p[2:0]*8 +: 8];
+        else if (p >= 29'h1fc00000 && p < 29'h1fe00000) guest_byte = flash[p[20:3]][p[2:0]*8 +: 8];
+        else guest_byte = 8'h3f;
+    endfunction
+    function automatic string guest_str(input [31:0] v);
+        string s; integer i; reg [7:0] c;
+        s = "";
+        for (i = 0; i < 160; i = i + 1) begin
+            c = guest_byte(v + i);
+            if (c == 0) break;
+            s = {s, (c >= 8'h20 && c < 8'h7f) ? string'(c) : "."};
+        end
+        return s;
+    endfunction
+    function automatic string guest_printf(input [31:0] fmt, input [31:0] a0, a1, a2, a3, a4, a5, a6);
+        string s, spec; integer i, n; reg [7:0] c; reg [31:0] arg; reg [31:0] args [0:6];
+        args[0] = a0; args[1] = a1; args[2] = a2; args[3] = a3; args[4] = a4; args[5] = a5; args[6] = a6;
+        s = ""; n = 0;
+        for (i = 0; i < 240; i = i + 1) begin
+            c = guest_byte(fmt + i);
+            if (c == 0) break;
+            if (c != "%") begin s = {s, (c == 8'h0a) ? "|" : (c >= 8'h20 && c < 8'h7f) ? string'(c) : "."}; continue; end
+            spec = "%";
+            do begin i = i + 1; c = guest_byte(fmt + i); spec = {spec, string'(c)}; end
+            while (c != 0 && (c == "-" || c == "+" || c == " " || c == "#" || c == "." || c == "l" || c == "h" || (c >= "0" && c <= "9")));
+            if (c == 0) break;
+            if (c == "%") begin s = {s, "%"}; continue; end
+            arg = n < 7 ? args[n] : 32'd0; n = n + 1;
+            case (c)
+                "s": s = {s, guest_str(arg)};
+                "c": s = {s, string'(arg[7:0])};
+                "d", "i": s = {s, $sformatf("%0d", $signed(arg))};
+                "u": s = {s, $sformatf("%0d", arg)};
+                "x", "p": s = {s, $sformatf("%0h", arg)};
+                "X": s = {s, $sformatf("%0H", arg)};
+                default: s = {s, spec};
+            endcase
+        end
+        return s;
+    endfunction
+    always @(posedge clk2x) if (printf_on && cpu.wb_valid && cpu.wb_pc[31:1] == 31'h4003e836) begin   // MIPS16: entered with PC bit 0 set
+        printf_n = printf_n + 1;
+        $display("%0d us: PRINTF %s  (ra %h)", cycles / 50,
+                 guest_printf(sreg[4], sreg[5], sreg[6], sreg[7], sreg[8], sreg[9], sreg[10], sreg[11]), sreg[31]);
+    end
     // Every CPU access outside the physical map (pace_r4k drops the write / reads 0).
     reg [31:0] unmapped_seen = 0;
     always @(posedge clk_sys) if (cpu_unmapped != unmapped_seen) begin
@@ -320,6 +373,7 @@ module tb_sys;
         if ($value$plusargs("watchaddr=%h", watchaddr)) ;
         if ($value$plusargs("watchafter=%d", watchafter)) ;
         natives = $test$plusargs("natives");
+        printf_on = $test$plusargs("printf");
         if ($value$plusargs("keys=%s", keystr)) begin
             for (i = 0; i + 1 < keystr.len() && nkeys < 16; i = i + 3) begin
                 keylist[nkeys] = keystr.substr(i, i + 1).atohex(); nkeys = nkeys + 1;
