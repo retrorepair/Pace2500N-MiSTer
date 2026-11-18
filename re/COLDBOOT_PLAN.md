@@ -47,9 +47,11 @@ start-up (bookings, favourites, PIN, settings) and nothing in RAM is host-made.
      run), the application image CRC (BFC129E4), then `03 20 12 00` at 5.3 s. The front-panel
      reset restarts the CPU with RAM kept and the second boot jumps to the application at
      BFC2048C at 7.6 s.
-   - Still open: NOR flash identify. The loader's AA/55/90/F0 command writes to the flash window
-     are dropped by the CPU's memory map (8 "unmapped" accesses per boot), so its ID reads return
-     array data; the loader continues regardless, but the faithful model is still to do.
+   - NOR flash identify (done): rtl/pace_r4k.sv decodes the JEDEC unlock/autoselect/reset
+     commands in the 1F800000 window per chip and returns the identify codes. The loader
+     identifies U202 twice per boot (16-bit writes at 1F80AAAA/1F805554). Codes: AT49LV1614
+     001F/00C0 (the 2500N board drawing; the loader's table also lists MBM29LV160B 0004/2249).
+     Program/erase remain unmodelled (dropped, counted as unmapped).
 3. Application start-up peripherals: B2001013/33/43, the external 16550 UART (B4080000), demux
    registers B000A004/094/128/148, the LSI front end's start-up (microprogram upload, status), and
    each read override the simulator profile declares - modelled where evidence allows, otherwise

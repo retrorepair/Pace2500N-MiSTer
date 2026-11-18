@@ -14,9 +14,20 @@
 // 0x10000000-0x100FFFFF, 0x12000000-0x120FFFFF, 0x14080000-0x1408FFFF and 0x14180000 (byte
 // writes) on the existing io_* bus as KSEG1 addresses with the access size the firmware used.
 // Anything else reads 0 and drops writes, counted in `unmapped`.
+// The 1F800000 window is the two NOR chips' command interface (U202, then U203 at +2 MiB): the
+// JEDEC unlock AA@AAAA, 55@5554, 90@AAAA puts that chip in autoselect mode (reads return its
+// identify codes, A1:A0 = manufacturer, device, protect 0, 0) until F0. The loader identifies
+// U202 this way twice per boot (BFC02810). Program and erase commands are not modelled: they
+// are dropped and counted in `unmapped`.
 module pace_r4k #(
     parameter integer COUNT_NUM = 27,   // Count = 20.25 MHz at a 75 MHz clk2x
-    parameter integer COUNT_DEN = 100
+    parameter integer COUNT_DEN = 100,
+    // NOR flash identify codes (manufacturer, device) returned in autoselect mode. The loader's
+    // supported-device table (U202 1ADC8 / 1AE10) lists Fujitsu MBM29LV160B (0004/2249) and
+    // Atmel AT49LV1614 (001F/00C0); the 2500N board drawing (colibri.bplaced.net, see
+    // re/APPLICATION_HANDOFF_INVESTIGATION.md) names the AT49LV1614.
+    parameter [15:0] NOR_MANUFACTURER = 16'h001F,
+    parameter [15:0] NOR_DEVICE = 16'h00C0
 )(
     input  wire        clk_sys, clk1x, clk2x,
     input  wire        reset_sys,       // core reset (clk_sys)
@@ -247,6 +258,17 @@ module pace_r4k #(
     wire is_fmirr = (phys & 29'h1FC00000) == 29'h1F800000;             // 1F800000-1FBFFFFF (reads)
     wire is_io    = phys[28:20] == 9'h100 || phys[28:20] == 9'h120 || phys[28:16] == 13'h1408 ||
                     (phys == 29'h14180000 && !p_rnw);
+    // NOR command interface state (clk_sys).
+    reg  [1:0] nor_unlock = 2'd0;
+    reg  [1:0] nor_identify = 2'd0;   // per chip
+    wire [15:0] nor_value = {w[io_off*8 +: 8], w[io_off*8+8 +: 8]};
+    wire [15:0] nor_offset = {phys[15:2], io_off};
+    wire nor_command = !p_rnw && is_fmirr && io_sz == 2'd1;
+    wire nor_id_read = p_rnw && is_fmirr && nor_identify[phys[21]];
+    // Identify codes as a DDR word (byte n in lane n, 16-bit codes big-endian), repeating every
+    // 8 bytes because only A1:A0 select the code.
+    wire [63:0] nor_id_word = {16'h0000, 16'h0000, NOR_DEVICE[7:0], NOR_DEVICE[15:8],
+                               NOR_MANUFACTURER[7:0], NOR_MANUFACTURER[15:8]};
     wire [28:0] ddr_word = is_ram ? 29'h06000000 + {5'd0, phys[23:3]} :
                            is_flash ? 29'h06400000 + {8'd0, phys[20:3]} :
                                       29'h06400000 + {7'd0, phys[21:3]};
@@ -297,12 +319,25 @@ module pace_r4k #(
     always @(posedge clk_sys) begin
         if (reset_sys) begin
             sstate <= S_IDLE; ddr_req <= 1'b0; io_req <= 1'b0;
+            nor_unlock <= 2'd0; nor_identify <= 2'd0;
         end else case (sstate)
             S_IDLE: if (pending) begin
                 if (is_io) begin
                     io_req <= 1'b1; io_we <= !p_rnw; io_size <= io_sz;
                     io_addr <= {3'b101, phys[28:2], io_off}; io_wdata <= io_value;
                     sstate <= S_IO;
+                end else if (nor_id_read) begin
+                    r_data <= p_req64 ? nor_id_word : phys[2] ? {32'd0, nor_id_word[63:32]} : {32'd0, nor_id_word[31:0]};
+                    r_line[0] <= nor_id_word; r_line[1] <= nor_id_word; r_line[2] <= nor_id_word; r_line[3] <= nor_id_word;
+                    ack_tog <= req_s[2];
+                end else if (nor_command && (nor_value == 16'h00F0 ||
+                             (nor_unlock == 2'd0 && nor_offset == 16'hAAAA && nor_value == 16'h00AA) ||
+                             (nor_unlock == 2'd1 && nor_offset == 16'h5554 && nor_value == 16'h0055) ||
+                             (nor_unlock == 2'd2 && nor_offset == 16'hAAAA && nor_value == 16'h0090))) begin
+                    if (nor_value == 16'h00F0) begin nor_unlock <= 2'd0; nor_identify[phys[21]] <= 1'b0; end
+                    else if (nor_unlock == 2'd2) begin nor_unlock <= 2'd0; nor_identify[phys[21]] <= 1'b1; end
+                    else nor_unlock <= nor_unlock + 2'd1;
+                    ack_tog <= req_s[2];
                 end else if (p_rnw && (is_ram || is_flash || is_fmirr)) begin
                     ddr_req <= 1'b1; ddr_we <= 1'b0;
                     ddr_addr <= p_line ? {ddr_word[28:2], 2'b00} : ddr_word;
@@ -316,6 +351,7 @@ module pace_r4k #(
                     // outside the map: reads 0, writes dropped (flash is not written by the CPU)
                     r_data <= 64'd0; r_line[0] <= 64'd0; r_line[1] <= 64'd0; r_line[2] <= 64'd0; r_line[3] <= 64'd0;
                     unmapped <= unmapped + 32'd1;
+                    if (nor_command) nor_unlock <= 2'd0;   // a broken unlock sequence starts over
                     ack_tog <= req_s[2];
                 end
             end

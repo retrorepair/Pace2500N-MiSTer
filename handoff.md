@@ -4,6 +4,25 @@
 Quartus results and HDL regressions. The latest session is directly below; the original
 7 Nov snapshot further down is retained for history only (it predates everything that works).
 
+## Session 18 Nov 2026 (afternoon) - cold boot reaches the application in RTL (branch cold-boot)
+
+- `tb_sys +cold` now boots the genuine loader from BFC00000 to the application with no host
+  help: both self-tests pass (boot data port B00020B0, demux fed by DMA channel 5 from flash),
+  front-panel exchange (0x44 polls to frame 0x1F, as the Python run), image CRC, `03 20 12 00`
+  at 5.3 s, warm reset, APPLICATION ENTRY BFC2048C at 7.6 s, RAM application at 13 s, EEPROM/I2C
+  start-up, 4 bpp first screen at 21.8 s, then the Guide's own 8 bpp display list at 23.1 s
+  (same CLUT/field buffers as the checkpoint). Commits 971299c, d0cdd5c; see re/COLDBOOT_PLAN.md.
+- Demux generalised to guest-programmed rings (B000A120 page, indirect fields 0/2/3), trailer =
+  filter number, no IRQ-enable gating; sim/tb_transport vectors regenerated and passing.
+- Scan-out: 1/2/4/8 bpp display lists (was 8 only: a cold boot's first screen would have stopped
+  it with error C1). sim/tb_guide_video601 fixed (raster ports) and passes 8 and 4 bpp.
+- Branch default is now "Boot: Cold from flash" (status bit 7 = 1 selects Checkpoint).
+  `Pace2500N_V079C_Live.mgl`: FLASH + EEPROM save + live ring only.
+- NOR identify modelled (AT49LV1614 codes per the board drawing; the user's ST-based Thomson
+  board uses M29W160ET, which the 2500N loader's table does not list). Open: the first-stage
+  application runs uncached from flash at
+  ~1.7 M instr/s in the model (7.6 -> 13 s); hardware test of the build.
+
 ## Session 18 Nov 2026 - the loader handoff found (cold boot work started)
 
 - User: bookings/settings must persist like a real box (EEPROM read at boot), so the core must

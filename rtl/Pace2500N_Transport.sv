@@ -3,7 +3,7 @@
 module emu (
 `include "sys/emu_ports.vh"
 );
-localparam CONF_STR={"Pace2500N_TS;;","F0,BIN,Load FLASH_U202.bin;","F1,BIN,Load RAM checkpoint;","F2,BIN,Load CPU state;","F3,TS,Load transport stream (64MiB max);","S0,TS,Stream transport stream / live ring;","S1,BIN,EEPROM save (64 KiB);","O6,Widescreen on 4:3,Stretch,Letterbox;","O3,Display,Guide,Diagnostics;","O4,Diagnostic RF lock,From TS,Off;","O5,Broadcast clock (TOT),MiSTer RTC,TS file;","O7,Boot,Checkpoint,Cold from flash;","-;","R0,Reset (reload checkpoint);","V,0.7.9 (cold boot)"};
+localparam CONF_STR={"Pace2500N_TS;;","F0,BIN,Load FLASH_U202.bin;","F1,BIN,Load RAM checkpoint;","F2,BIN,Load CPU state;","F3,TS,Load transport stream (64MiB max);","S0,TS,Stream transport stream / live ring;","S1,BIN,EEPROM save (64 KiB);","O6,Widescreen on 4:3,Stretch,Letterbox;","O3,Display,Guide,Diagnostics;","O4,Diagnostic RF lock,From TS,Off;","O5,Broadcast clock (TOT),MiSTer RTC,TS file;","O7,Boot,Cold from flash,Checkpoint;","-;","R0,Reset (reload checkpoint);","V,0.7.9 (cold boot)"};
 wire clk_sys,clk_video,clk_mem,clk_dec,clk_dot,pll_locked;
 wire clk_cpu2x,clk_cpu1x;
 pll pll(.refclk(CLK_50M),.rst(1'b0),.outclk_0(clk_sys),.outclk_1(clk_video),
@@ -75,13 +75,13 @@ hps_io #(.CONF_STR(CONF_STR),.WIDE(1),.VDNUM(2)) io (
  .sd_lba('{sd_lba,ee_sd_lba}),.sd_blk_cnt('{sd_blk_cnt,ee_sd_blk_cnt}),.sd_rd({ee_sd_rd,sd_rd}),.sd_wr({ee_sd_wr,sd_wr}),.sd_ack(sd_acks),
  .sd_buff_addr(sd_buff_addr),.sd_buff_dout(sd_buff_dout),.sd_buff_din('{sd_buff_din,ee_sd_din}),.sd_buff_wr(sd_buff_wr));
 wire core_reset=!pll_locked || RESET || buttons[1] || status[0];
-// Cold boot (OSD "Boot: Cold from flash"): the CPU starts at the reset vector with no RAM/CPU
+// Cold boot (OSD "Boot: Cold from flash", the default on this branch): the CPU starts at the reset vector with no RAM/CPU
 // checkpoint, as a powered-on box does. The front-panel controller resets the CPU when the
 // firmware sends it command 0x12 (the loader's handoff to the application: it stores the chosen
 // image's header in RAM, sends 0x12 and sleeps; on the next boot it finds the header and jumps -
 // re/APPLICATION_HANDOFF_INVESTIGATION.md). soc_reset is that reset: the CPU and the chip's
 // own blocks, never the external RAM, the EEPROM, the loaded files or the incoming stream.
-wire cold_boot=status[7];
+wire cold_boot=!status[7];
 wire fp_reset_request;
 reg [7:0] warm_count=0;
 always @(posedge clk_sys)
