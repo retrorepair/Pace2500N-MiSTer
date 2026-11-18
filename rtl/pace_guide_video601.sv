@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// DMA scanout of the guest's real 8bpp interlaced OSD display list and CLUT,
+// DMA scanout of the guest's real interlaced OSD display list and CLUT,
 // one guest pixel per BT.601 13.5 MHz sample (720 active samples per line).
+// Pixel depth comes from the field word's bits 26:25 (depth = 1 << value: 1, 2, 4 or 8 bits),
+// pixels packed most significant first within each byte, a CLUT of 1 << depth entries and a
+// line stride of 720 x depth / 8 bytes. The Guide uses 8 bits; the application's first screen
+// after a cold boot uses 4 (its two field buffers are 0x19510 bytes apart, 720 x 288 / 2).
+// Same layout as the reference's display model (re/REFERENCE_GORETROTV.json, osd/compose.go)
+// and tools/render_guest_osd.py.
 // Replaces pace_guide_video's 640-sample nearest sampling, which dropped
 // every ninth pixel column and visibly distorted text.
 //
@@ -29,7 +35,8 @@ module pace_guide_video601 (
 );
  localparam IDLE=0,REQUEST=1,WAIT_DATA=2,PALETTE_WRITE=3;
  // ---------------- shared memories (write clk, read vclk) ----------------
- (* ramstyle="M10K" *) reg [63:0] line_ram[0:179];
+ // Two line banks of 96 words: a line is at most 90 words plus a partial first word.
+ (* ramstyle="M10K" *) reg [63:0] line_ram[0:191];
  (* ramstyle="M10K" *) reg [95:0] palette_ram[0:63];  // 4 x RGB888 per word
  reg [3:0] key_ram[0:63];                               // 4 x transparent flag per word
  reg [3:0] key_q=0;
@@ -46,19 +53,29 @@ module pace_guide_video601 (
  // core-domain sources read by the video domain (held stable, see above)
  reg done0_toggle=0,done1_toggle=0,palette_valid=0;
  reg [9:0] line_tag0=0,line_tag1=0;
- wire [7:0] line_word=(y[1]?8'd90:8'd0)+{1'b0,x[9:3]};
+ // Depth (bits 26:25 of the field word) and each bank's first-byte offset, from the core domain.
+ reg [1:0] fmt=3;reg [2:0] line_off0=0,line_off1=0;
+ reg [1:0] vfmt_s0=3,vfmt=3;
+ wire [12:0] bit_position=({3'd0,x}<<vfmt)+{7'd0,(y[1]?line_off1:line_off0),3'b000};
+ wire [7:0] line_word=(y[1]?8'd96:8'd0)+{1'b0,bit_position[12:6]};
  wire line_ok=vready[y[1]] && (y[1]?vtag1:vtag0)==y;
- reg [63:0] line_q=0;reg [2:0] lane_q=0;reg show1=0;
+ reg [63:0] line_q=0;reg [2:0] lane_q=0,bit_q=0;reg show1=0;
  reg [95:0] pal_q=0;reg [1:0] sel2=0;reg show2=0;
  reg [4:0] ctrl1=5'b01100,ctrl2=5'b01100; // {ce,visible,hs,vs,field}
- wire [7:0] pixel_index=line_q[lane_q*8+:8];
+ wire [7:0] pixel_byte=line_q[lane_q*8+:8];
+ // Most significant pixel first: shift = 8 - depth - bit offset within the byte.
+ wire [7:0] pixel_index=vfmt==3 ? pixel_byte :
+                        vfmt==2 ? {4'd0,bit_q[2] ? pixel_byte[3:0] : pixel_byte[7:4]} :
+                        vfmt==1 ? {6'd0,pixel_byte[3'd6-bit_q+:2]} :
+                                  {7'd0,pixel_byte[3'd7-bit_q]};
  reg background_q=0;
  always @(posedge vclk)begin
   vreset_s<={vreset_s[0],reset};
   done0_s<={done0_s[1:0],done0_toggle};done1_s<={done1_s[1:0],done1_toggle};
   vpal_s<={vpal_s[0],palette_valid};
   // Pipeline: line RAM -> palette RAM -> RGB, controls delayed to match.
-  line_q<=line_ram[line_word];lane_q<=x[2:0];show1<=vpal_s[1] && line_ok;
+  vfmt_s0<=fmt;vfmt<=vfmt_s0;   // changes only with a new descriptor, before the CLUT reload
+  line_q<=line_ram[line_word];lane_q<=bit_position[5:3];bit_q<=bit_position[2:0];show1<=vpal_s[1] && line_ok;
   ctrl1<={ce,visible,hs,vs,field};
   pal_q<=palette_ram[pixel_index[7:2]];key_q<=key_ram[pixel_index[7:2]];sel2<=pixel_index[1:0];show2<=show1;ctrl2<=ctrl1;
   // Flat fills of the firmware's main Guide surfaces. Foreground text,
@@ -105,7 +122,11 @@ module pace_guide_video601 (
  endfunction
  wire [31:0] low_word=be_word(mem_rdata[31:0]),high_word=be_word(mem_rdata[63:32]);
  wire [31:0] palette_low=be_word(palette_data[31:0]),palette_high=be_word(palette_data[63:32]);
- wire [31:0] line_address=(fetch_line[0]?{8'd0,odd_base}:{8'd0,even_base})+(fetch_line>>1)*720;
+ // Stride 720 x depth / 8 = (720 >> (3 - depth code)), exact for every depth.
+ wire [31:0] line_address=(fetch_line[0]?{8'd0,odd_base}:{8'd0,even_base})+(({22'd0,fetch_line>>1}*720)>>(2'd3-fmt));
+ wire [9:0] line_bytes=10'd720>>(2'd3-fmt);
+ wire [6:0] line_last=7'((({7'd0,line_address[2:0]}+line_bytes+10'd7)>>3)-10'd1);
+ wire [6:0] palette_last=fmt==3 ? 7'd63 : fmt==2 ? 7'd3 : 7'd0;   // (1 << depth) entries, 4 per word
  // Memory write ports (core clock).
  reg line_we=0,palette_we=0;reg [7:0] line_waddr=0;reg [63:0] line_wdata=0;
  reg [5:0] palette_waddr=0;reg [95:0] palette_wdata=0;reg [3:0] key_wdata=0;
@@ -153,19 +174,24 @@ module pace_guide_video601 (
        else begin clut<=high_word[23:0];phase<=1;state<=REQUEST;end
       end
       1:begin
-       if(low_word[26:25]!=3 || low_word[2:0]!=0 || high_word[2:0]!=0)error<=8'hc1;
-       else begin even_base<=low_word[23:0];odd_base<=high_word[23:0];phase<=2;read_index<=0;state<=REQUEST;end
+       if(low_word[2:0]!=0 || high_word[2:0]!=0)error<=8'hc1;
+       else begin
+        even_base<=low_word[23:0];odd_base<=high_word[23:0];fmt<=low_word[26:25];
+        // A new depth invalidates the CLUT and the fetched lines until they are reloaded.
+        if(low_word[26:25]!=fmt)palette_valid<=0;
+        phase<=2;read_index<=0;state<=REQUEST;
+       end
       end
       2:begin
        palette_data<=mem_rdata;state<=PALETTE_WRITE;
       end
       3:begin
-       line_we<=1;line_waddr<=(fetch_line[1]?8'd90:8'd0)+{1'b0,read_index};line_wdata<=mem_rdata;
-       if(read_index==89)begin
-        // Tag is written with its toggle and held until this bank is refetched
-        // two scan lines later, so the video domain samples a stable value.
-        if(fetch_line[1])begin line_tag1<=fetch_line;done1_toggle<=~done1_toggle;end
-        else begin line_tag0<=fetch_line;done0_toggle<=~done0_toggle;end
+       line_we<=1;line_waddr<=(fetch_line[1]?8'd96:8'd0)+{1'b0,read_index};line_wdata<=mem_rdata;
+       if(read_index==line_last)begin
+        // Tag and offset are written with the toggle and held until this bank is refetched
+        // two scan lines later, so the video domain samples stable values.
+        if(fetch_line[1])begin line_tag1<=fetch_line;line_off1<=line_address[2:0];done1_toggle<=~done1_toggle;end
+        else begin line_tag0<=fetch_line;line_off0<=line_address[2:0];done0_toggle<=~done0_toggle;end
         state<=IDLE;
        end else begin read_index<=read_index+1'b1;state<=REQUEST;end
       end
@@ -176,7 +202,7 @@ module pace_guide_video601 (
      palette_wdata<={colour(palette_high[15:0]),colour(palette_high[31:16]),
                      colour(palette_low[15:0]),colour(palette_low[31:16])};
      key_wdata<={palette_high[15:0]==0,palette_high[31:16]==0,palette_low[15:0]==0,palette_low[31:16]==0};
-     if(read_index==63)begin palette_valid<=1;phase<=3;fetch_line<=requested_line;line_pending<=0;read_index<=0;state<=REQUEST;end
+     if(read_index==palette_last)begin palette_valid<=1;phase<=3;fetch_line<=requested_line;line_pending<=0;read_index<=0;state<=REQUEST;end
      else begin read_index<=read_index+1'b1;state<=REQUEST;end
     end
     default:error<=8'hcf;

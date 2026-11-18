@@ -2,6 +2,9 @@
 // BT.601 scanout check: every one of the 720 guest pixels per line must reach
 // the output exactly once, with the CLUT colour, across interlaced fields,
 // with a 50 MHz core/DDR clock and an asynchronous 54 MHz video clock.
+// +depth4: the descriptor is rewritten to 4 bits per pixel (field word bits 26:25 = 2, field
+// buffers 0x19510 apart), as the application sets it for its first screen after a cold boot;
+// pixels are checked as most-significant-nibble-first CLUT indices.
 module tb_guide_video601;
  reg clk=0,vclk=0,reset=1;
  always #10 clk=~clk;           // 50 MHz core
@@ -14,7 +17,8 @@ module tb_guide_video601;
  integer active_columns=0,hs_low=0,line_samples=0,last_line_samples=0;
  reg response=0;reg[63:0] data=0,saved_data=0;reg last_ode=0,last_oh=1;
  wire accept=req && wait_count==0 && cycles%4==1;
- pace_pal576i601 raster(vclk,reset,ce,x,y,de,hs,vs,field);
+ pace_pal576i601 raster(.clk(vclk),.reset(reset),.sync(1'b0),.sync_field(1'b0),.ce_pixel(ce),.x(x),.y(y),
+  .visible(de),.hs(hs),.vs(vs),.field(field));
  pace_guide_video601 video(.clk(clk),.reset(reset),.hold(1'b0),.osd_root(32'h01583fe8),
   .error(error),.frames(frames),.underruns(underruns),.mem_req(req),.mem_addr(addr),
   .mem_accept(accept),.mem_rvalid(response),.mem_rdata(data),
@@ -24,7 +28,7 @@ module tb_guide_video601;
   byte_at=(ram[at>>3]>>((at&7)*8))&255;
  endfunction
  function automatic integer clamp(input integer v);clamp=v<0?0:v>255?255:v;endfunction
- integer base,pixel,entry,yy,cb,cr,er,eg,eb;
+ integer base,pixel,entry,yy,cb,cr,er,eg,eb,depth=8,odd_base=32'h5b6a58,bitpos;
  reg [9:0] row;
  always @(posedge clk)begin
   cycles<=cycles+1;response<=0;
@@ -51,8 +55,9 @@ module tb_guide_video601;
    last_ode=ode;
    if(ode)begin
     if(frames>=3)begin
-     base=row[0]?32'h5b6a58:32'h584048;
-     pixel=byte_at(base+(row>>1)*720+column);
+     base=row[0]?odd_base:32'h584048;
+     bitpos=column*depth;
+     pixel=(byte_at(base+(row>>1)*(720*depth/8)+bitpos/8)>>(8-depth-bitpos%8))&((1<<depth)-1);
      entry=byte_at(32'h5e9468+pixel*2)*256+byte_at(32'h5e9468+pixel*2+1);
      yy=((entry>>8)&63)*4;cb=((entry>>4)&15)*16-128;cr=(entry&15)*16-128;
      er=clamp($rtoi(1.164*(yy-16)+1.596*cr));
@@ -73,6 +78,11 @@ module tb_guide_video601;
  reg[31:0] prior;
  initial begin
   $readmemh("re/fpga_guide_checkpoint/ram64.hex",ram);
+  if($test$plusargs("depth4"))begin
+   depth=4;odd_base=32'h59d558;
+   // descriptor 583FE8 +16 = 04584048 (depth code 2), +20 = 0059D558, big-endian bytes
+   ram[32'h583ff8>>3]={8'h58,8'hd5,8'h59,8'h00,8'h48,8'h40,8'h58,8'h04};
+  end
   repeat(4)@(negedge clk);reset=0;
   wait(frames==3);prior=underruns;
   wait(frames==6);@(negedge clk);

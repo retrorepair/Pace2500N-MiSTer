@@ -201,6 +201,13 @@ module tb_sys;
             $fflush;
         end
     end
+    // Every CPU access outside the physical map (pace_r4k drops the write / reads 0).
+    reg [31:0] unmapped_seen = 0;
+    always @(posedge clk_sys) if (cpu_unmapped != unmapped_seen) begin
+        unmapped_seen <= cpu_unmapped;
+        $display("%0d us: UNMAPPED %s %h mask %h data %h", cycles / 50, cpu.p_rnw ? "read" : "write",
+                 cpu.p_addr, cpu.p_mask, cpu.p_wdata[31:0]);
+    end
     always @(posedge clk_sys) if (fp_reset_request && cold)
         $display("%0d ms: FRONT-PANEL RESET (command 0x12) at pc %h after %0d instructions", cycles / 50000, pc, n_ret);
     always @(posedge clk_sys) if (iq && irdy && logfd != 0)
@@ -249,7 +256,8 @@ module tb_sys;
     always @(posedge clk_sys) if (!holding && cycles % 100000 == 50000 && osd_root[24] && osd_root[23:0] != 0) begin
         d = osd_root[23:0];
         w8 = be32(d + 8); w12 = be32(d + 12); w16 = be32(d + 16); w20 = be32(d + 20);
-        if (d[2:0] != 0 || w8 != 32'h023f02cf || w12[2:0] != 0 || w16[26:25] != 3 || w16[2:0] != 0 || w20[2:0] != 0) begin
+        // As rtl/pace_guide_video601.sv accepts it (any depth in w16[26:25]).
+        if (d[2:0] != 0 || w8 != 32'h023f02cf || w12[2:0] != 0 || w16[2:0] != 0 || w20[2:0] != 0) begin
             osd_bad = osd_bad + 1;
             if (osd_bad <= 5)
                 $display("%0d ms: OSD DESCRIPTOR INVALID in DDR at %h: +8 %h +12 %h +16 %h +20 %h (pc %h, %0d instructions)",
