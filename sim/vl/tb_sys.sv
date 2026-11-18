@@ -10,6 +10,8 @@
 //   X epc cause      the next R is the first instruction of an interrupt (ExcCode 0) handler
 //   M w addr size v  device register access seen by the CPU (v = value read or written)
 //   D addr be data   a RAM write by a device (blitter, demux), DDR word address
+// +cold: cold boot from flash (no RAM/STATE checkpoint, RAM zeroed, registers at zero, the
+// front-panel controller's reset on command 0x12) as rtl/Pace2500N_Transport.sv's OSD option.
 // Plusargs: +ram=HEX +state=HEX +flash=HEX +log=FILE +cycles=N (clk_sys) +key=HH +keyat=N
 //           +status=N (print a status line every N clk_sys cycles) +lat=N (DDR read latency)
 `timescale 1ps/1ps
@@ -25,6 +27,14 @@ module tb_sys;
     initial begin #1700; forever #10000 clk_sys = ~clk_sys; end
 
     reg core_reset = 1, holding = 1, loaded_state = 0;
+    reg cold = 0;
+    wire fp_reset_request;
+    reg [7:0] warm_count = 0;
+    always @(posedge clk_sys)
+        if (core_reset) warm_count <= 0;
+        else if (fp_reset_request && cold) warm_count <= 8'd255;
+        else if (warm_count != 0) warm_count <= warm_count - 1'b1;
+    wire soc_reset = core_reset || warm_count != 0;
     reg state_write = 0; reg [6:0] state_index = 0; reg [31:0] state_data = 0;
     reg [31:0] state_words [0:68];
     reg [63:0] ram [0:2097151];
@@ -53,7 +63,7 @@ module tb_sys;
     integer tsfd = 0, tsgap = 50, tswait = 0, tsc;
 
     pace_r4k #(.COUNT_NUM(27), .COUNT_DEN(100)) cpu (.clk_sys(clk_sys), .clk1x(clk1x), .clk2x(clk2x),
-        .reset_sys(core_reset), .hold_sys(holding), .ckpt_loaded(loaded_state),
+        .reset_sys(soc_reset), .hold_sys(holding), .ckpt_loaded(loaded_state),
         .state_wr(state_write), .state_index(state_index), .state_data(state_data), .io_irq(irq),
         .ddr_req(cq), .ddr_we(cw), .ddr_addr(cad), .ddr_wdata(cwd), .ddr_be(cbe), .ddr_burst(cburst),
         .ddr_accept(ca), .ddr_rvalid(cv), .ddr_rdata(DDRAM_DOUT),
@@ -62,29 +72,31 @@ module tb_sys;
         .dbg_fetch_stall(dbg_fetch_stall), .dbg_cached_stall(dbg_cached_stall), .dbg_mem_stall(dbg_mem_stall),
         .dbg_exceptions(dbg_exceptions), .dbg_cause(dbg_cause), .dbg_epc(dbg_epc), .dbg_badvaddr(dbg_badvaddr),
         .trace_next(1'b0), .trace_page_data(trace_page_data), .trace_trigger(1'b0), .trace_frozen(trace_frozen));
-    pace_mmio_response mmio_bus (.clk(clk_sys), .reset(core_reset), .hold(holding), .cpu_req(iq),
+    pace_mmio_response mmio_bus (.clk(clk_sys), .reset(soc_reset), .hold(holding), .cpu_req(iq),
         .cpu_ready(irdy), .cpu_data(ir), .device_req(device_req), .device_ready(device_ready),
         .device_data(demux_selected ? dir : mpeg_hit ? mpeg_rdata : pir));
-    pace_guide_peripherals devices (.clk(clk_sys), .reset(core_reset), .hold(holding), .retired(retired),
+    pace_guide_peripherals devices (.clk(clk_sys), .reset(soc_reset), .hold(holding), .retired(retired),
         .io_req(device_req && !demux_selected), .io_we(iw), .io_addr(ia), .io_wdata(id), .io_size(iz),
         .io_rdata(pir), .io_ready(prdy), .io_irq(irq),
         .key_valid(key_valid), .key_pressed(1'b1), .key_code(key_code), .gpu_start(gpu_start),
         .gpu_descriptor(gpu_descriptor), .osd_root(osd_root), .gpu_done(gpu_done),
         .transport_irq(demux_irq), .mpeg_irq(mpeg_irq), .transport_lock(ts_packets >= 3), .model_halt(model_halt),
         .serial_frames(serial_frames), .key_frames(key_frames), .timer_acks(timer_acks),
-        .gpu_acks(gpu_acks), .last_key(last_key));
-    pace_guide_blitter gpu (.clk(clk_sys), .reset(core_reset), .hold(holding), .start(gpu_start),
+        .gpu_acks(gpu_acks), .last_key(last_key),
+        .ee_b_addr(16'd0), .ee_b_we(1'b0), .ee_b_wdata(8'd0), .ee_b_q(), .ee_a_we(), .ee_a_addr(),
+        .cold(cold), .fp_reset_request(fp_reset_request));
+    pace_guide_blitter gpu (.clk(clk_sys), .reset(soc_reset), .hold(holding), .start(gpu_start),
         .descriptor(gpu_descriptor), .done(gpu_done), .busy(gpu_busy), .error(gpu_error),
         .completions(gpu_count), .last_opcode(gpu_last),
         .mem_req(gq), .mem_we(gw), .mem_addr(gad), .mem_wdata(gwd), .mem_be(gbe), .mem_burst(gburst),
         .mem_accept(ga), .mem_rvalid(gv), .mem_rdata(DDRAM_DOUT));
-    pace_section_demux demux (.clk(clk_sys), .reset(core_reset), .stream_reset(1'b0), .hold(holding),
+    pace_section_demux demux (.clk(clk_sys), .reset(soc_reset), .stream_reset(1'b0), .hold(holding),
         .ts_valid(ts_valid), .ts_ready(ts_ready), .ts_data(ts_byte),
         .io_req(device_req && demux_selected), .io_we(iw), .io_addr(ia), .io_wdata(id), .io_size(iz),
         .io_rdata(dir), .irq(demux_irq), .config_ready(demux_config_ready),
         .mem_req(dq), .mem_addr(dad), .mem_wdata(dwd), .mem_be(dbe), .mem_accept(da),
         .packets(ts_packets), .sections(), .dropped(), .crc_errors(), .av_video(), .av_audio(), .av_pcr());
-    pace_mpeg_status mpeg_status (.clk(clk_sys), .reset(core_reset),
+    pace_mpeg_status mpeg_status (.clk(clk_sys), .reset(soc_reset),
         .access(device_req && device_ready && !holding && !demux_selected), .we(iw), .addr(ia), .wdata(id),
         .hit(mpeg_hit), .rdata(mpeg_rdata), .irq(mpeg_irq),
         .seq_evt(1'b0), .gop_evt(1'b0), .pic_evt(1'b0), .field_evt(1'b0),
@@ -148,6 +160,8 @@ module tb_sys;
             $fdisplay(logfd, "R %h %h %h", cpu.wb_pc, cpu.wb_rd, cpu.wb_data);
         end
         if (cpu.wb_pc == 32'h80000180 && last_pc != 32'h8000017c) n_irq <= n_irq + 1;
+        if (cpu.wb_pc == 32'hbfc2048c || cpu.wb_pc == 32'h9fc2048c)
+            $display("%0d ms: APPLICATION ENTRY %h after %0d instructions", cycles / 50000, cpu.wb_pc, n_ret);
         last_pc <= cpu.wb_pc; n_ret <= n_ret + 1;
     end
     // +watchval=HEX: the first few times a register is written with that value, print the last
@@ -177,6 +191,8 @@ module tb_sys;
             $fflush;
         end
     end
+    always @(posedge clk_sys) if (fp_reset_request && cold)
+        $display("%0d ms: FRONT-PANEL RESET (command 0x12) at pc %h after %0d instructions", cycles / 50000, pc, n_ret);
     always @(posedge clk_sys) if (iq && irdy && logfd != 0)
         $fdisplay(logfd, "M %0d %h %0d %h", iw, ia, iz, iw ? id : ir);
     // +watchaddr=HEX (physical): every cached load/store of that 32-bit word is printed; the
@@ -299,12 +315,17 @@ module tb_sys;
         if ($value$plusargs("latrand=%d", latrand)) ;
         if ($value$plusargs("busy=%d", busypct)) ;
         if ($value$plusargs("seed=%d", i)) void'($urandom(i));
-        $readmemh(ram_file, ram); $readmemh(flash_file, flash); $readmemh(state_file, state_words);
+        cold = $test$plusargs("cold");
+        $readmemh(flash_file, flash);
+        if (cold) for (i = 0; i < 2097152; i = i + 1) ram[i] = 64'd0;   // SDRAM after power-on
+        else begin $readmemh(ram_file, ram); $readmemh(state_file, state_words); end
         repeat (8) @(negedge clk_sys); core_reset = 0;
-        for (i = 0; i < 68; i = i + 1) begin
-            state_write = 1; state_index = i[6:0]; state_data = state_words[i]; @(negedge clk_sys);
+        if (!cold) begin
+            for (i = 0; i < 68; i = i + 1) begin
+                state_write = 1; state_index = i[6:0]; state_data = state_words[i]; @(negedge clk_sys);
+            end
+            state_write = 0; loaded_state = 1;
         end
-        state_write = 0; loaded_state = 1;
         repeat (8) @(negedge clk_sys); holding = 0;
     end
 endmodule

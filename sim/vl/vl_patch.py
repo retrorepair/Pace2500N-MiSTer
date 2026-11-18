@@ -5,10 +5,10 @@ out; the meaning is unchanged. Usage: vl_patch.py OUTDIR"""
 import sys, re
 out = sys.argv[1]
 s = open('rtl/pace_guide_peripherals.sv').read()
-a = "for(n=0;n<128;n=n+1)if(is_hot(n[6:0]))csr[n]<=seed[n];"
+a = "for(n=0;n<128;n=n+1)if(is_hot(n[6:0]))csr[n]<=cold ? 32'd0 : seed[n];"
 b = "for(n=0;n<128;n=n+1)if(is_hot(n[6:0]) && io_index==n[6:0])csr[n]<=io_wdata;"
 assert s.count(a) == 1 and s.count(b) == 1
-s = s.replace(a, ''.join("if(is_hot(7'd%d))csr[%d]<=seed[%d];" % (i, i, i) for i in range(128)))
+s = s.replace(a, ''.join("if(is_hot(7'd%d))csr[%d]<=cold ? 32'd0 : seed[%d];" % (i, i, i) for i in range(128)))
 s = s.replace(b, "if(io_hot)csr[io_index]<=io_wdata;")   # io_hot = is_hot(io_index)
 open(out + '/pace_guide_peripherals.sv', 'w').write(s)
 

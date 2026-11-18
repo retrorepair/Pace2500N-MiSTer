@@ -30,7 +30,14 @@ module pace_guide_peripherals #(
  // address of each byte the firmware commits (port A), so changed blocks reach the SD card.
  input wire [15:0] ee_b_addr,input wire ee_b_we,input wire [7:0] ee_b_wdata,
  output wire [7:0] ee_b_q,
- output wire ee_a_we,output wire [15:0] ee_a_addr
+ output wire ee_a_we,output wire [15:0] ee_a_addr,
+ // Cold boot from flash (no checkpoint): registers start at zero (the simulator's declared
+ // unknown-register policy) instead of the checkpoint's values, and the front-panel
+ // controller's reset command is honoured: the loader hands over to the application by
+ // sending 03 xx 12 00 and sleeping, and the board resets the CPU with RAM intact
+ // (re/APPLICATION_HANDOFF_INVESTIGATION.md).
+ input wire cold,
+ output reg fp_reset_request=0
 );
  `include "rtl/pace_checkpoint_csr.vh"
  reg [31:0] seed[0:127],csr[0:127];
@@ -53,7 +60,7 @@ module pace_guide_peripherals #(
  reg [127:0] cold_written=0;
  wire [6:0] io_index=csr_index(io_addr);
  wire io_hot=is_hot(io_index);
- wire [31:0] io_csr=io_hot ? csr[io_index] : cold_written[io_index] ? csr_cold[io_index] : seed[io_index];
+ wire [31:0] io_csr=io_hot ? csr[io_index] : cold_written[io_index] ? csr_cold[io_index] : cold ? 32'd0 : seed[io_index];
  // Hot registers only (all callers pass one of the addresses above).
  function automatic [31:0] regval(input[31:0] a);regval=csr[csr_index(a)];endfunction
  reg [31:0] last_retired=0;
@@ -170,17 +177,17 @@ module pace_guide_peripherals #(
    else if(io_size==1)io_rdata=io_rdata&32'hffff;
  end
  always @(posedge clk)begin
-  gpu_start<=0;
+  gpu_start<=0;fp_reset_request<=0;
   if(reset)begin
-   for(n=0;n<128;n=n+1)if(is_hot(n[6:0]))csr[n]<=seed[n];
+   for(n=0;n<128;n=n+1)if(is_hot(n[6:0]))csr[n]<=cold ? 32'd0 : seed[n];
    cold_written<=0;
    for(n=0;n<8;n=n+1)uart[n]<=0;
    uart[3]<=3;
-   last_retired<=retired;timer_remaining<=740656;timer_pending<=0;gpu_pending<=0;wall_acc<=0;
+   last_retired<=retired;timer_remaining<=cold ? 32'd0 : 32'd740656;timer_pending<=0;gpu_pending<=0;wall_acc<=0;
    clock_waiting<=0;serial_rx<=0;clock_delay<=0;tx_count<=0;tx_escape<=0;
    ack_pending<=0;key_write<=0;key_read<=0;wire_active<=0;wire_escape<=0;
    i2c_delay<=0;serial0_delay<=0;i2c_address_valid<=0;i2c_start<=0;
-   lsi_group<=7;lsi_apr<=29;ee_pointer<=14090;ee_address_count<=0;
+   lsi_group<=7;lsi_apr<=cold ? 13'd0 : 13'd29;ee_pointer<=cold ? 16'd0 : 16'd14090;ee_address_count<=0;
    ee_pending_count<=0;ee_commit_count<=0;ee_commit_index<=0;
    model_halt<=0;serial_frames<=0;key_frames<=0;timer_acks<=0;gpu_acks<=0;last_key<=0;
   end else if(hold)last_retired<=retired;
@@ -244,6 +251,7 @@ module pace_guide_peripherals #(
        else if(ack_pending)model_halt<=8'he3;
        else begin
         ack_pending<=1;
+        if(cold && tx_body[2]==8'h12)fp_reset_request<=1;   // front-panel controller: reset the CPU
         if(tx_body[2]==8'h44)begin ack_body<={8'h04,tx_body[1],8'h44,8'hff,8'hff,8'd0};ack_len<=5;end
         else begin ack_body<={8'h02,tx_body[1],(tx_body[2]==8'h52 ? 8'h52 : 8'h10),24'd0};ack_len<=3;end
        end

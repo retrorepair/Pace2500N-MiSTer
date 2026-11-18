@@ -3,7 +3,7 @@
 module emu (
 `include "sys/emu_ports.vh"
 );
-localparam CONF_STR={"Pace2500N_TS;;","F0,BIN,Load FLASH_U202.bin;","F1,BIN,Load RAM checkpoint;","F2,BIN,Load CPU state;","F3,TS,Load transport stream (64MiB max);","S0,TS,Stream transport stream / live ring;","S1,BIN,EEPROM save (64 KiB);","O6,Widescreen on 4:3,Stretch,Letterbox;","O3,Display,Guide,Diagnostics;","O4,Diagnostic RF lock,From TS,Off;","O5,Broadcast clock (TOT),MiSTer RTC,TS file;","-;","R0,Reset (reload checkpoint);","V,0.7.8 (EEPROM save)"};
+localparam CONF_STR={"Pace2500N_TS;;","F0,BIN,Load FLASH_U202.bin;","F1,BIN,Load RAM checkpoint;","F2,BIN,Load CPU state;","F3,TS,Load transport stream (64MiB max);","S0,TS,Stream transport stream / live ring;","S1,BIN,EEPROM save (64 KiB);","O6,Widescreen on 4:3,Stretch,Letterbox;","O3,Display,Guide,Diagnostics;","O4,Diagnostic RF lock,From TS,Off;","O5,Broadcast clock (TOT),MiSTer RTC,TS file;","O7,Boot,Checkpoint,Cold from flash;","-;","R0,Reset (reload checkpoint);","V,0.7.9 (cold boot)"};
 wire clk_sys,clk_video,clk_mem,clk_dec,clk_dot,pll_locked;
 wire clk_cpu2x,clk_cpu1x;
 pll pll(.refclk(CLK_50M),.rst(1'b0),.outclk_0(clk_sys),.outclk_1(clk_video),
@@ -75,6 +75,20 @@ hps_io #(.CONF_STR(CONF_STR),.WIDE(1),.VDNUM(2)) io (
  .sd_lba('{sd_lba,ee_sd_lba}),.sd_blk_cnt('{sd_blk_cnt,ee_sd_blk_cnt}),.sd_rd({ee_sd_rd,sd_rd}),.sd_wr({ee_sd_wr,sd_wr}),.sd_ack(sd_acks),
  .sd_buff_addr(sd_buff_addr),.sd_buff_dout(sd_buff_dout),.sd_buff_din('{sd_buff_din,ee_sd_din}),.sd_buff_wr(sd_buff_wr));
 wire core_reset=!pll_locked || RESET || buttons[1] || status[0];
+// Cold boot (OSD "Boot: Cold from flash"): the CPU starts at the reset vector with no RAM/CPU
+// checkpoint, as a powered-on box does. The front-panel controller resets the CPU when the
+// firmware sends it command 0x12 (the loader's handoff to the application: it stores the chosen
+// image's header in RAM, sends 0x12 and sleeps; on the next boot it finds the header and jumps -
+// re/APPLICATION_HANDOFF_INVESTIGATION.md). soc_reset is that reset: the CPU and the chip's
+// own blocks, never the external RAM, the EEPROM, the loaded files or the incoming stream.
+wire cold_boot=status[7];
+wire fp_reset_request;
+reg [7:0] warm_count=0;
+always @(posedge clk_sys)
+ if(core_reset)warm_count<=0;
+ else if(fp_reset_request && cold_boot)warm_count<=8'd255;
+ else if(warm_count!=0)warm_count<=warm_count-1'b1;
+wire soc_reset=core_reset || warm_count!=0;
 reg loaded_flash=0,loaded_ram=0,loaded_state=0;
 reg previous_download=0;reg [15:0] last_download_index=0;
 reg [26:0] last_download_address=0;
@@ -90,7 +104,19 @@ pace_ts_load_tracker stream_file(.clk(clk_sys),.reset(core_reset),.download(stre
 wire ee_loading;
 wire [15:0] ee_b_addr,ee_a_addr;wire ee_b_we,ee_a_we;wire [7:0] ee_b_wdata,ee_b_q;
 wire ee_mounted;wire [15:0] ee_saved_blocks;
-wire holding=ioctl_download || !loaded_flash || !loaded_ram || !loaded_state || ee_loading;
+// Power-on (cold boot): SDRAM does not keep its contents without power, so the guest RAM is
+// cleared before the CPU starts; otherwise an earlier session's RAM - the loader's "warm boot"
+// signature and handoff header included - would look like a warm reset to the loader.
+reg ram_clearing=0,ram_cleared=0;reg [20:0] clear_index=0;
+wire clear_store;
+always @(posedge clk_sys)
+ if(core_reset)begin ram_clearing<=0;ram_cleared<=0;clear_index<=0;end
+ else if(cold_boot && loaded_flash && !ram_cleared && !ram_clearing)ram_clearing<=1;
+ else if(clear_store)begin
+  clear_index<=clear_index+1'b1;
+  if(&clear_index)begin ram_clearing<=0;ram_cleared<=1;end
+ end
+wire holding=ioctl_download || !loaded_flash || (cold_boot ? !ram_cleared : (!loaded_ram || !loaded_state)) || ee_loading;
 wire state_write=ioctl_download && ioctl_wr && ioctl_index==2 && ioctl_addr[1];
 wire [31:0] state_data={state_high,ioctl_dout[7:0],ioctl_dout[15:8]};
 always @(posedge clk_sys)begin
@@ -127,7 +153,7 @@ wire [22:0] dec_gop_tc;wire [1:0] dec_pic_ps;
 wire demux_selected=ia[31:12]==20'hb000a;
 wire demux_config_ready;
 assign device_ready=demux_selected?device_req && demux_config_ready:prdy;
-pace_mmio_response mmio_bus(.clk(clk_sys),.reset(core_reset),.hold(holding),.cpu_req(iq),
+pace_mmio_response mmio_bus(.clk(clk_sys),.reset(soc_reset),.hold(holding),.cpu_req(iq),
  .cpu_ready(irdy),.cpu_data(ir),.device_req(device_req),.device_ready(device_ready),.device_data(demux_selected?dir:mpeg_hit?mpeg_rdata:pir));
 wire ts_valid,ts_ready,demux_irq;wire [7:0] ts_data;
 wire [15:0] av_video,av_audio;
@@ -145,7 +171,7 @@ wire trace_next,trace_frozen;wire [511:0] trace_page_data;
 wire [31:0] dbg_fetch_stall,dbg_cached_stall,dbg_mem_stall,dbg_exceptions,dbg_cause,dbg_epc,dbg_badvaddr;
 wire [5:0] cpu_errors;wire [31:0] cpu_unmapped;wire [7:0] cburst;
 pace_r4k #(.COUNT_NUM(27),.COUNT_DEN(100)) cpu(.clk_sys(clk_sys),.clk1x(clk_cpu1x),.clk2x(clk_cpu2x),
- .reset_sys(core_reset),.hold_sys(holding),.ckpt_loaded(loaded_state),
+ .reset_sys(soc_reset),.hold_sys(holding),.ckpt_loaded(loaded_state && !cold_boot),
  .state_wr(state_write),.state_index(ioctl_addr[8:2]),.state_data(state_data),.io_irq(irq),
  .ddr_req(cq),.ddr_we(cw),.ddr_addr(cad),.ddr_wdata(cwd),.ddr_be(cbe),.ddr_burst(cburst),
  .ddr_accept(ca),.ddr_rvalid(cv),.ddr_rdata(DDRAM_DOUT),
@@ -162,14 +188,15 @@ pace_r4k #(.COUNT_NUM(27),.COUNT_DEN(100)) cpu(.clk_sys(clk_sys),.clk1x(clk_cpu1
 assign cpu_halt=8'd0;assign inst={26'd0,cpu_errors};assign ram_writes=cpu_unmapped;
 assign last_ram=0;assign mmio_address=0;assign mmio_value=0;assign mmio_read=0;assign mmio_writes=0;
 assign guessed_reads=0;assign interrupt_count=dbg_exceptions;assign mips16=pc[0];
-pace_guide_peripherals devices(.clk(clk_sys),.reset(core_reset),.hold(holding),.retired(retired),
+pace_guide_peripherals devices(.clk(clk_sys),.reset(soc_reset),.hold(holding),.retired(retired),
  .io_req(device_req && !demux_selected),.io_we(iw),.io_addr(ia),.io_wdata(id),.io_size(iz),.io_rdata(pir),.io_ready(prdy),.io_irq(irq),
  .key_valid(key_valid),.key_pressed(key_pressed),.key_code(key_code),.gpu_start(gpu_start),
  .gpu_descriptor(gpu_descriptor),.osd_root(osd_root),.gpu_done(gpu_done),.transport_irq(demux_irq),.mpeg_irq(mpeg_irq),
  // tuner lock: a transport is arriving (loaded file, or a streamed/live image)
  .transport_lock((loaded_stream || streaming) && ts_packets>=3 && !status[4]),.model_halt(model_halt),
  .serial_frames(serial_frames),.key_frames(key_frames),.timer_acks(timer_acks),.gpu_acks(gpu_acks),.last_key(last_key),
- .ee_b_addr(ee_b_addr),.ee_b_we(ee_b_we),.ee_b_wdata(ee_b_wdata),.ee_b_q(ee_b_q),.ee_a_we(ee_a_we),.ee_a_addr(ee_a_addr));
+ .ee_b_addr(ee_b_addr),.ee_b_we(ee_b_we),.ee_b_wdata(ee_b_wdata),.ee_b_q(ee_b_q),.ee_a_we(ee_a_we),.ee_a_addr(ee_a_addr),
+ .cold(cold_boot),.fp_reset_request(fp_reset_request));
 // The EEPROM survives a power cycle: kept in the slot-1 save file. Reset only by the PLL, so
 // a core reset (checkpoint reload) keeps the mount.
 pace_eeprom_save eeprom_save(.clk(clk_sys),.reset(!pll_locked),
@@ -179,7 +206,7 @@ pace_eeprom_save eeprom_save(.clk(clk_sys),.reset(!pll_locked),
  .ee_addr(ee_b_addr),.ee_we(ee_b_we),.ee_wdata(ee_b_wdata),.ee_q(ee_b_q),
  .ee_commit_we(ee_a_we),.ee_commit_addr(ee_a_addr),
  .loading(ee_loading),.mounted(ee_mounted),.saved_blocks(ee_saved_blocks));
-pace_guide_blitter gpu(.clk(clk_sys),.reset(core_reset),.hold(holding),.start(gpu_start),.descriptor(gpu_descriptor),
+pace_guide_blitter gpu(.clk(clk_sys),.reset(soc_reset),.hold(holding),.start(gpu_start),.descriptor(gpu_descriptor),
  .done(gpu_done),.busy(gpu_busy),.error(gpu_error),.completions(gpu_count),.last_opcode(gpu_last),
  .mem_req(gq),.mem_we(gw),.mem_addr(gad),.mem_wdata(gwd),.mem_be(gbe),.mem_burst(gburst),
  .mem_accept(ga),.mem_rvalid(gv),.mem_rdata(DDRAM_DOUT));
@@ -215,7 +242,7 @@ pace_ts_replay transport(.clk(clk_sys),.reset(core_reset || stream_loading || st
 pace_tot_clock broadcast_clock(.clk(clk_sys),.reset(core_reset || stream_loading || stream_restart),.enable(!status[5]),.rtc(rtc),
  .in_valid(raw_valid),.in_ready(raw_ready),.in_data(raw_data),.out_valid(ts_valid),.out_ready(ts_ready),.out_data(ts_data),.rewritten(tot_rewrites),
  .seconds_of_day(utc_seconds),.time_valid(utc_valid));
-pace_section_demux demux(.clk(clk_sys),.reset(core_reset),.stream_reset(stream_loading),.hold(holding),
+pace_section_demux demux(.clk(clk_sys),.reset(soc_reset),.stream_reset(stream_loading),.hold(holding),
  .ts_valid(ts_valid),.ts_ready(ts_ready),.ts_data(ts_data),
  .io_req(device_req && demux_selected),.io_we(iw),.io_addr(ia),.io_wdata(id),.io_size(iz),.io_rdata(dir),.irq(demux_irq),.config_ready(demux_config_ready),
  .mem_req(dq),.mem_addr(dad),.mem_wdata(dwd),.mem_be(dbe),.mem_accept(da),
@@ -232,7 +259,7 @@ wire [12:0] audio_route=epg_mode ? 13'h0288 : av_audio[12:0];
 wire audio_on=(epg_mode ? epg_music : av_audio[14]) && !holding;
 reg [12:0] previous_audio_route=13'h1fff;
 always @(posedge clk_sys)previous_audio_route<=audio_route;
-wire audio_reset=core_reset || stream_loading || stream_restart || !audio_on ||
+wire audio_reset=soc_reset || stream_loading || stream_restart || !audio_on ||
                  previous_audio_route!=audio_route;
 wire [7:0] ves_data,aes_data;wire ves_valid,ves_ready,aes_valid,aes_full;
 wire still_q,still_a,still_v;
@@ -249,12 +276,12 @@ always @(posedge clk_sys)begin
  else if(still_enable!=still_enable_q)flush_count<=8'd255;
  else if(flush_count!=0)flush_count<=flush_count-1'b1;
 end
-pace_guide_still guide_still(.clk(clk_sys),.reset(core_reset),.enable(still_enable),
+pace_guide_still guide_still(.clk(clk_sys),.reset(soc_reset),.enable(still_enable),
  .mem_req(still_q),.mem_addr(still_addr),.mem_accept(still_a),.mem_rvalid(still_v),.mem_rdata(DDRAM_DOUT),
  .data(still_data),.valid(still_valid),.ready(decoder_ready && !decoder_flush),.present(still_present));
 assign ves_ready=decoder_ready && !still_enable && !decoder_flush;
 wire [31:0] ves_bytes,aes_bytes;wire [15:0] ves_dropped,aes_dropped;
-pace_av_pes #(.FIFO_BITS(10)) av_pes(.clk(clk_sys),.reset(core_reset || stream_loading || stream_restart),.ts_strobe(ts_valid && ts_ready),.ts_data(ts_data),
+pace_av_pes #(.FIFO_BITS(10)) av_pes(.clk(clk_sys),.reset(soc_reset || stream_loading || stream_restart),.ts_strobe(ts_valid && ts_ready),.ts_data(ts_data),
  .video_pid(av_video[12:0]),.audio_pid(audio_route),.video_on(video_on),.audio_on(audio_on && !audio_reset),
  .video_data(ves_data),.video_valid(ves_valid),.video_ready(ves_ready),
  .audio_data(aes_data),.audio_valid(aes_valid),.audio_ready(!aes_full),
@@ -272,7 +299,7 @@ pace_mpeg_video mpeg_video(.clk_sys(clk_sys),.clk_dec(clk_dec),.clk_mem(clk_mem)
  .horizontal_size(dec_hsize),.vertical_size(dec_vsize),
  .seq_evt(dec_seq_evt),.gop_evt(dec_gop_evt),.pic_evt(dec_pic_evt),.field_evt(dec_field_evt),
  .seq_hsize(dec_seq_h),.seq_vsize(dec_seq_v),.seq_aspect(dec_seq_ar),.gop_time_code(dec_gop_tc),.pic_structure(dec_pic_ps));
-pace_mpeg_status mpeg_status(.clk(clk_sys),.reset(core_reset),
+pace_mpeg_status mpeg_status(.clk(clk_sys),.reset(soc_reset),
  .access(device_req && device_ready && !holding && !demux_selected),.we(iw),.addr(ia),.wdata(id),
  .hit(mpeg_hit),.rdata(mpeg_rdata),.irq(mpeg_irq),
  // The host-injected Guide backdrop is unrelated to the guest's broadcast ES.
@@ -304,7 +331,7 @@ wire [23:0] frame_rgb;wire video_ce,video_de,video_hs,video_vs,video_field;
 // per line, one sample per firmware OSD pixel.
 wire raster_sync,raster_sync_field;
 pace_pal576i601 raster(.clk(clk_video),.reset(!pll_locked),.sync(raster_sync && video_on_v),.sync_field(raster_sync_field),.ce_pixel(ce),.x(x),.y(y),.visible(shown),.hs(hs),.vs(vs),.field(field));
-pace_guide_video601 scanout(.clk(clk_sys),.reset(core_reset),.hold(holding),.osd_root(osd_root),
+pace_guide_video601 scanout(.clk(clk_sys),.reset(soc_reset),.hold(holding),.osd_root(osd_root),
  .error(video_error),.frames(video_frames),.underruns(video_underruns),
  .mem_req(vq),.mem_addr(vad),.mem_accept(va),.mem_rvalid(vv),.mem_rdata(DDRAM_DOUT),
  .vclk(clk_video),.x(x),.y(y),.ce(ce),.visible(shown),.hs(hs),.vs(vs),.field(field),
@@ -352,13 +379,14 @@ always @(posedge clk_sys)begin
   if(accepted && !write_request)begin read_pending<=1;read_owner<=owner;read_beats<=owner==1 ? gburst : owner==0 ? cburst : 8'd1;end
  end
 end
-assign DDRAM_ADDR=download_store ?
+assign clear_store=ram_clearing && !ioctl_download && !DDRAM_BUSY && !read_pending;
+assign DDRAM_ADDR=clear_store ? 29'h06000000+{8'd0,clear_index} : download_store ?
  (ioctl_index==0 ? 29'h06400000+{8'd0,ioctl_addr[20:3]} : ioctl_index==3?29'h06600000+{5'd0,ioctl_addr[26:3]}:29'h06000000+{5'd0,ioctl_addr[23:3]}) :
  owner==2?vad:owner==1?gad:owner==4?dad:owner==3?tad:owner==5?sad:owner==6?still_addr:cad;
-assign DDRAM_DIN=download_store ? ({48'd0,ioctl_dout}<<(ioctl_addr[2:0]*8)) : owner==4?dwd:owner==5?swd:owner==1?gwd:cwd;
-assign DDRAM_BE=download_store ? (8'h03<<ioctl_addr[2:0]) : owner==4?dbe:owner==5?sbe:owner==0?cbe:owner==1?gbe:8'hff;
-assign DDRAM_WE=download_store || (accepted && write_request);
-assign DDRAM_BURSTCNT=(!download_store && owner==1 && !write_request) ? gburst :
+assign DDRAM_DIN=clear_store ? 64'd0 : download_store ? ({48'd0,ioctl_dout}<<(ioctl_addr[2:0]*8)) : owner==4?dwd:owner==5?swd:owner==1?gwd:cwd;
+assign DDRAM_BE=clear_store ? 8'hff : download_store ? (8'h03<<ioctl_addr[2:0]) : owner==4?dbe:owner==5?sbe:owner==0?cbe:owner==1?gbe:8'hff;
+assign DDRAM_WE=clear_store || download_store || (accepted && write_request);
+assign DDRAM_BURSTCNT=(!clear_store && !download_store && owner==1 && !write_request) ? gburst :
                       (!download_store && owner==0 && !write_request) ? cburst : 8'd1;
 assign DDRAM_RD=accepted && !write_request;
 
