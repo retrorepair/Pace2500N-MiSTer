@@ -98,3 +98,4 @@ set_global_assignment -name SEARCH_PATH rtl/mpeg2
 set_global_assignment -name SEARCH_PATH rtl/mpeg2/dvd
 set_global_assignment -name SEARCH_PATH rtl/mpeg2/mp2
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_ts_stream.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_eeprom_save.sv

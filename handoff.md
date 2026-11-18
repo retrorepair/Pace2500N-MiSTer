@@ -54,10 +54,20 @@ Quartus results and HDL regressions. The latest session is directly below; the o
   commit - they never overlap; port B for the saver). Blank (all-FF) file is filled from the
   checkpoint EEPROM; otherwise loaded with the guest held; changed 512-byte blocks written back
   after ~0.2 s of no writes. Testbench `sim/eeprom_save/tb_eeprom_save.sv` (iverilog): PASS.
-  The MGL needs `<file delay="1" type="s" index="1" path=".../EEPROM.bin"/>` and a 64 KiB 0xFF
-  file. Quartus synthesis hung twice at RAM inference with 9 frozen quartus_map workers (PC at
-  57 GB committed of 57.4, ~28 GB not attributable to any process); rebuilding with
-  `--parallel=1`. NOT yet tested on hardware.
+  `Pace2500N_V078_Live.mgl` mounts `games/Pace2500N_GUIDE/EEPROM.bin` (S1) first;
+  install_relay.sh creates it blank. QUARTUS: the behavioural 64 KiB array was "uninferred"
+  (read-during-write, then "asynchronous read") and fell back to registers - synthesis hung or
+  ran out of memory; now an explicit altsyncram BIDIR_DUAL_PORT M10K (init rom/checkpoint_eeprom.mif,
+  generated from the .hex by tools/export_fpga_checkpoint.py), behavioural model kept for
+  simulation (`ifndef ALTERA_RESERVED_QIS`). V078: 442/553 RAM blocks, core clocks met, HDMI -2.24.
+- HARDWARE (V078): blank file filled from the checkpoint EEPROM at first mount (layout identical,
+  plus a new "favchn" file the firmware created); a grid booking changed 327 bytes in the file;
+  after a core reload the booking bytes were still in the file BUT the planner was empty and the
+  firmware then rewrote /eeprom/book (new timestamp in its directory entry at 0x1FD0, booking data
+  zeroed). The Guide keeps bookings in RAM, loaded from /eeprom/book at a cold start; the core
+  resumes a RAM checkpoint taken after that load, so it holds an empty list and saves it back.
+  Persistent EEPROM alone does not restore bookings - needs a decision (user) on restoring the
+  Guide's booking list into RAM at resume, or a cold boot.
 
 ## Session 17 Nov 2026 (late night) - reminders from the Guide grid fixed
 

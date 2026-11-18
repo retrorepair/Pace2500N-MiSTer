@@ -25,7 +25,12 @@ module pace_guide_peripherals #(
  input wire mpeg_irq,               // EMMA MPEG video decoder (rtl/pace_mpeg_status.sv), status bit 0x400
  output reg [7:0] model_halt=0,
  output reg [31:0] serial_frames=0,key_frames=0,timer_acks=0,gpu_acks=0,
- output reg [7:0] last_key=0
+ output reg [7:0] last_key=0,
+ // EEPROM save engine (rtl/pace_eeprom_save.sv): the EEPROM's second block-RAM port, and the
+ // address of each byte the firmware commits (port A), so changed blocks reach the SD card.
+ input wire [15:0] ee_b_addr,input wire ee_b_we,input wire [7:0] ee_b_wdata,
+ output wire [7:0] ee_b_q,
+ output wire ee_a_we,output wire [15:0] ee_a_addr
 );
  `include "rtl/pace_checkpoint_csr.vh"
  reg [31:0] seed[0:127],csr[0:127];
@@ -75,8 +80,7 @@ module pace_guide_peripherals #(
  reg [6:0] i2c_delay=0,serial0_delay=0;
  reg [2:0] lsi_group=7;reg [12:0] lsi_apr=29;
  (* ramstyle="M10K" *) reg [7:0] lsi4[0:127];initial $readmemh("rom/checkpoint_lsi4.hex",lsi4);
- (* ramstyle="M10K" *) reg [7:0] eeprom[0:65535];initial $readmemh("rom/checkpoint_eeprom.hex",eeprom);
- reg [7:0] lsi4_q=0,eeprom_q=0;
+ reg [7:0] lsi4_q=0;wire [7:0] eeprom_q;
  reg [15:0] ee_pointer=14090;
  reg [1:0] ee_address_count=0;
  reg [7:0] ee_address_high=0;
@@ -97,12 +101,48 @@ module pace_guide_peripherals #(
  integer n;
  // Explicit registered read ports keep the EEPROM in block RAM. Addresses
  // settle many core clocks before the64-instruction I2C completion deadline.
+ // Port A serves the firmware: it reads at the I2C pointer and, while a STOP commits the
+ // pending page, writes at the commit address. The two never overlap (io_ready is low for the
+ // whole commit and a read completes 64 clocks after its request), so they share one address
+ // and the block RAM keeps a second true port for the save engine.
+ assign ee_a_we=!reset && !hold && ee_commit_count!=0;
+ assign ee_a_addr=ee_a_we ? ee_pending_addr[ee_commit_index[7:0]] : ee_pointer;
+`ifdef ALTERA_RESERVED_QIS
+ // Quartus 17 would not infer a true dual-port RAM from the behavioural form below (first
+ // "unsupported read-during-write", then "asynchronous read"), and the 64 KiB fell back to
+ // registers; so the M10K is instantiated. Same contents (rom/checkpoint_eeprom.mif is
+ // rom/checkpoint_eeprom.hex) and the same one-clock read latency on both ports.
+ wire [7:0] ee_a_q,ee_b_qw;
+ altsyncram #(.operation_mode("BIDIR_DUAL_PORT"),.intended_device_family("Cyclone V"),.lpm_type("altsyncram"),
+  .ram_block_type("M10K"),.init_file("rom/checkpoint_eeprom.mif"),.power_up_uninitialized("FALSE"),
+  .width_a(8),.widthad_a(16),.numwords_a(65536),.width_b(8),.widthad_b(16),.numwords_b(65536),
+  .width_byteena_a(1),.width_byteena_b(1),
+  .outdata_reg_a("UNREGISTERED"),.outdata_reg_b("UNREGISTERED"),.outdata_aclr_a("NONE"),.outdata_aclr_b("NONE"),
+  .address_reg_b("CLOCK0"),.indata_reg_b("CLOCK0"),.wrcontrol_wraddress_reg_b("CLOCK0"),
+  .clock_enable_input_a("BYPASS"),.clock_enable_input_b("BYPASS"),
+  .clock_enable_output_a("BYPASS"),.clock_enable_output_b("BYPASS"),
+  .read_during_write_mode_port_a("NEW_DATA_NO_NBE_READ"),.read_during_write_mode_port_b("NEW_DATA_NO_NBE_READ"),
+  .read_during_write_mode_mixed_ports("DONT_CARE")) eeprom_ram(
+  .clock0(clk),.address_a(ee_a_addr),.data_a(ee_pending_data[ee_commit_index[7:0]]),.wren_a(ee_a_we),.q_a(ee_a_q),
+  .address_b(ee_b_addr),.data_b(ee_b_wdata),.wren_b(ee_b_we),.q_b(ee_b_qw),
+  .aclr0(1'b0),.aclr1(1'b0),.addressstall_a(1'b0),.addressstall_b(1'b0),.byteena_a(1'b1),.byteena_b(1'b1),
+  .clock1(1'b1),.clocken0(1'b1),.clocken1(1'b1),.clocken2(1'b1),.clocken3(1'b1),.eccstatus(),
+  .rden_a(1'b1),.rden_b(1'b1));
+ assign eeprom_q=ee_a_q;assign ee_b_q=ee_b_qw;
+`else
+ reg [7:0] eeprom[0:65535];initial $readmemh("rom/checkpoint_eeprom.hex",eeprom);
+ reg [7:0] eeprom_qr=0,ee_b_qr=0;
  always @(posedge clk)begin
-  eeprom_q<=eeprom[ee_pointer];
-  lsi4_q<=lsi4[lsi_apr[6:0]];
-  if(!reset && !hold && ee_commit_count!=0)
-   eeprom[ee_pending_addr[ee_commit_index[7:0]]]<=ee_pending_data[ee_commit_index[7:0]];
+  if(ee_a_we)eeprom[ee_a_addr]<=ee_pending_data[ee_commit_index[7:0]];
+  eeprom_qr<=eeprom[ee_a_addr];
  end
+ always @(posedge clk)begin
+  if(ee_b_we)eeprom[ee_b_addr]<=ee_b_wdata;
+  ee_b_qr<=eeprom[ee_b_addr];
+ end
+ assign eeprom_q=eeprom_qr;assign ee_b_q=ee_b_qr;
+`endif
+ always @(posedge clk)lsi4_q<=lsi4[lsi_apr[6:0]];
  always @* begin
    io_rdata=io_csr;
    case(io_addr)

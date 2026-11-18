@@ -3,7 +3,7 @@
 module emu (
 `include "sys/emu_ports.vh"
 );
-localparam CONF_STR={"Pace2500N_TS;;","F0,BIN,Load FLASH_U202.bin;","F1,BIN,Load RAM checkpoint;","F2,BIN,Load CPU state;","F3,TS,Load transport stream (64MiB max);","S0,TS,Stream transport stream / live ring;","O6,Widescreen on 4:3,Stretch,Letterbox;","O3,Display,Guide,Diagnostics;","O4,Diagnostic RF lock,From TS,Off;","O5,Broadcast clock (TOT),MiSTer RTC,TS file;","-;","R0,Reset (reload checkpoint);","V,0.7.7 (audio recovery)"};
+localparam CONF_STR={"Pace2500N_TS;;","F0,BIN,Load FLASH_U202.bin;","F1,BIN,Load RAM checkpoint;","F2,BIN,Load CPU state;","F3,TS,Load transport stream (64MiB max);","S0,TS,Stream transport stream / live ring;","S1,BIN,EEPROM save (64 KiB);","O6,Widescreen on 4:3,Stretch,Letterbox;","O3,Display,Guide,Diagnostics;","O4,Diagnostic RF lock,From TS,Off;","O5,Broadcast clock (TOT),MiSTer RTC,TS file;","-;","R0,Reset (reload checkpoint);","V,0.7.8 (EEPROM save)"};
 wire clk_sys,clk_video,clk_mem,clk_dec,clk_dot,pll_locked;
 wire clk_cpu2x,clk_cpu1x;
 pll pll(.refclk(CLK_50M),.rst(1'b0),.outclk_0(clk_sys),.outclk_1(clk_video),
@@ -52,6 +52,10 @@ wire [1:0] buttons;
 // Streamed transport stream: image slot 0 (MGL type "s"), read ahead into a
 // DDR3 ring and played at the broadcast rate; any length, looped.
 wire img_mounted,sd_ack,sd_buff_wr,sd_rd,sd_wr;wire [15:0] sd_buff_din;wire [63:0] img_size;wire [31:0] sd_lba;wire [5:0] sd_blk_cnt;
+// Image slot 1: the box's EEPROM save file (rtl/pace_eeprom_save.sv).
+wire [1:0] img_mounts,sd_acks;
+wire ee_sd_rd,ee_sd_wr;wire [15:0] ee_sd_din;wire [31:0] ee_sd_lba;wire [5:0] ee_sd_blk_cnt;
+assign img_mounted=img_mounts[0];assign sd_ack=sd_acks[0];
 wire [12:0] sd_buff_addr;wire [15:0] sd_buff_dout;
 wire [127:0] status;
 wire [10:0] ps2_key;
@@ -60,16 +64,16 @@ wire ioctl_download,ioctl_wr;
 wire [15:0] ioctl_index,ioctl_dout;
 wire [26:0] ioctl_addr;
 wire ioctl_wait;
-hps_io #(.CONF_STR(CONF_STR),.WIDE(1)) io (
+hps_io #(.CONF_STR(CONF_STR),.WIDE(1),.VDNUM(2)) io (
  .clk_sys(clk_sys),.HPS_BUS(HPS_BUS),.buttons(buttons),.status(status),.status_in(status),
  .status_set(1'b0),.status_menumask(16'h0000),.ps2_key(ps2_key),.RTC(rtc),
  .video_rotated(1'b0),.new_vmode(1'b0),
  .ioctl_download(ioctl_download),.ioctl_wr(ioctl_wr),.ioctl_index(ioctl_index),
  .ioctl_addr(ioctl_addr),.ioctl_dout(ioctl_dout),.ioctl_wait(ioctl_wait),
  .ioctl_upload_req(1'b0),.ioctl_upload_index(8'h00),.ioctl_din(16'h0000),
- .img_mounted(img_mounted),.img_readonly(),.img_size(img_size),
- .sd_lba('{sd_lba}),.sd_blk_cnt('{sd_blk_cnt}),.sd_rd(sd_rd),.sd_wr(sd_wr),.sd_ack(sd_ack),
- .sd_buff_addr(sd_buff_addr),.sd_buff_dout(sd_buff_dout),.sd_buff_din('{sd_buff_din}),.sd_buff_wr(sd_buff_wr));
+ .img_mounted(img_mounts),.img_readonly(),.img_size(img_size),
+ .sd_lba('{sd_lba,ee_sd_lba}),.sd_blk_cnt('{sd_blk_cnt,ee_sd_blk_cnt}),.sd_rd({ee_sd_rd,sd_rd}),.sd_wr({ee_sd_wr,sd_wr}),.sd_ack(sd_acks),
+ .sd_buff_addr(sd_buff_addr),.sd_buff_dout(sd_buff_dout),.sd_buff_din('{sd_buff_din,ee_sd_din}),.sd_buff_wr(sd_buff_wr));
 wire core_reset=!pll_locked || RESET || buttons[1] || status[0];
 reg loaded_flash=0,loaded_ram=0,loaded_state=0;
 reg previous_download=0;reg [15:0] last_download_index=0;
@@ -83,7 +87,10 @@ wire stream_restart,stream_resync,streaming,stream_live;
 wire stream_loading=(ioctl_download && ioctl_index==3) || stream_resync;
 pace_ts_load_tracker stream_file(.clk(clk_sys),.reset(core_reset),.download(stream_loading),
  .wr(ioctl_wr && stream_loading),.address(ioctl_addr),.loaded(loaded_stream),.length(stream_length));
-wire holding=ioctl_download || !loaded_flash || !loaded_ram || !loaded_state;
+wire ee_loading;
+wire [15:0] ee_b_addr,ee_a_addr;wire ee_b_we,ee_a_we;wire [7:0] ee_b_wdata,ee_b_q;
+wire ee_mounted;wire [15:0] ee_saved_blocks;
+wire holding=ioctl_download || !loaded_flash || !loaded_ram || !loaded_state || ee_loading;
 wire state_write=ioctl_download && ioctl_wr && ioctl_index==2 && ioctl_addr[1];
 wire [31:0] state_data={state_high,ioctl_dout[7:0],ioctl_dout[15:8]};
 always @(posedge clk_sys)begin
@@ -161,7 +168,17 @@ pace_guide_peripherals devices(.clk(clk_sys),.reset(core_reset),.hold(holding),.
  .gpu_descriptor(gpu_descriptor),.osd_root(osd_root),.gpu_done(gpu_done),.transport_irq(demux_irq),.mpeg_irq(mpeg_irq),
  // tuner lock: a transport is arriving (loaded file, or a streamed/live image)
  .transport_lock((loaded_stream || streaming) && ts_packets>=3 && !status[4]),.model_halt(model_halt),
- .serial_frames(serial_frames),.key_frames(key_frames),.timer_acks(timer_acks),.gpu_acks(gpu_acks),.last_key(last_key));
+ .serial_frames(serial_frames),.key_frames(key_frames),.timer_acks(timer_acks),.gpu_acks(gpu_acks),.last_key(last_key),
+ .ee_b_addr(ee_b_addr),.ee_b_we(ee_b_we),.ee_b_wdata(ee_b_wdata),.ee_b_q(ee_b_q),.ee_a_we(ee_a_we),.ee_a_addr(ee_a_addr));
+// The EEPROM survives a power cycle: kept in the slot-1 save file. Reset only by the PLL, so
+// a core reset (checkpoint reload) keeps the mount.
+pace_eeprom_save eeprom_save(.clk(clk_sys),.reset(!pll_locked),
+ .img_mounted(img_mounts[1]),.img_size(img_size),
+ .sd_lba(ee_sd_lba),.sd_blk_cnt(ee_sd_blk_cnt),.sd_rd(ee_sd_rd),.sd_wr(ee_sd_wr),.sd_ack(sd_acks[1]),
+ .sd_buff_addr(sd_buff_addr),.sd_buff_dout(sd_buff_dout),.sd_buff_wr(sd_buff_wr),.sd_buff_din(ee_sd_din),
+ .ee_addr(ee_b_addr),.ee_we(ee_b_we),.ee_wdata(ee_b_wdata),.ee_q(ee_b_q),
+ .ee_commit_we(ee_a_we),.ee_commit_addr(ee_a_addr),
+ .loading(ee_loading),.mounted(ee_mounted),.saved_blocks(ee_saved_blocks));
 pace_guide_blitter gpu(.clk(clk_sys),.reset(core_reset),.hold(holding),.start(gpu_start),.descriptor(gpu_descriptor),
  .done(gpu_done),.busy(gpu_busy),.error(gpu_error),.completions(gpu_count),.last_opcode(gpu_last),
  .mem_req(gq),.mem_we(gw),.mem_addr(gad),.mem_wdata(gwd),.mem_be(gbe),.mem_burst(gburst),

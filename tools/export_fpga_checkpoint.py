@@ -14,6 +14,9 @@ with (out/'ram64.hex').open('w') as f:
     for a in range(0,len(p.ram),8):f.write(p.ram[a:a+8][::-1].hex()+'\n')
 (ROOT/'rom/checkpoint_cpu.hex').write_text(''.join(f'{v:08x}\n' for v in state))
 (ROOT/'rom/checkpoint_eeprom.hex').write_text(''.join(f'{v:02x}\n' for v in p.eeprom.data))
+# the same bytes as a MIF: the init file of the EEPROM's altsyncram (rtl/pace_guide_peripherals.sv)
+(ROOT/'rom/checkpoint_eeprom.mif').write_text('-- Pace 2500N checkpoint EEPROM (tools/export_fpga_checkpoint.py)\nWIDTH=8;\nDEPTH=65536;\n'
+    'ADDRESS_RADIX=HEX;\nDATA_RADIX=HEX;\nCONTENT BEGIN\n'+''.join(f'{a:04X} : {v:02X};\n' for a,v in enumerate(p.eeprom.data))+'END;\n')
 (ROOT/'rom/checkpoint_lsi4.hex').write_text(''.join(f'{p.lsi_grouped.groups[4].get(i,0):02x}\n' for i in range(128)))
 regs={}
 for k in ['timer_regs','serial_regs','gpio_regs','i2c_regs','serial0_regs']:regs.update(getattr(p,k))

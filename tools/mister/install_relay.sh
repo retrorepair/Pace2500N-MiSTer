@@ -12,6 +12,10 @@ printf '[relay]\nserver = %s\n' "$SERVER" > $D/relay.ini
 S=/media/fat/linux/user-startup.sh
 LINE='[ -e /media/fat/linux/pace/pace_live_relay.py ] && (python3 /media/fat/linux/pace/pace_live_relay.py >/dev/null 2>&1 &)'
 grep -qF 'pace_live_relay.py' $S 2>/dev/null || printf '\n# Pace 2500N live relay (tools/mister/install_relay.sh)\n%s\n' "$LINE" >> $S
+# The box's EEPROM save (core V078+, slot S1): a blank 64 KiB file is filled from the
+# checkpoint's EEPROM on first use; an existing one (bookings, settings) is never touched.
+E=/media/fat/games/Pace2500N_GUIDE/EEPROM.bin
+[ -e $E ] || { mkdir -p ${E%/*}; dd if=/dev/zero bs=1024 count=64 2>/dev/null | tr '\000' '\377' > $E; }
 for p in $(ps | awk '$3=="python3" && $4 ~ /pace_live_relay/ {print $1}'); do kill $p; done
 sleep 1
 python3 $D/pace_live_relay.py >/dev/null 2>&1 &
