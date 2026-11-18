@@ -1,5 +1,41 @@
 # Valid-image selection and handoff investigation
 
+## RESOLVED 18 Nov 2026: the handoff is a warm reset requested from the front-panel controller
+
+The loader never jumps from `select_and_handoff`; the jump is on the NEXT boot. Ghidra
+12.1.4 on `PaceU202` (MIPS16 functions made by `re/scripts/DecompileMips16.java`; local
+listings `re/loader_handoff_ghidra.txt`, `loader_bootmain_ghidra.txt`,
+`loader_bootblock_ghidra.txt`, `loader_warmboot_ghidra.txt`):
+
+- BOOTMain `BFC012C6`: if the demux self-test failed, it sends front-panel command `0x12`
+  every 500 ticks for ever. Otherwise it compares a RAM signature (descriptor pointer
+  `[800050D0]`) with the flash string "MIKE PEARCE WOZ HERE" (`9FC1AD60`); only when it is
+  absent (power-on) does it write it and clear the 0x300-byte block at `[800050CC]` =
+  `A0002000`. Then `BFC03688`, `BFC126E4`, `select_and_handoff`.
+- `BFC126E4` (before image selection) copies the 32-byte header from `A0002000`; if its
+  entry (`+8`) is non-zero and its manufacturer/version bytes match the box's
+  (`800084C0`/`800084C1`), it checks the image and calls `BFC02944(entry, ...)`, which calls
+  `BFC01C98` and then **calls the entry**. This is the jump into the application.
+- On a power-on the block is empty, so `select_and_handoff` (`BFC12790..1288B`) validates the
+  images, stores the chosen header at `A0002000` and calls `BFC036F8`: `BFC0B570` (I2C write to
+  device `0xCA`: two masked divider bytes, `0xA6`, `0x70` - a tuner synthesiser setting), sleep
+  20, `BFC06100` = front-panel packet `03 00 12 00` (literal `9FC1B018`) ONCE, then sleep(2)
+  for ever. `12614`/`12610` are stubs; they were never the handoff.
+- The application payload at `BFC20024` is laid out like the loader's own reset vector
+  (two NOPs, then `lui t0,0xBFC2; addiu t0,0x048C; jr t0`): it is meant to be entered as
+  the reset image's successor.
+
+PROOF IN THE SIMULATOR (`tools/run_warm_reset_handoff.py`): a fresh `BootPeripheralProbe`
+(every on-chip register, CPU, timers, demux, serial and NOR state at reset values, the same
+peripheral profile) given only the external RAM of `application_boot_03` (taken after the
+loader sent `0x12`). From the reset vector, the genuine loader reaches the application entry
+`BFC2048C` at instruction **5,827,499** (`re/warm_reset_handoff_01.json`). No RAM, flash or PC
+was edited. So the board behaviour to model is: command `0x12` from the main CPU makes the
+front-panel controller reset the main CPU, RAM retained. (No public description of the
+2500N's front-panel controller was found; heyrick.eu covers only the 2500B's serial status
+messages.) The sections below are the history of the search.
+
+
 8 November2026. Software research only; current FPGA is still v046 EXP.
 
 ## Resolved peripheral completion

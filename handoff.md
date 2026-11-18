@@ -4,6 +4,19 @@
 Quartus results and HDL regressions. The latest session is directly below; the original
 7 Nov snapshot further down is retained for history only (it predates everything that works).
 
+## Session 18 Nov 2026 - the loader handoff found (cold boot work started)
+
+- User: bookings/settings must persist like a real box (EEPROM read at boot), so the core must
+  cold-boot from flash instead of resuming the checkpoint. Chose to hunt the real loader ->
+  application mechanism (no declared host jump). FOUND: it is a warm reset requested with
+  front-panel command 0x12; the genuine loader then jumps to the application on its second boot.
+  Details and simulator proof: `re/APPLICATION_HANDOFF_INVESTIGATION.md` (top section).
+- The current checkpoint (RAM.bin/STATE.bin) was made with a host jump into the application,
+  two host RAM edits (A/V default 80054F84, window root ready 80430A28) and a firmware-formatted
+  blank EEPROM - see `re/GUIDE_DIAGNOSTIC_CHECKPOINT.md`. A real cold boot replaces all of it.
+- V078 EEPROM persistence: firmware writes reach EEPROM.bin, but bookings live in the Guide's RAM
+  list loaded at a cold start, so they only come back once the core cold-boots.
+
 ## Session 17 Nov 2026 (night) - speed, stability, stable event ids, 48 channels, EEPROM save
 
 - LISTINGS BUILD WAS 16-21 s (home) / 1.3 s (channels): `FirmwareHuffman.encode` tried every
