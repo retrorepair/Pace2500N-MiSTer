@@ -186,7 +186,7 @@ pace_r4k #(.COUNT_NUM(27),.COUNT_DEN(100)) cpu(.clk_sys(clk_sys),.clk1x(clk_cpu1
 // entries. (CPU error flags are not shown as a halt: halt_code switches the screen to
 // diagnostics.) PROF lines carry the panic trace (rtl/pace_r4k.sv) once it has frozen.
 assign cpu_halt=8'd0;assign inst={26'd0,cpu_errors};assign ram_writes=cpu_unmapped;
-assign last_ram=0;assign mmio_address=0;assign mmio_value=0;assign mmio_read=0;assign mmio_writes=0;
+
 assign guessed_reads=0;assign interrupt_count=dbg_exceptions;assign mips16=pc[0];
 pace_guide_peripherals devices(.clk(clk_sys),.reset(soc_reset),.hold(holding),.retired(retired),
  .io_req(device_req && !demux_selected),.io_we(iw),.io_addr(ia),.io_wdata(id),.io_size(iz),.io_rdata(pir),.io_ready(prdy),.io_irq(irq),
@@ -401,6 +401,23 @@ assign DDRAM_WE=clear_store || download_store || (accepted && write_request);
 assign DDRAM_BURSTCNT=(!clear_store && !download_store && owner==1 && !write_request) ? gburst :
                       (!download_store && owner==0 && !write_request) ? cburst : 8'd1;
 assign DDRAM_RD=accepted && !write_request;
+// Start-up diagnostics on the boot monitor (shown while the core is held), display only:
+//  LAST RAM STORE ADDRESS  = {cold,clearing,cleared,flash | ram,state,ee_loading,download |
+//                             DDR busy,read pending,EEPROM mounted,0 | clear position[20:1]}
+//  LAST EMMA WRITE ADDRESS = longest run of DDR-busy clk_sys cycles
+//  LAST EMMA WRITE DATA    = DDR writes accepted (downloads and the RAM clear)
+//  EMMA REGISTER WRITES    = OSD status bits [31:0] as received
+//  LAST EMMA READ ADDRESS  = {last download index[7:0], last download address[23:0]}
+reg [31:0] busy_run=0,busy_run_max=0,ddr_writes_seen=0;
+always @(posedge clk_sys)begin
+ busy_run<=DDRAM_BUSY ? busy_run+1'b1 : 32'd0;
+ if(busy_run>busy_run_max)busy_run_max<=busy_run;
+ if(DDRAM_WE && !DDRAM_BUSY)ddr_writes_seen<=ddr_writes_seen+1'b1;
+end
+assign last_ram={cold_boot,ram_clearing,ram_cleared,loaded_flash,loaded_ram,loaded_state,ee_loading,ioctl_download,
+                 DDRAM_BUSY,read_pending,ee_mounted,1'b0,clear_index[20:1]};
+assign mmio_address=busy_run_max;assign mmio_value=ddr_writes_seen;assign mmio_writes=status[31:0];
+assign mmio_read={last_download_index[7:0],last_download_address[23:0]};
 
 wire [7:0] monitor_r,monitor_g,monitor_b;
 // Diagnostic monitor text reads core-domain counters asynchronously; a value
