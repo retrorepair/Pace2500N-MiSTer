@@ -334,6 +334,8 @@ module tb_sys;
         if ($value$plusargs("busy=%d", busypct)) ;
         if ($value$plusargs("seed=%d", i)) void'($urandom(i));
         cold = $test$plusargs("cold");
+        // +eeprom=HEX: EEPROM contents (64 KiB, one byte per line), e.g. a box's EEPROM.bin save
+        if ($value$plusargs("eeprom=%s", keystr)) $readmemh(keystr, devices.eeprom);
         $readmemh(flash_file, flash);
         if (cold) for (i = 0; i < 2097152; i = i + 1) ram[i] = 64'd0;   // SDRAM after power-on
         else begin $readmemh(ram_file, ram); $readmemh(state_file, state_words); end

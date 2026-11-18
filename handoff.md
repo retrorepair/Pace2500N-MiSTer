@@ -4,6 +4,23 @@
 Quartus results and HDL regressions. The latest session is directly below; the original
 7 Nov snapshot further down is retained for history only (it predates everything that works).
 
+## Session 18 Nov 2026 (evening) - cold boot runs on the MiSTer (V079E, branch cold-boot)
+
+- V079C/D held on the boot monitor: the guest RAM clear's first 8 DDR writes wedged the HPS
+  port (busy for good). The clear raised write only when the port was not busy, so a stalled
+  write could be withdrawn; it now holds each Avalon write until accepted (7d4ee1f). Found with
+  the boot monitor's spare rows (start-up flags, DDR busy run, writes, status, last download).
+- sim/emu: simulation of the real emu top level (stand-ins only for PLL, hps_io/menu, MPEG
+  decoders) with an Avalon DDR model; covers download, RAM clear, hold release, loader start.
+- MiSTer trap: after one ssh `reboot` every download landed +16 bytes in DDR (even V078 halted);
+  a second reboot fixed it. Check with tools/mister/flashcheck.py before blaming the core.
+  Screenshots: `screenshot <label>` via /dev/MiSTer_cmd (never hand-start the menu program).
+- V079E on hardware: flash aligned, RAM cleared, loader -> 0x12 -> application, first OSD screen
+  ~40 s after load, then a blue plane. With Channel Builder running the firmware cycles every
+  ~1.5 s between tuning the EPG transponder (11.778 GHz, audio 0x288) and "video 5FFF, freq 0";
+  keys change the picture. Next: why it loops (home transponder/service data a cold box expects).
+- Timing V079E: setup and hold met on all core clocks (seed 5).
+
 ## Session 18 Nov 2026 (afternoon) - cold boot reaches the application in RTL (branch cold-boot)
 
 - `tb_sys +cold` now boots the genuine loader from BFC00000 to the application with no host
