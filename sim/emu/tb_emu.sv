@@ -23,6 +23,7 @@ module tb_emu;
     integer busypct = 0, lane, errors = 0, outside = 0;
     reg [28:0] wr_addr = 0, rd_addr = 0; reg [7:0] wr_left = 0, wr_burst = 0, rd_left = 0; integer rd_wait = 0;
     longint ram_writes = 0, ram_reads = 0;
+    reg stalled_we = 0; reg [28:0] stalled_addr = 0; reg [63:0] stalled_din = 0;
     function automatic [63:0] fetch(input [28:0] a);
         if (a >= 29'h06000000 && a < 29'h06200000) fetch = ram[a[20:0]];
         else if (a >= 29'h06400000 && a < 29'h06440000) fetch = rom[a[17:0]];
@@ -60,6 +61,11 @@ module tb_emu;
                 rd_addr <= DDRAM_ADDR; rd_left <= DDRAM_BURSTCNT; rd_wait <= 6;
             end
         end
+        // Avalon-MM: a request presented while waitrequest is high must be held, unchanged.
+        if (stalled_we && !(DDRAM_WE && DDRAM_ADDR == stalled_addr && DDRAM_DIN == stalled_din)) begin
+            errors = errors + 1; if (errors < 20) $display("%0t ps: DDR ERROR: stalled write to %h withdrawn or changed", $time, stalled_addr);
+        end
+        stalled_we <= DDRAM_BUSY && DDRAM_WE; stalled_addr <= DDRAM_ADDR; stalled_din <= DDRAM_DIN;
         DDRAM_BUSY <= busypct != 0 && ($urandom % 100) < busypct;
     end
 

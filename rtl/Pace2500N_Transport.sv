@@ -107,15 +107,10 @@ wire ee_mounted;wire [15:0] ee_saved_blocks;
 // Power-on (cold boot): SDRAM does not keep its contents without power, so the guest RAM is
 // cleared before the CPU starts; otherwise an earlier session's RAM - the loader's "warm boot"
 // signature and handoff header included - would look like a warm reset to the loader.
+// (The clear's state machine is with the DDR arbiter below.)
 reg ram_clearing=0,ram_cleared=0;reg [20:0] clear_index=0;
-wire clear_store;
-always @(posedge clk_sys)
- if(core_reset)begin ram_clearing<=0;ram_cleared<=0;clear_index<=0;end
- else if(cold_boot && loaded_flash && !ram_cleared && !ram_clearing)ram_clearing<=1;
- else if(clear_store)begin
-  clear_index<=clear_index+1'b1;
-  if(&clear_index)begin ram_clearing<=0;ram_cleared<=1;end
- end
+reg clear_we=0;
+wire clear_store=clear_we;
 wire holding=ioctl_download || !loaded_flash || (cold_boot ? !ram_cleared : (!loaded_ram || !loaded_state)) || ee_loading;
 wire state_write=ioctl_download && ioctl_wr && ioctl_index==2 && ioctl_addr[1];
 wire [31:0] state_data={state_high,ioctl_dout[7:0],ioctl_dout[15:8]};
@@ -372,8 +367,8 @@ wire request=vq || gq || dq || tq || sq || still_q || xq || cq;
 wire write_request=owner==4 || owner==5 || (owner==1 && gw) || (owner==0 && cw);
 wire accepted=request && !holding && !read_pending && !DDRAM_BUSY;
 wire load_memory=ioctl_download && (ioctl_index<2 || ioctl_index==3);
-wire download_store=load_memory && ioctl_wr && !DDRAM_BUSY && !read_pending && (ioctl_index!=3 || ioctl_addr<27'd67108864);
-assign ioctl_wait=load_memory ? (DDRAM_BUSY || read_pending) : 1'b0;
+wire download_store=load_memory && ioctl_wr && !DDRAM_BUSY && !read_pending && !clear_store && (ioctl_index!=3 || ioctl_addr<27'd67108864);
+assign ioctl_wait=load_memory ? (DDRAM_BUSY || read_pending || clear_store) : 1'b0;
 assign ca=accepted && owner==0;assign ga=accepted && owner==1;assign va=accepted && owner==2;
 assign cv=DDRAM_DOUT_READY && read_pending && read_owner==0;
 assign gv=DDRAM_DOUT_READY && read_pending && read_owner==1;
@@ -391,14 +386,31 @@ always @(posedge clk_sys)begin
   if(accepted && !write_request)begin read_pending<=1;read_owner<=owner;read_beats<=owner==1 ? gburst : owner==0 ? cburst : 8'd1;end
  end
 end
-assign clear_store=ram_clearing && !ioctl_download && !DDRAM_BUSY && !read_pending;
+// Guest RAM clear (cold boot). Each write is an Avalon-MM write held - address, data and write
+// asserted - until the port accepts it (DDRAM_BUSY low at the clock edge); write is never taken
+// away while the port is stalling it. Platform rule of the MiSTer DDR3 (HPS FPGA-to-SDRAM) port:
+// the first version raised write only in cycles the port was not busy, so a write could be
+// withdrawn while stalled; on hardware the port accepted 8 back-to-back writes (its write queue)
+// and then stayed busy for good (boot monitor rows, V079D, 18 Nov 2026).
+always @(posedge clk_sys)
+ if(core_reset)begin ram_clearing<=0;ram_cleared<=0;clear_index<=0;clear_we<=0;end
+ else if(cold_boot && loaded_flash && !ram_cleared && !ram_clearing)ram_clearing<=1;
+ else if(ram_clearing)begin
+  if(clear_we)begin
+   if(!DDRAM_BUSY)begin
+    if(&clear_index)begin clear_we<=0;ram_clearing<=0;ram_cleared<=1;end
+    else begin clear_index<=clear_index+1'b1;clear_we<=!ioctl_download;end
+   end
+  end else if(!ioctl_download && !read_pending)clear_we<=1;
+ end
 assign DDRAM_ADDR=clear_store ? 29'h06000000+{8'd0,clear_index} : download_store ?
  (ioctl_index==0 ? 29'h06400000+{8'd0,ioctl_addr[20:3]} : ioctl_index==3?29'h06600000+{5'd0,ioctl_addr[26:3]}:29'h06000000+{5'd0,ioctl_addr[23:3]}) :
  owner==2?vad:owner==1?gad:owner==4?dad:owner==3?tad:owner==5?sad:owner==6?still_addr:owner==7?xad:cad;
 assign DDRAM_DIN=clear_store ? 64'd0 : download_store ? ({48'd0,ioctl_dout}<<(ioctl_addr[2:0]*8)) : owner==4?dwd:owner==5?swd:owner==1?gwd:cwd;
 assign DDRAM_BE=clear_store ? 8'hff : download_store ? (8'h03<<ioctl_addr[2:0]) : owner==4?dbe:owner==5?sbe:owner==0?cbe:owner==1?gbe:8'hff;
 assign DDRAM_WE=clear_store || download_store || (accepted && write_request);
-assign DDRAM_BURSTCNT=(!clear_store && !download_store && owner==1 && !write_request) ? gburst :
+assign DDRAM_BURSTCNT=(clear_store || download_store) ? 8'd1 :
+                      (owner==1 && !write_request) ? gburst :
                       (!download_store && owner==0 && !write_request) ? cburst : 8'd1;
 assign DDRAM_RD=accepted && !write_request;
 // Start-up diagnostics on the boot monitor (shown while the core is held), display only:
