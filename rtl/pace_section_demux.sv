@@ -30,7 +30,13 @@ module pace_section_demux(
  output reg [31:0] packets=0,sections=0,dropped=0,crc_errors=0,
  // A/V PES channels as programmed by the firmware (hardware trace 10 Nov 2026):
  // B000A094 video, B000A098 audio: [12:0] PID, bit 14 enable; B000A010 PCR PID.
- output reg [15:0] av_video=16'h1fff,av_audio=16'h1fff,av_pcr=16'h1fff
+ output reg [15:0] av_video=16'h1fff,av_audio=16'h1fff,av_pcr=16'h1fff,
+ // Second transport input: the EMMA memory-to-transport DMA (rtl/pace_transport_dma.sv) that
+ // the boot loader's demux self-test feeds from flash. dma_busy: a transfer is in progress.
+ input wire dma_valid,dma_busy,output wire dma_ready,input wire [7:0] dma_data,
+ // Cold boot from flash: a hardware reset leaves every table and register at zero (the
+ // simulator's declared unknown-register policy) instead of the checkpoint's values.
+ input wire cold
 );
  `include "rtl/pace_checkpoint_demux_match.vh"
  reg [31:0] pid_seed[0:31],ptr_seed[0:31],limit_seed[0:31];
@@ -59,6 +65,30 @@ module pace_section_demux(
  (* ramstyle="MLAB, no_rw_check" *) reg [20:0] ptr_b[0:31];
  (* ramstyle="MLAB, no_rw_check" *) reg [20:0] lim_mem[0:31];
  reg [31:0] ptr_written=0,ptr_bank=0,lim_written=0;
+ // Indirect fields 1 and 3 of each output (index channel*4+n at B000A124). Field 3 is the
+ // ring's inclusive end and field 0, as the guest writes it, its start: the application
+ // programs channel*0x3000 / channel*0x3000+0x2FFF for all 32 rings (limit field 2 is
+ // consumer-32), the loader 0/1FFF and 2000/3FFF for its two self-test outputs. Field 1 is
+ // written 0 by both and never used for delivery. (re/DEMUX_SELFTEST_PASSED.md and the
+ // application start-up run re/app_after_handoff_02: bank 0x124 contents.)
+ (* ramstyle="MLAB, no_rw_check" *) reg [20:0] aux_mem[0:31];
+ (* ramstyle="MLAB, no_rw_check" *) reg [20:0] end_mem[0:31];
+ reg [31:0] start_written=0,aux_written=0,end_written=0;
+ reg [1:0] sel_field=0;
+ // B000A120: output configuration; its low half is the 64 KiB page of guest RAM the rings
+ // are offsets into (application 9E13007A -> 0x007A0000, loader A001003B -> 0x003B0000).
+ reg [31:0] out_config=32'h9e13007a;
+ // Last commands at B000A124/B000A144 (read back with bit 14, busy, from the live state).
+ reg [15:0] cmd124=0,cmd144=0;
+ // A rule-table read command (B000A144 without bit 15) is served through the table's single
+ // read port between packets; bit 14 of B000A144 reads 1 until B000A148 holds the word.
+ reg mrd_pending=0;reg [1:0] mrd_phase=0;reg [7:0] mrd_address=0;
+ // The first logical match unit that accepted the current section: written as the record's
+ // trailer byte (the loader's expected buffers in U202 end each record with its filter number;
+ // the application's section task 80004520 reads only the trailer's bit 7, the CRC flag).
+ reg [4:0] match_unit=0;
+ // Input arbitration: the DMA owns the transport input from a packet boundary while it is busy.
+ reg in_dma=0;
  (* ramstyle="MLAB, no_rw_check" *) reg [12:0] used_mem[0:31];
  (* ramstyle="MLAB, no_rw_check" *) reg [12:0] total_mem[0:31];
  (* ramstyle="MLAB, no_rw_check" *) reg [31:0] crc_mem[0:31];
@@ -104,7 +134,7 @@ module pace_section_demux(
  reg packet_bad=0,packet_discontinuity=0,packet_pusi=0,has_payload=0;
  reg [4:0] unit=0;reg [3:0] rule_index=0;
  reg unit_ok=0,any_match=0;
- reg [13:0] dma_position=0;reg [12:0] dma_index=0;
+ reg [20:0] dma_position=0;reg [12:0] dma_index=0;
  reg [7:0] dma_byte=0;
  localparam RX=0,DECODE=1,CHANNEL=2,BEGIN_PAYLOAD=3,BYTE=4,COMPLETE=5,
             MATCH_START=6,MATCH_BYTE=7,MATCH_NEXT=8,DECIDE=9,
@@ -130,14 +160,23 @@ module pace_section_demux(
   4'd8:header_byte=hdr8[channel];4'd9:header_byte=hdr9[channel];
   default:header_byte=8'd0; // header_index is 0 or 3..9
  endcase
- wire [20:0] ring_base=channel*21'h03000;
- wire [20:0] write_within=pointer_c<{11'd0,ring_base} || pointer_c>={11'd0,ring_base}+32'h3000 ? 21'd0:pointer_c[20:0]-ring_base;
- wire [20:0] limit_within=limit_c[20:0]-ring_base;
- wire limit_valid=limit_c>={11'd0,ring_base} && limit_c<{11'd0,ring_base}+32'h3000;
- wire [20:0] ring_free=limit_within>=write_within ? limit_within-write_within : 21'h3000-write_within+limit_within;
+ // Ring bounds as the guest programmed them (checkpoint: the application's layout).
+ wire [20:0] ring_start=start_written[channel] ? ptr_b[channel] : seeded ? channel*21'h03000 : 21'd0;
+ wire [20:0] ring_end=end_written[channel] ? end_mem[channel] : seeded ? channel*21'h03000+21'h02fff : 21'd0;
+ wire [20:0] ring_size=ring_end-ring_start+21'd1;
+ wire pointer_in=pointer_c>={11'd0,ring_start} && pointer_c<={11'd0,ring_end};
+ wire [20:0] write_within=pointer_in ? pointer_c[20:0]-ring_start : 21'd0;
+ wire [20:0] limit_within=limit_c[20:0]-ring_start;
+ wire limit_valid=ring_end>=ring_start && limit_c>={11'd0,ring_start} && limit_c<={11'd0,ring_end};
+ wire [20:0] ring_free=limit_within>=write_within ? limit_within-write_within : ring_size-write_within+limit_within;
  wire [20:0] record_size={8'd0,total_c}+21'd1;
- wire [13:0] dma_following=dma_position==14'h2fff ? 14'd0 : dma_position+14'd1;
- wire [23:0] physical=24'h7a0000+{3'd0,ring_base}+{10'd0,dma_position};
+ wire [20:0] dma_following=dma_position==ring_size-21'd1 ? 21'd0 : dma_position+21'd1;
+ wire [31:0] physical={out_config[15:0],16'd0}+{11'd0,ring_start}+{11'd0,dma_position};
+ // Indirect read-back of the selected output's fields (B000A128).
+ wire [31:0] limit_sel=lim_written[selected] ? {11'd0,lim_mem[selected]} : seeded ? limit_seed[selected] : 32'd0;
+ wire [20:0] end_seed_sel={16'd0,selected}*21'h03000+21'h02fff;
+ wire [31:0] end_sel=end_written[selected] ? {11'd0,end_mem[selected]} : seeded ? {11'd0,end_seed_sel} : 32'd0;
+ wire [31:0] aux_sel=aux_written[selected] ? {11'd0,aux_mem[selected]} : 32'd0;
  wire [11:0] off={io_addr[11:2],2'b00};
  wire [4:0] reg_channel=5'((off-12'h014)>>2);
  wire [4:0] shift=io_size==0?{(2'd3-io_addr[1:0]),3'b000}:io_size==1?{io_addr[1]?2'd0:2'd2,3'b000}:5'd0;
@@ -145,7 +184,12 @@ module pace_section_demux(
  wire [31:0] lane_bits=(io_wdata<<shift)&lane_mask;
  assign config_ready=!init_active;
  assign irq=(status[2]&enables[2])!=0;
- assign ts_ready=state==RX && !hold && config_ready;
+ // Sources change only between packets (incoming==0): the DMA takes the input while busy.
+ wire switching=incoming==0 && in_dma!=dma_busy;
+ wire in_valid=in_dma ? dma_valid : ts_valid;
+ wire [7:0] in_data=in_dma ? dma_data : ts_data;
+ assign ts_ready=state==RX && !hold && config_ready && !switching && !in_dma;
+ assign dma_ready=state==RX && !hold && config_ready && !switching && in_dma;
  assign mem_req=state==DMA_WRITE && !hold;
  assign mem_addr=29'h06000000+{8'd0,physical[23:3]};
  assign mem_wdata={56'd0,dma_byte}<<(physical[2:0]*8);
@@ -155,7 +199,11 @@ module pace_section_demux(
   case(off)
    12'h0b0,12'h0b4,12'h0b8,12'h0bc:io_rdata=status[off[3:2]];
    12'h0d0,12'h0d4,12'h0d8,12'h0dc:io_rdata=enables[off[3:2]];
-   12'h128:io_rdata=pointer_sel&32'h001fffff;
+   12'h120:io_rdata=out_config;
+   12'h124:io_rdata={16'd0,cmd124&16'hbfff};
+   12'h128:io_rdata=sel_field==0 ? pointer_sel&32'h001fffff : sel_field==1 ? aux_sel : sel_field==2 ? limit_sel : end_sel;
+   12'h144:io_rdata={16'd0,cmd144[15],mrd_pending,cmd144[13:0]};
+   12'h148:io_rdata=match_data;
    12'h094:io_rdata={16'd0,av_video};
    12'h098:io_rdata={16'd0,av_audio};
    12'h010:io_rdata={16'd0,av_pcr};
@@ -168,7 +216,7 @@ module pace_section_demux(
  // single write per table happens at the end of the clocked block.
  reg used_we,total_we,crc_we,sig_we,ptr_a_we;
  reg [12:0] used_wd,total_wd;reg [31:0] crc_wd;reg [35:0] sig_wd;reg [20:0] ptr_a_wd;
- reg cpu_we,pid_we,ptr_b_we,lim_we;
+ reg cpu_we,pid_we,ptr_b_we,lim_we,aux_we,end_we;
  reg [4:0] cpu_index;
  integer i,j;
  // One synchronous read port and one write port infer a single M10K instead
@@ -189,12 +237,16 @@ module pace_section_demux(
   pid_we=cpu_we && off>=12'h014 && off<12'h094;
   ptr_b_we=cpu_we && off==12'h124 && io_wdata[15:14]==2'b11 && io_wdata[1:0]==2'd0;
   lim_we=cpu_we && off==12'h124 && io_wdata[15:14]==2'b11 && io_wdata[1:0]==2'd2;
+  aux_we=cpu_we && off==12'h124 && io_wdata[15:14]==2'b11 && io_wdata[1:0]==2'd1;
+  end_we=cpu_we && off==12'h124 && io_wdata[15:14]==2'b11 && io_wdata[1:0]==2'd3;
   cpu_index=pid_we ? reg_channel : io_wdata[6:2];
  end
  always @(posedge clk)begin
   if(pid_we)pid_mem[cpu_index]<={io_wdata[31:13]!=0,io_wdata[12:0]};
   if(ptr_b_we)ptr_b[cpu_index]<=indirect_data[20:0];
   if(lim_we)lim_mem[cpu_index]<=indirect_data[20:0];
+  if(aux_we)aux_mem[cpu_index]<=indirect_data[20:0];
+  if(end_we)end_mem[cpu_index]<=indirect_data[20:0];
  end
  always @(posedge clk)begin
   ram_q<=section_ram[ram_read_address];
@@ -202,12 +254,14 @@ module pace_section_demux(
   used_wd=0;total_wd=0;crc_wd=0;sig_wd=0;ptr_a_wd=0;
   if(reset)begin
    state<=RX;incoming<=0;packet_crc<=32'hffffffff;cc_valid<=0;
-   control<=32'h00100001;indirect_data<=0;match_data<=0;selected<=0;
+   control<=cold?32'd0:32'h00100001;indirect_data<=0;match_data<=0;selected<=0;
    packets<=0;sections<=0;dropped<=0;crc_errors<=0;
-   init_active<=1;init_seed<=1;init_index<=0;match_address<=0;
-   av_video<=16'h1fff;av_audio<=16'h1fff;av_pcr<=16'h1fff;
-   seeded<=1;pid_written<=0;ptr_written<=0;ptr_bank<=0;lim_written<=0;used_fresh<=32'hffffffff;
-   for(i=0;i<4;i=i+1)begin status[i]<=0;enables[i]<=i>=2?32'hffc00000:32'd0;end
+   init_active<=1;init_seed<=!cold;init_index<=0;match_address<=0;
+   av_video<=cold?16'd0:16'h1fff;av_audio<=cold?16'd0:16'h1fff;av_pcr<=cold?16'd0:16'h1fff;
+   seeded<=!cold;pid_written<=0;ptr_written<=0;ptr_bank<=0;lim_written<=0;used_fresh<=32'hffffffff;
+   start_written<=0;aux_written<=0;end_written<=0;sel_field<=0;out_config<=cold?32'd0:32'h9e13007a;
+   cmd124<=0;cmd144<=0;mrd_pending<=0;mrd_phase<=0;in_dma<=0;
+   for(i=0;i<4;i=i+1)begin status[i]<=0;enables[i]<=i>=2 && !cold?32'hffc00000:32'd0;end
   end else if(init_active)begin
    if(init_index==255)init_active<=0;
    else init_index<=init_index+1'b1;
@@ -216,11 +270,14 @@ module pace_section_demux(
    used_fresh<=32'hffffffff;
   end else if(!hold)begin
    case(state)
-    RX:if(ts_valid)begin
-     packet[incoming]<=ts_data;packet_crc<=crc_byte(packet_crc,ts_data);
+    RX:if(switching)in_dma<=dma_busy;
+    // A packet starts at its sync byte: other bytes between packets are not packets (the
+    // self-test's DMA block ends in zero fill and a 32-byte zero flush transfer).
+    else if(in_valid && (incoming!=0 || in_data==8'h47))begin
+     packet[incoming]<=in_data;packet_crc<=crc_byte(packet_crc,in_data);
      case(incoming)
-      8'd0:pk0<=ts_data;8'd1:pk1<=ts_data;8'd2:pk2<=ts_data;
-      8'd3:pk3<=ts_data;8'd4:pk4<=ts_data;8'd5:pk5<=ts_data;
+      8'd0:pk0<=in_data;8'd1:pk1<=in_data;8'd2:pk2<=in_data;
+      8'd3:pk3<=in_data;8'd4:pk4<=in_data;8'd5:pk5<=in_data;
       default:begin end
      endcase
      if(incoming==187)begin incoming<=0;state<=DECODE;packets<=packets+1'b1;end
@@ -235,7 +292,9 @@ module pace_section_demux(
      packet_discontinuity<=pk3[5] && pk4!=0 && pk5[7];state<=CHANNEL;
     end
     CHANNEL:begin
-     if(pid_c[12:0]!=packet_pid || !pid_c[13] || packet_pid==13'h1fff || !enables[2][channel] || !control[0])state<=NEXT_CHANNEL;
+     // Delivery does not depend on the interrupt enables: the loader's self-test enables no
+     // demux interrupt (B000A0D8 is never written) and polls the write pointers instead.
+     if(pid_c[12:0]!=packet_pid || !pid_c[13] || packet_pid==13'h1fff || !control[0])state<=NEXT_CHANNEL;
      else if(packet_bad)begin used_we=1;used_wd=0;cc_valid[channel]<=0;dropped<=dropped+1'b1;state<=NEXT_CHANNEL;end
      else if(!has_payload)begin
       if(packet_discontinuity)begin used_we=1;used_wd=0;cc_valid[channel]<=0;end
@@ -303,7 +362,7 @@ module pace_section_demux(
      else begin rule_index<=rule_index+1'b1;match_address<={unit[4:1],(rule_index+4'd1)};state<=RULE_WAIT;end
     end
     MATCH_NEXT:begin
-     if(route_bitmap[unit] && unit_ok)any_match<=1;
+     if(route_bitmap[unit] && unit_ok)begin any_match<=1;if(!any_match)match_unit<=unit;end
      if(unit==31)state<=DECIDE;else begin unit<=unit+1'b1;state<=MATCH_START;end
     end
     DECIDE:begin
@@ -314,7 +373,7 @@ module pace_section_demux(
      if(!any_match || !limit_valid || record_size>ring_free)begin
       dropped<=dropped+1'b1;used_we=1;used_wd=0;state<=BYTE;
      end else begin
-      dma_position<=write_within[13:0];
+      dma_position<=write_within;
       dma_index<=0;state<=DMA_ADDRESS;
      end
     end
@@ -324,7 +383,7 @@ module pace_section_demux(
      // ram_q is registered; it has settled before request acceptance.
      if(mem_accept)begin
       if(dma_index==total_c)begin
-       ptr_a_we=1;ptr_a_wd=ring_base+{7'd0,dma_following};
+       ptr_a_we=1;ptr_a_wd=ring_start+dma_following;
        status[2][channel]<=1;sections<=sections+1'b1;used_we=1;used_wd=0;state<=BYTE;
       end else begin dma_index<=dma_index+1'b1;dma_position<=dma_following;state<=DMA_ADDRESS;end
      end
@@ -334,6 +393,13 @@ module pace_section_demux(
      else begin channel<=channel+1'b1;state<=CHANNEL;end
     end
     default:state<=RX;
+   endcase
+   // Rule-table read command: take the read port while the state machine is between packets
+   // (it next addresses the table at COMPLETE, several cycles later), capture two cycles on.
+   if(mrd_pending)case(mrd_phase)
+    2'd0:if(state==RX)begin match_address<=mrd_address;mrd_phase<=1;end
+    2'd1:mrd_phase<=2;
+    default:begin match_data<=match_q;mrd_pending<=0;mrd_phase<=0;end
    endcase
    // State-machine table writes (all at the current channel).
    if(used_we)begin used_mem[channel]<=used_wd;used_fresh[channel]<=0;end
@@ -346,12 +412,18 @@ module pace_section_demux(
      12'h0b0,12'h0b4,12'h0b8,12'h0bc:status[off[3:2]]<=status[off[3:2]]&(~lane_mask|lane_bits);
      12'h0d0,12'h0d4,12'h0d8,12'h0dc:enables[off[3:2]]<=enables[off[3:2]]|lane_bits;
      12'h124:begin
-      selected<=io_wdata[6:2];
+      selected<=io_wdata[6:2];sel_field<=io_wdata[1:0];cmd124<=io_wdata[15:0];
       if(io_wdata[15:14]==2'b11)case(io_wdata[1:0])
-       0:begin ptr_written[io_wdata[6:2]]<=1;ptr_bank[io_wdata[6:2]]<=1;end // ptr_b write
+       0:begin ptr_written[io_wdata[6:2]]<=1;ptr_bank[io_wdata[6:2]]<=1;start_written[io_wdata[6:2]]<=1;end // ptr_b write
+       1:aux_written[io_wdata[6:2]]<=1;                                     // aux_mem write
        2:lim_written[io_wdata[6:2]]<=1;                                     // lim_mem write
-       default:begin end
+       default:end_written[io_wdata[6:2]]<=1;                               // end_mem write
       endcase
+     end
+     12'h120:out_config<=io_wdata;
+     12'h144:begin
+      cmd144<=io_wdata[15:0];
+      if(!io_wdata[15])begin mrd_pending<=1;mrd_phase<=0;mrd_address<={io_wdata[3:0],io_wdata[7:4]};end
      end
      12'h128:indirect_data<=io_wdata;
      12'h094:av_video<=io_wdata[15:0];
@@ -363,6 +435,7 @@ module pace_section_demux(
       for(j=0;j<4;j=j+1)begin status[j]<=0;enables[j]<=0;end
       av_video<=16'h1fff;av_audio<=16'h1fff;av_pcr<=16'h1fff;
       seeded<=0;pid_written<=0;ptr_written<=0;lim_written<=0;used_fresh<=32'hffffffff;
+      start_written<=0;aux_written<=0;end_written<=0;
       init_active<=1;init_seed<=0;init_index<=0;
       control<=0;state<=RX;incoming<=0;cc_valid<=0;packet_crc<=32'hffffffff;
      end
@@ -376,7 +449,7 @@ module pace_section_demux(
    end
   end
  end
- always @* dma_byte=dma_index==total_c?8'd0:ram_q;
+ always @* dma_byte=dma_index==total_c?{3'd0,match_unit}:ram_q;
  // synthesis translate_off
  // Effective table contents, for testbench checks.
  reg [31:0] pids[0:31],pointers[0:31];

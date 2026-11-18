@@ -29,6 +29,27 @@ start-up (bookings, favourites, PIN, settings) and nothing in RAM is host-made.
 2. Loader peripherals, against the simulator's models: front-panel replies (0x52 completion, 0x44
    buttons: already in RTL), the boot FIFO at B00020B0/B8, the demux self-test (DMA channel 5 and
    match-word readback), NOR flash ID mode, I2C device 0xCA (already ACKed).
+   - Demux self-test (done in RTL, system simulation): `rtl/pace_transport_dma.sv` models DMA
+     channel 5 (B0009090 descriptor, B0009010 bit 5 start, B0009120 bit 5 complete) feeding the
+     demux's transport input between packets. The demux now uses the ring layout the guest
+     programs instead of the application's constants: B000A120 low half = RAM page (application
+     0x7A, loader 0x3B), indirect field 0 = start/write pointer, 2 = limit, 3 = inclusive end
+     (application dump: channel*0x3000 / +0x2FE0 / +0x2FFF). Each record's trailer byte is the
+     matching filter number (U202's expected buffers at 1B834 end with 01; the application reads
+     only bit 7). Delivery no longer depends on the interrupt enables (the loader never writes
+     B000A0D8 and polls). B000A144/148 rule read-back is served with a busy bit. In `+cold` the
+     two pointers reach 0xB8 and 0x20B4, as the loader requires.
+   - Boot data port (done): B00020B4 mode 1/2, B00020B0 words read back in order (64 deep; the
+     test uses 60). The first self-test (BFC0AEF4) reads back all 240 words.
+   - Result (`tb_sys +cold`, 18 Nov 2026): with both self-tests passing the boot flag 800081F8
+     clears and BOOTMain takes the normal path: board latch B4180000, GPIO, front-panel link
+     (commands 11, 41, 52, 51, 10, then 0x44 button polls up to frame 0x1F, as in the Python
+     run), the application image CRC (BFC129E4), then `03 20 12 00` at 5.3 s. The front-panel
+     reset restarts the CPU with RAM kept and the second boot jumps to the application at
+     BFC2048C at 7.6 s.
+   - Still open: NOR flash identify. The loader's AA/55/90/F0 command writes to the flash window
+     are dropped by the CPU's memory map (8 "unmapped" accesses per boot), so its ID reads return
+     array data; the loader continues regardless, but the faithful model is still to do.
 3. Application start-up peripherals: B2001013/33/43, the external 16550 UART (B4080000), demux
    registers B000A004/094/128/148, the LSI front end's start-up (microprogram upload, status), and
    each read override the simulator profile declares - modelled where evidence allows, otherwise

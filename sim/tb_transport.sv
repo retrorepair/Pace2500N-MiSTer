@@ -20,6 +20,7 @@ module tb_transport;
   .mem_req(rq),.mem_addr(rad),.mem_accept(ra),.mem_rvalid(rv),.mem_rdata(returned));
  pace_section_demux dut(.clk(clk),.reset(reset),.hold(hold),.stream_reset(stream_reset),
   .ts_valid(valid),.ts_ready(ready),.ts_data(data),
+  .dma_valid(1'b0),.dma_busy(1'b0),.dma_ready(),.dma_data(8'd0),.cold(1'b0),
   .io_req(io_req),.io_we(io_we),.io_addr(ia),.io_wdata(id),.io_size(iz),.io_rdata(ir),.irq(irq),.config_ready(config_ready),
   .mem_req(dq),.mem_addr(dad),.mem_wdata(dwd),.mem_be(dbe),.mem_accept(da),
   .packets(packets),.sections(sections),.dropped(dropped),.crc_errors(crc_errors));
@@ -48,6 +49,10 @@ module tb_transport;
   @(negedge clk);io_req=1;io_we=1;ia=address;id=value;iz=size;
   @(negedge clk);io_req=0;io_we=0;
  end endtask
+ task set_producer(input [4:0] ch,input [20:0] value);
+ begin
+  @(negedge clk);dut.ptr_a[ch]=value;dut.ptr_written[ch]=1;dut.ptr_bank[ch]=0;
+ end endtask
  task first_packet;
  integer n;
  begin
@@ -75,13 +80,15 @@ module tb_transport;
   manual=1;hold=0;io_req=0;io_we=0;
   if(writes!=NORMAL_DMA_BYTES || sections!=5 || crc_errors!=1)$fatal(1,"counts writes %d sections %d crc %d",writes,sections,crc_errors);
   write_reg(32'hb000a0b8,0,2);
-  // Program producer ten bytes before ring end and a nearly-full limit.
-  write_reg(32'hb000a128,32'h00044ff6,2);write_reg(32'hb000a124,32'hc058,2);
+  // Producer ten bytes before ring end and a nearly-full limit. Indirect field 0 is the ring
+  // start the guest programs (the firmware never moves it), so the bench places the producer
+  // in the DMA-side pointer bank, as if the ring had filled that far.
+  set_producer(22,21'h44ff6);
   write_reg(32'hb000a128,32'h00044ffb,2);write_reg(32'hb000a124,32'hc05a,2);
   first_packet();if(writes!=NORMAL_DMA_BYTES)$fatal(1,"full ring overwritten");
   // Free enough room across the wrap, but route a rejecting logical unit17
   // (pair8 high). Channel22 owns route word96, bit17 selects that unit.
-  write_reg(32'hb000a128,32'h00044fff,2);write_reg(32'hb000a124,32'hc058,2);
+  set_producer(22,21'h44fff);
   write_reg(32'hb000a128,32'h00042064,2);write_reg(32'hb000a124,32'hc05a,2);
   write_reg(32'hb000a148,32'h00020000,2);write_reg(32'hb000a144,32'hc096,2);
   write_reg(32'hb000a148,32'h42ff0000,2);write_reg(32'hb000a144,32'hc008,2);
@@ -99,11 +106,11 @@ module tb_transport;
   first_packet();
   if(writes!=DMA_BYTES || sections!=8 || dut.status[2]!=32'h02400000)$fatal(1,"shared PID channels failed %h",dut.status[2]);
   write_reg(32'hb000a0b8,0,2);
-  // BE subword enables are W1S, statuses W0C; command busy must read zero.
+  // BE subword enables are W1S, statuses W0C; command busy (bit 14) must read zero.
   write_reg(32'hb000a0db,32'h00000001,0);
   ia=32'hb000a0d8;iz=2;#1;
   if(ir!=32'hffc00001)$fatal(1,"bad BE enables %h",ir);
-  ia=32'hb000a124;#1;if(ir!=0)$fatal(1,"command busy echoed");
+  ia=32'hb000a124;#1;if(ir[14])$fatal(1,"command busy echoed");
   $display("PASS transport: %d packets, %d exact DMA bytes, %d sections; CRC, duplicates, loss, full ring, wrap, high-half masks, BE status",packets,writes,sections);
   write_reg(32'hb000a000,1,2);
   while(!config_ready)@(negedge clk);

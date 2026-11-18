@@ -84,13 +84,17 @@ def vectors():
     streams = []
     expected = []
     pointer = {ch: ch * 0x3000 for ch in (22, 23, 24)}
+    # Each record ends with the number of the logical match unit that accepted it (the boot
+    # loader's expected self-test buffers in U202 end with their filter number). Checkpoint
+    # routing: channel 22 word 0x96 -> unit 10, 23 word 0x97 -> unit 5, 24 word 0x98 -> unit 3.
+    unit = {22: 10, 23: 5, 24: 3}
 
     def add(pid, section, channel):
         wire = packetizer.section(pid, section)
         streams.append(wire)
         # Give the bench time to acknowledge each completion before repetition.
         streams.append(packetizer.null())
-        for byte in section + b'\x00':
+        for byte in section + bytes([unit[channel]]):
             expected.append((0x7a0000 + pointer[channel], byte))
             pointer[channel] += 1
         return wire
@@ -113,10 +117,11 @@ def vectors():
     normal_bytes = len(expected)
     # Extra phase: table_id in the last byte, section_length at the ring's
     # first two bytes. Original helper800044BC explicitly reads this case.
-    expected += [(0x7a0000 + 22 * 0x3000 + (0x2fff + i) % 0x3000, byte) for i, byte in enumerate(a + b'\x00')]
+    # The bench reroutes channel 22 to unit 17 (pair 8 high) and routes channel 25 to unit 10.
+    expected += [(0x7a0000 + 22 * 0x3000 + (0x2fff + i) % 0x3000, byte) for i, byte in enumerate(a + bytes([17]))]
     wrap_bytes = len(expected)
-    expected += [(0x7a0000 + 22 * 0x3000 + len(a) + i, byte) for i, byte in enumerate(a + b'\x00')]
-    expected += [(0x7a0000 + 25 * 0x3000 + i, byte) for i, byte in enumerate(a + b'\x00')]
+    expected += [(0x7a0000 + 22 * 0x3000 + len(a) + i, byte) for i, byte in enumerate(a + bytes([17]))]
+    expected += [(0x7a0000 + 25 * 0x3000 + i, byte) for i, byte in enumerate(a + bytes([10]))]
     out = ROOT / 'sim/transport_vectors'; out.mkdir(exist_ok=True)
     padded = wire + bytes((-len(wire)) % 8)
     (out / 'ts64.hex').write_text(''.join(padded[i:i + 8][::-1].hex() + '\n'

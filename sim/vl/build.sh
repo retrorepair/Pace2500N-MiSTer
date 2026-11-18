@@ -14,7 +14,7 @@ verilator --binary --timing --top-module tb_sys -Mdir $OBJ -j 12 --build-jobs 12
     -O3 --x-assign fast --x-initial fast -CFLAGS "-O2" -I. \
     sim/vl/tb_sys.sv rtl/pace_r4k.sv $W/pace_r4k_core_p.v sim/vl/ram_models.v \
     rtl/pace_mmio_response.sv $W/pace_guide_peripherals.sv rtl/pace_guide_blitter.sv \
-    rtl/pace_section_demux.sv rtl/pace_mpeg_status.sv
+    rtl/pace_section_demux.sv rtl/pace_mpeg_status.sv rtl/pace_transport_dma.sv
 ls -la $OBJ/Vtb_sys
 # The shadow check (tb_shadow.sv): /tmp/vl_obj_sh/Vtb_shadow
 verilator --binary --timing --top-module tb_shadow -Mdir ${OBJ}_sh -j 12 --build-jobs 12 \

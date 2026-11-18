@@ -29,6 +29,7 @@ set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_pal576i601.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/Pace2500N_Transport.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_ts_replay.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_section_demux.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_transport_dma.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_mmio_response.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_ts_load_tracker.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_tot_clock.sv

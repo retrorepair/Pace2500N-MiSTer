@@ -37,7 +37,12 @@ module pace_guide_peripherals #(
  // sending 03 xx 12 00 and sleeping, and the board resets the CPU with RAM intact
  // (re/APPLICATION_HANDOFF_INVESTIGATION.md).
  input wire cold,
- output reg fp_reset_request=0
+ output reg fp_reset_request=0,
+ // EMMA memory-to-transport DMA, channel 5 (rtl/pace_transport_dma.sv): B0009090 = descriptor
+ // address, B0009010 bit 5 = start, B0009120 bit 5 = transfer complete.
+ output reg dma5_start=0,
+ output reg [31:0] dma5_descriptor=0,
+ input wire dma5_done
 );
  `include "rtl/pace_checkpoint_csr.vh"
  reg [31:0] seed[0:127],csr[0:127];
@@ -94,6 +99,16 @@ module pace_guide_peripherals #(
  reg [7:0] ee_pending_data[0:255];reg [15:0] ee_pending_addr[0:255];
  reg [8:0] ee_pending_count=0,ee_commit_count=0,ee_commit_index=0;
  reg [7:0] uart[0:7];
+ // Boot data port at B00020B0 (the loader's first self-test, BFC0AEF4): B00020B4 = 1 selects
+ // writing (entering it empties the port), 2 reading; words written are read back in order.
+ // The test writes 60 words of each pattern, then reads and checks 60
+ // (re/BOOT_FLAG_AND_TRANSPORT_SELFTEST.md, tools/pace_probe_boot_fifo.py). The real depth is
+ // not established: 64 words hold the test's 60. B00020B8 (polled before each access) reads
+ // 0, the value the simulator profile declares; reading an empty port is not modelled (0).
+ (* ramstyle="MLAB, no_rw_check" *) reg [31:0] boot_fifo[0:63];
+ reg [6:0] boot_fifo_write=0,boot_fifo_read=0;reg [1:0] boot_fifo_mode=0;
+ wire boot_fifo_empty=boot_fifo_write==boot_fifo_read;
+ wire boot_fifo_full=boot_fifo_write-boot_fifo_read==7'd64;
  wire i2c_ack=i2c_address_valid && (i2c_address==8'hca || i2c_address==0 ||
        i2c_address[7:1]==7'h0c || i2c_address[7:1]==7'h50);
  wire [31:0] irq_status=(timer_pending && (regval(32'hb000d0c0)&1)!=0?32'h40:32'd0) |
@@ -156,8 +171,13 @@ module pace_guide_peripherals #(
     32'hb0000030:io_rdata=irq_status;
     32'hb000d0d0:io_rdata={31'd0,timer_pending};
     32'hb2009010:io_rdata={24'd0,serial_rx};
-    32'hb0009120,32'hb0009122:io_rdata=gpu_pending?32'h1000:32'd0;
+    // Graphics/DMA status: bit 12 = graphics completion pending (acknowledged through B0009130),
+    // bit 5 = DMA channel 5 transfer complete. The loader's demux self-test (BFC0B118,
+    // re/loader_gpu_poll_ghidra.txt) starts the DMA and then waits for bit 5.
+    32'hb0009120,32'hb0009122:io_rdata=(gpu_pending?32'h1000:32'd0) | (dma5_done?32'h20:32'd0);
     32'hb0009140,32'hb0009142:io_rdata=0;
+    32'hb00020b0:io_rdata=boot_fifo_mode==2 && !boot_fifo_empty ? boot_fifo[boot_fifo_read[5:0]] : 32'd0;
+    32'hb00020b8:io_rdata=0;
     32'hb0006040:io_rdata=0;
     32'hb2001000,32'hb2001003:io_rdata=0;
     32'hb2001020,32'hb2001023:io_rdata=1;
@@ -177,10 +197,11 @@ module pace_guide_peripherals #(
    else if(io_size==1)io_rdata=io_rdata&32'hffff;
  end
  always @(posedge clk)begin
-  gpu_start<=0;fp_reset_request<=0;
+  gpu_start<=0;fp_reset_request<=0;dma5_start<=0;
   if(reset)begin
    for(n=0;n<128;n=n+1)if(is_hot(n[6:0]))csr[n]<=cold ? 32'd0 : seed[n];
-   cold_written<=0;
+   cold_written<=0;dma5_descriptor<=0;
+   boot_fifo_write<=0;boot_fifo_read<=0;boot_fifo_mode<=0;
    for(n=0;n<8;n=n+1)uart[n]<=0;
    uart[3]<=3;
    last_retired<=retired;timer_remaining<=cold ? 32'd0 : 32'd740656;timer_pending<=0;gpu_pending<=0;wall_acc<=0;
@@ -294,6 +315,8 @@ module pace_guide_peripherals #(
     end
    end
    if(gpu_done)begin gpu_pending<=1;csr[csr_index(32'hb0009010)]<=regval(32'hb0009010)&32'hffffefff;end
+   if(io_req && io_ready && !io_we && io_addr==32'hb00020b0 && boot_fifo_mode==2 && !boot_fifo_empty)
+    boot_fifo_read<=boot_fifo_read+1'b1;
    if(io_req && io_ready && io_we)begin
     if(io_index!=127)begin
      // Constant-index writes: only the hot registers exist as flip-flops.
@@ -310,7 +333,15 @@ module pace_guide_peripherals #(
      // No card is modelled, so nothing sets these bits. Plain storage here
      // made the acknowledge read back as a new card event every 20 ms.
      32'hb000b814:csr[csr_index(32'hb000b814)]<=regval(32'hb000b814)&~io_wdata;
-     32'hb0009010:if(io_wdata[12])gpu_start<=1;
+     32'hb0009010:begin if(io_wdata[12])gpu_start<=1;if(io_wdata[5])dma5_start<=1;end
+     32'hb0009090:dma5_descriptor<=io_wdata;
+     32'hb00020b4:begin
+      boot_fifo_mode<=io_wdata[1:0];
+      if(io_wdata==1 && boot_fifo_mode!=1)begin boot_fifo_write<=0;boot_fifo_read<=0;end
+     end
+     32'hb00020b0:if(boot_fifo_mode==1 && !boot_fifo_full)begin
+      boot_fifo[boot_fifo_write[5:0]]<=io_wdata;boot_fifo_write<=boot_fifo_write+1'b1;
+     end
      32'hb0009130:if(io_wdata[12])begin gpu_pending<=0;gpu_acks<=gpu_acks+1'b1;end
      32'hb200a000:if((regval(32'hb200a000)&1)!=0 && !io_wdata[0] && (regval(32'hb2009000)&128)!=0)begin clock_waiting<=1;clock_delay<=64;end
      32'hb2002050:serial0_delay<=64;

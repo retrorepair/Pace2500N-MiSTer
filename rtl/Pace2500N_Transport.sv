@@ -196,7 +196,16 @@ pace_guide_peripherals devices(.clk(clk_sys),.reset(soc_reset),.hold(holding),.r
  .transport_lock((loaded_stream || streaming) && ts_packets>=3 && !status[4]),.model_halt(model_halt),
  .serial_frames(serial_frames),.key_frames(key_frames),.timer_acks(timer_acks),.gpu_acks(gpu_acks),.last_key(last_key),
  .ee_b_addr(ee_b_addr),.ee_b_we(ee_b_we),.ee_b_wdata(ee_b_wdata),.ee_b_q(ee_b_q),.ee_a_we(ee_a_we),.ee_a_addr(ee_a_addr),
- .cold(cold_boot),.fp_reset_request(fp_reset_request));
+ .cold(cold_boot),.fp_reset_request(fp_reset_request),
+ .dma5_start(dma5_start),.dma5_descriptor(dma5_descriptor),.dma5_done(dma5_done));
+// EMMA memory-to-transport DMA (channel 5): the loader's demux self-test copies transport
+// packets from flash into the demux through it.
+wire dma5_start,dma5_done,dma5_busy,dma5_valid,dma5_ready;wire [31:0] dma5_descriptor;wire [7:0] dma5_data;
+wire xq,xa,xv;wire [28:0] xad;
+pace_transport_dma transport_dma(.clk(clk_sys),.reset(soc_reset),.hold(holding),
+ .start(dma5_start),.descriptor(dma5_descriptor),.done(dma5_done),.busy(dma5_busy),
+ .mem_req(xq),.mem_addr(xad),.mem_accept(xa),.mem_rvalid(xv),.mem_rdata(DDRAM_DOUT),
+ .out_valid(dma5_valid),.out_ready(dma5_ready),.out_data(dma5_data));
 // The EEPROM survives a power cycle: kept in the slot-1 save file. Reset only by the PLL, so
 // a core reset (checkpoint reload) keeps the mount.
 pace_eeprom_save eeprom_save(.clk(clk_sys),.reset(!pll_locked),
@@ -244,6 +253,7 @@ pace_tot_clock broadcast_clock(.clk(clk_sys),.reset(core_reset || stream_loading
  .seconds_of_day(utc_seconds),.time_valid(utc_valid));
 pace_section_demux demux(.clk(clk_sys),.reset(soc_reset),.stream_reset(stream_loading),.hold(holding),
  .ts_valid(ts_valid),.ts_ready(ts_ready),.ts_data(ts_data),
+ .dma_valid(dma5_valid),.dma_busy(dma5_busy),.dma_ready(dma5_ready),.dma_data(dma5_data),.cold(cold_boot),
  .io_req(device_req && demux_selected),.io_we(iw),.io_addr(ia),.io_wdata(id),.io_size(iz),.io_rdata(dir),.irq(demux_irq),.config_ready(demux_config_ready),
  .mem_req(dq),.mem_addr(dad),.mem_wdata(dwd),.mem_be(dbe),.mem_accept(da),
  .packets(ts_packets),.sections(ts_sections),.dropped(ts_dropped),.crc_errors(ts_crc_errors),
@@ -357,8 +367,8 @@ pace_video_mix mixer(.clk_video(clk_video),.dec_r(dec_r),.dec_g(dec_g),.dec_b(de
 reg [7:0] read_beats=0;
 // Video, graphics, section writes, replay reads, CPU. Transport is rate limited.
 reg read_pending=0;reg [2:0] read_owner=0;
-wire [2:0] owner=vq?3'd2:gq?3'd1:dq?3'd4:tq?3'd3:sq?3'd5:still_q?3'd6:3'd0;
-wire request=vq || gq || dq || tq || sq || still_q || cq;
+wire [2:0] owner=vq?3'd2:gq?3'd1:dq?3'd4:tq?3'd3:sq?3'd5:still_q?3'd6:xq?3'd7:3'd0;
+wire request=vq || gq || dq || tq || sq || still_q || xq || cq;
 wire write_request=owner==4 || owner==5 || (owner==1 && gw) || (owner==0 && cw);
 wire accepted=request && !holding && !read_pending && !DDRAM_BUSY;
 wire load_memory=ioctl_download && (ioctl_index<2 || ioctl_index==3);
@@ -372,6 +382,8 @@ assign ta=accepted && owner==3;assign da=accepted && owner==4;assign sa=accepted
 assign tv=DDRAM_DOUT_READY && read_pending && read_owner==3;
 assign still_a=accepted && owner==6;
 assign still_v=DDRAM_DOUT_READY && read_pending && read_owner==6;
+assign xa=accepted && owner==7;
+assign xv=DDRAM_DOUT_READY && read_pending && read_owner==7;
 always @(posedge clk_sys)begin
  if(core_reset)read_pending<=0;
  else begin
@@ -382,7 +394,7 @@ end
 assign clear_store=ram_clearing && !ioctl_download && !DDRAM_BUSY && !read_pending;
 assign DDRAM_ADDR=clear_store ? 29'h06000000+{8'd0,clear_index} : download_store ?
  (ioctl_index==0 ? 29'h06400000+{8'd0,ioctl_addr[20:3]} : ioctl_index==3?29'h06600000+{5'd0,ioctl_addr[26:3]}:29'h06000000+{5'd0,ioctl_addr[23:3]}) :
- owner==2?vad:owner==1?gad:owner==4?dad:owner==3?tad:owner==5?sad:owner==6?still_addr:cad;
+ owner==2?vad:owner==1?gad:owner==4?dad:owner==3?tad:owner==5?sad:owner==6?still_addr:owner==7?xad:cad;
 assign DDRAM_DIN=clear_store ? 64'd0 : download_store ? ({48'd0,ioctl_dout}<<(ioctl_addr[2:0]*8)) : owner==4?dwd:owner==5?swd:owner==1?gwd:cwd;
 assign DDRAM_BE=clear_store ? 8'hff : download_store ? (8'h03<<ioctl_addr[2:0]) : owner==4?dbe:owner==5?sbe:owner==0?cbe:owner==1?gbe:8'hff;
 assign DDRAM_WE=clear_store || download_store || (accepted && write_request);

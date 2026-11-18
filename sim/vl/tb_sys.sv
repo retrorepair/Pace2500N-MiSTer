@@ -84,7 +84,14 @@ module tb_sys;
         .serial_frames(serial_frames), .key_frames(key_frames), .timer_acks(timer_acks),
         .gpu_acks(gpu_acks), .last_key(last_key),
         .ee_b_addr(16'd0), .ee_b_we(1'b0), .ee_b_wdata(8'd0), .ee_b_q(), .ee_a_we(), .ee_a_addr(),
-        .cold(cold), .fp_reset_request(fp_reset_request));
+        .cold(cold), .fp_reset_request(fp_reset_request),
+        .dma5_start(dma5_start), .dma5_descriptor(dma5_descriptor), .dma5_done(dma5_done));
+    wire dma5_start, dma5_done, dma5_busy, dma5_valid, dma5_ready; wire [31:0] dma5_descriptor; wire [7:0] dma5_data;
+    wire xq, xa, xv; wire [28:0] xad;
+    pace_transport_dma transport_dma (.clk(clk_sys), .reset(soc_reset), .hold(holding),
+        .start(dma5_start), .descriptor(dma5_descriptor), .done(dma5_done), .busy(dma5_busy),
+        .mem_req(xq), .mem_addr(xad), .mem_accept(xa), .mem_rvalid(xv), .mem_rdata(DDRAM_DOUT),
+        .out_valid(dma5_valid), .out_ready(dma5_ready), .out_data(dma5_data));
     pace_guide_blitter gpu (.clk(clk_sys), .reset(soc_reset), .hold(holding), .start(gpu_start),
         .descriptor(gpu_descriptor), .done(gpu_done), .busy(gpu_busy), .error(gpu_error),
         .completions(gpu_count), .last_opcode(gpu_last),
@@ -92,6 +99,7 @@ module tb_sys;
         .mem_accept(ga), .mem_rvalid(gv), .mem_rdata(DDRAM_DOUT));
     pace_section_demux demux (.clk(clk_sys), .reset(soc_reset), .stream_reset(1'b0), .hold(holding),
         .ts_valid(ts_valid), .ts_ready(ts_ready), .ts_data(ts_byte),
+        .dma_valid(dma5_valid), .dma_busy(dma5_busy), .dma_ready(dma5_ready), .dma_data(dma5_data), .cold(cold),
         .io_req(device_req && demux_selected), .io_we(iw), .io_addr(ia), .io_wdata(id), .io_size(iz),
         .io_rdata(dir), .irq(demux_irq), .config_ready(demux_config_ready),
         .mem_req(dq), .mem_addr(dad), .mem_wdata(dwd), .mem_be(dbe), .mem_accept(da),
@@ -107,8 +115,8 @@ module tb_sys;
     reg ddr_busy = 0;
     always @(posedge clk_sys) ddr_busy <= busypct != 0 && ($urandom % 100) < busypct;
     reg [7:0] read_beats = 0; reg read_pending = 0; reg [2:0] read_owner = 0;
-    wire [2:0] owner = gq ? 3'd1 : dq ? 3'd4 : 3'd0;
-    wire request = gq || dq || cq;
+    wire [2:0] owner = gq ? 3'd1 : dq ? 3'd4 : xq ? 3'd7 : 3'd0;
+    wire request = gq || dq || xq || cq;
     wire write_request = owner == 4 ? 1'b1 : owner == 1 ? gw : cw;
     wire DDRAM_BUSY = ddr_busy;
     wire accepted = request && !holding && !read_pending && !DDRAM_BUSY;
@@ -117,7 +125,9 @@ module tb_sys;
     assign da = accepted && owner == 4;
     assign cv = DDRAM_DOUT_READY && read_pending && read_owner == 0;
     assign gv = DDRAM_DOUT_READY && read_pending && read_owner == 1;
-    wire [28:0] DDRAM_ADDR = owner == 1 ? gad : owner == 4 ? dad : cad;
+    assign xa = accepted && owner == 7;
+    assign xv = DDRAM_DOUT_READY && read_pending && read_owner == 7;
+    wire [28:0] DDRAM_ADDR = owner == 1 ? gad : owner == 4 ? dad : owner == 7 ? xad : cad;
     wire [63:0] DDRAM_DIN = owner == 4 ? dwd : owner == 1 ? gwd : cwd;
     wire [7:0] DDRAM_BE = owner == 4 ? dbe : owner == 1 ? gbe : cbe;
     wire [7:0] DDRAM_BURSTCNT = (owner == 1 && !write_request) ? gburst :
