@@ -38,6 +38,7 @@ module pace_guide_peripherals #(
  // (re/APPLICATION_HANDOFF_INVESTIGATION.md).
  input wire cold,
  output reg fp_reset_request=0,
+ output wire lsi_bus,               // diagnostics: the I2C transaction in progress is to the demodulator (18/19)
  // EMMA memory-to-transport DMA, channel 5 (rtl/pace_transport_dma.sv): B0009090 = descriptor
  // address, B0009010 bit 5 = start, B0009120 bit 5 = transfer complete (pending until acknowledged
  // through B0009130 bit 5; it raises the DMA interrupt like the graphics channel, bit 12).
@@ -129,6 +130,7 @@ module pace_guide_peripherals #(
        ((regval(32'hb2002060)&regval(32'hb2002070))!=0?32'h10000:32'd0) |
        (gpu_pending || dma5_pending?32'd2:32'd0) | (transport_irq?32'h01000000:32'd0) | (mpeg_irq?32'h00000400:32'd0);
  assign io_irq=(irq_status&regval(32'hb0000040))!=0;
+ assign lsi_bus=i2c_address_valid && i2c_address[7:1]==7'h0c;
  assign io_ready=io_req && ee_commit_count==0 && model_halt==0;
  assign gpu_descriptor=regval(32'hb0009100);
  assign osd_root=regval(32'hb0004200);

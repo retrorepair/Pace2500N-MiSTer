@@ -175,14 +175,16 @@ pace_r4k #(.COUNT_NUM(27),.COUNT_DEN(100)) cpu(.clk_sys(clk_sys),.clk1x(clk_cpu1
  .dbg_fetch_stall(dbg_fetch_stall),.dbg_cached_stall(dbg_cached_stall),.dbg_mem_stall(dbg_mem_stall),
  .dbg_exceptions(dbg_exceptions),.dbg_cause(dbg_cause),.dbg_epc(dbg_epc),.dbg_badvaddr(dbg_badvaddr),
  .trace_next(trace_next),.trace_page_data(trace_page_data),
- // the trace freezes only on the firmware's TLB-refill panic path (rtl/pace_r4k.sv)
- .trace_trigger(model_halt==8'he2),.trace_frozen(trace_frozen));
+ // the trace freezes on the firmware's TLB-refill panic path (rtl/pace_r4k.sv) and on any
+ // model halt (diagnostics: the instructions that led to it)
+ .trace_trigger(model_halt!=0),.trace_frozen(trace_frozen));
 // Telemetry: IR= the CPU's error flags, RAM= accesses outside the memory map, IRQ= exception
 // entries. (CPU error flags are not shown as a halt: halt_code switches the screen to
 // diagnostics.) PROF lines carry the panic trace (rtl/pace_r4k.sv) once it has frozen.
 assign cpu_halt=8'd0;assign inst={26'd0,cpu_errors};assign ram_writes=cpu_unmapped;
 
 assign guessed_reads=0;assign interrupt_count=dbg_exceptions;assign mips16=pc[0];
+wire lsi_bus;   // diagnostics (UART trace)
 pace_guide_peripherals devices(.clk(clk_sys),.reset(soc_reset),.hold(holding),.retired(retired),
  .io_req(device_req && !demux_selected),.io_we(iw),.io_addr(ia),.io_wdata(id),.io_size(iz),.io_rdata(pir),.io_ready(prdy),.io_irq(irq),
  .key_valid(key_valid),.key_pressed(key_pressed),.key_code(key_code),.gpu_start(gpu_start),
@@ -191,7 +193,7 @@ pace_guide_peripherals devices(.clk(clk_sys),.reset(soc_reset),.hold(holding),.r
  .transport_lock((loaded_stream || streaming) && ts_packets>=3 && !status[4]),.model_halt(model_halt),
  .serial_frames(serial_frames),.key_frames(key_frames),.timer_acks(timer_acks),.gpu_acks(gpu_acks),.last_key(last_key),
  .ee_b_addr(ee_b_addr),.ee_b_we(ee_b_we),.ee_b_wdata(ee_b_wdata),.ee_b_q(ee_b_q),.ee_a_we(ee_a_we),.ee_a_addr(ee_a_addr),
- .cold(cold_boot),.fp_reset_request(fp_reset_request),
+ .cold(cold_boot),.fp_reset_request(fp_reset_request),.lsi_bus(lsi_bus),
  .dma5_start(dma5_start),.dma5_stop(dma5_stop),.dma5_descriptor(dma5_descriptor),.dma5_done(dma5_done));
 // EMMA memory-to-transport DMA (channel 5): the loader's demux self-test copies transport
 // packets from flash into the demux through it; the application feeds the Guide backdrop's
@@ -464,7 +466,9 @@ assign LED_USER=halt_code!=0?field:retired[21];
 wire trace_demux=demux_selected && iw && ia[11:0]!=12'h0b8 && ia[11:0]!=12'h124 && ia[11:0]!=12'h128 &&
                  ia[11:0]!=12'h144 && ia[11:0]!=12'h148 && ia[11:4]!=8'h0d;
 wire trace_serial=ia[31:12]==20'hb2009 || (iw && ia==32'hb200a000);
-wire trace_event=device_req && device_ready && !holding && (ia[31:12]==20'hb0002 || ia[31:12]==20'hb0008 || trace_demux || trace_serial);
+// Demodulator (I2C 18/19) register traffic, and DMA controller set-up/status (B0009xxx).
+wire trace_lsi=(ia[31:12]==20'hb2006 && (lsi_bus || (iw && ia==32'hb2006040))) || ia[31:12]==20'hb0009;
+wire trace_event=device_req && device_ready && !holding && (ia[31:12]==20'hb0002 || ia[31:12]==20'hb0008 || trace_demux || trace_serial || trace_lsi);
 pace_debug_uart telemetry(.clk(clk_sys),.reset(!pll_locked),.tx(UART_TXD),
  .pc(pc),.instruction(inst),.retired(retired),.ram_writes(ram_writes),
  .mmio_address({gpu_count[15:0],ts_sections[15:0]}),.mmio_value({key_count[15:0],key_frames[15:0]}),

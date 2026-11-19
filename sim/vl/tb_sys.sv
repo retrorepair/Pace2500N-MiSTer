@@ -84,7 +84,7 @@ module tb_sys;
         .serial_frames(serial_frames), .key_frames(key_frames), .timer_acks(timer_acks),
         .gpu_acks(gpu_acks), .last_key(last_key),
         .ee_b_addr(16'd0), .ee_b_we(1'b0), .ee_b_wdata(8'd0), .ee_b_q(), .ee_a_we(), .ee_a_addr(),
-        .cold(cold), .fp_reset_request(fp_reset_request),
+        .cold(cold), .fp_reset_request(fp_reset_request), .lsi_bus(),
         .dma5_start(dma5_start), .dma5_stop(dma5_stop), .dma5_descriptor(dma5_descriptor), .dma5_done(dma5_done));
     wire dma5_start, dma5_stop, dma5_done, dma5_busy, dma5_valid, dma5_ready; wire [31:0] dma5_descriptor; wire [7:0] dma5_data;
     wire xq, xa, xv; wire [28:0] xad;
