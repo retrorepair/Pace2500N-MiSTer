@@ -42,6 +42,11 @@ module pace_guide_peripherals #(
  // address, B0009010 bit 5 = start, B0009120 bit 5 = transfer complete (pending until acknowledged
  // through B0009130 bit 5; it raises the DMA interrupt like the graphics channel, bit 12).
  output reg dma5_start=0,
+ // Clearing B0009010 bit 5 stops the channel: the application's stop routine 0x80005D30
+ // (re/application_dma_stop_ghidra.txt) clears the channel's bit to stop it, and the loader
+ // starts its 32-byte flush and writes B0009010 = 0 about 3 us later. A stopped transfer
+ // reports no completion.
+ output reg dma5_stop=0,
  output reg [31:0] dma5_descriptor=0,
  input wire dma5_done
 );
@@ -209,7 +214,7 @@ module pace_guide_peripherals #(
    else if(io_size==1)io_rdata=io_rdata&32'hffff;
  end
  always @(posedge clk)begin
-  gpu_start<=0;fp_reset_request<=0;dma5_start<=0;
+  gpu_start<=0;fp_reset_request<=0;dma5_start<=0;dma5_stop<=0;
   if(reset)begin
    for(n=0;n<128;n=n+1)if(is_hot(n[6:0]))csr[n]<=cold ? 32'd0 : seed[n];
    cold_written<=0;dma5_descriptor<=0;
@@ -352,12 +357,14 @@ module pace_guide_peripherals #(
      32'hb0009010:begin
       if(io_wdata[12] && (regval(32'hb0009010)&32'h1000)==0)gpu_start<=1;
       if(io_wdata[5] && (regval(32'hb0009010)&32'h20)==0)dma5_start<=1;
-      // Channel bits are not plain storage: set only by a start, cleared only by completion.
-      // (Stored as written, a read-modify-write in the clock a job completed put bit 12 back
-      // and every later graphics start was ignored.)
+      if(!io_wdata[5] && (regval(32'hb0009010)&32'h20)!=0 && !dma5_finished)dma5_stop<=1;
+      // Channel bits are not plain storage: set only by a start and cleared by completion; a
+      // write that clears bit 5 also stops channel 5 (dma5_stop). Bit 12 is cleared only by
+      // completion. (Stored as written, a read-modify-write in the clock a job completed put
+      // bit 12 back and every later graphics start was ignored.)
       csr[csr_index(32'hb0009010)]<=(io_wdata&~32'h1020) |
        (((regval(32'hb0009010)&32'h1000)!=0 ? !gpu_done : io_wdata[12]) ? 32'h1000 : 32'd0) |
-       (((regval(32'hb0009010)&32'h20)!=0 ? !dma5_finished : io_wdata[5]) ? 32'h20 : 32'd0);
+       (io_wdata[5] && ((regval(32'hb0009010)&32'h20)==0 || !dma5_finished) ? 32'h20 : 32'd0);
      end
      32'hb0009090:dma5_descriptor<=io_wdata;
      32'hb00020b4:begin

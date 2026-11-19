@@ -22,6 +22,7 @@
 module pace_transport_dma(
  input wire clk,reset,hold,
  input wire start,
+ input wire stop,                   // B0009010 bit 5 cleared: stop reading (no completion)
  input wire [31:0] descriptor,
  output reg done=0,
  output wire busy,                  // transferring, or input buffer not yet drained
@@ -32,6 +33,7 @@ module pace_transport_dma(
  localparam IDLE=0,FIRST=1,LAST=2,READ=3,SEND=4;
  reg [2:0] state=IDLE;
  reg waiting=0;              // a read was accepted; its beat has not arrived yet
+ reg discard=0;              // the beat of a read issued before a stop/restart is still due
  reg [28:0] address=0;       // physical address being read (descriptor word or source byte)
  reg [28:0] last=0;
  reg [63:0] beat=0;
@@ -39,7 +41,7 @@ module pace_transport_dma(
  reg [6:0] fifo_write=0,fifo_read=0;
  wire fifo_empty=fifo_write==fifo_read;
  wire fifo_full=fifo_write-fifo_read==7'd64;
- wire push=state==SEND && !hold && !fifo_full && !start && !reset;
+ wire push=state==SEND && !hold && !fifo_full && !start && !stop && !reset;
  function automatic [28:0] ddr(input [28:0] physical);
   if(physical[28:24]==0)ddr=29'h06000000+{8'd0,physical[23:3]};
   else if((physical&29'h1fc00000)==29'h1fc00000)ddr=29'h06400000+{8'd0,physical[20:3]};
@@ -52,7 +54,7 @@ module pace_transport_dma(
  wire [31:0] word3=word_at(beat,address[2:0]^3'd4),word8=word_at(mem_rdata,address[2:0]);
  wire reading=state==FIRST || state==LAST || state==READ;
  assign busy=state!=IDLE || !fifo_empty;
- assign mem_req=reading && !waiting && !hold;
+ assign mem_req=reading && !waiting && !discard && !hold;
  assign mem_addr=ddr(address);
  assign out_valid=!fifo_empty && !hold;
  assign out_data=fifo[fifo_read[5:0]];
@@ -62,10 +64,14 @@ module pace_transport_dma(
    if(push)fifo_write<=fifo_write+1'b1;
    if(out_valid && out_ready)fifo_read<=fifo_read+1'b1;
   end
-  if(reset)begin state<=IDLE;waiting<=0;done<=0;fifo_write<=0;fifo_read<=0;end
-  else if(start)begin
-   // A new start (re)loads the descriptor; completion of the previous transfer is cleared.
-   state<=FIRST;waiting<=0;done<=0;address<=descriptor[28:0]+29'd12;
+  if(reset)begin state<=IDLE;waiting<=0;discard<=0;done<=0;fifo_write<=0;fifo_read<=0;end
+  else if(start || stop)begin
+   // A start (re)loads the descriptor and clears the previous completion; a stop ends the
+   // transfer without one. A read already accepted still returns its beat: it is dropped.
+   state<=start ? FIRST : IDLE;waiting<=0;done<=0;address<=descriptor[28:0]+29'd12;
+   if(waiting && !mem_rvalid)discard<=1;
+  end else if(discard)begin
+   if(mem_rvalid)discard<=0;
   end else if(!hold)begin
    if(mem_req && mem_accept)waiting<=1;
    case(state)

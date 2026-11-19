@@ -192,15 +192,15 @@ pace_guide_peripherals devices(.clk(clk_sys),.reset(soc_reset),.hold(holding),.r
  .serial_frames(serial_frames),.key_frames(key_frames),.timer_acks(timer_acks),.gpu_acks(gpu_acks),.last_key(last_key),
  .ee_b_addr(ee_b_addr),.ee_b_we(ee_b_we),.ee_b_wdata(ee_b_wdata),.ee_b_q(ee_b_q),.ee_a_we(ee_a_we),.ee_a_addr(ee_a_addr),
  .cold(cold_boot),.fp_reset_request(fp_reset_request),
- .dma5_start(dma5_start),.dma5_descriptor(dma5_descriptor),.dma5_done(dma5_done));
+ .dma5_start(dma5_start),.dma5_stop(dma5_stop),.dma5_descriptor(dma5_descriptor),.dma5_done(dma5_done));
 // EMMA memory-to-transport DMA (channel 5): the loader's demux self-test copies transport
 // packets from flash into the demux through it; the application feeds the Guide backdrop's
 // MPEG video ES to the decoder through it (dma_video_es, rtl/pace_section_demux.sv).
 wire dma_video_es,demux_dma_ready;
-wire dma5_start,dma5_done,dma5_busy,dma5_valid,dma5_ready;wire [31:0] dma5_descriptor;wire [7:0] dma5_data;
+wire dma5_start,dma5_stop,dma5_done,dma5_busy,dma5_valid,dma5_ready;wire [31:0] dma5_descriptor;wire [7:0] dma5_data;
 wire xq,xa,xv;wire [28:0] xad;
 pace_transport_dma transport_dma(.clk(clk_sys),.reset(soc_reset),.hold(holding),
- .start(dma5_start),.descriptor(dma5_descriptor),.done(dma5_done),.busy(dma5_busy),
+ .start(dma5_start),.stop(dma5_stop),.descriptor(dma5_descriptor),.done(dma5_done),.busy(dma5_busy),
  .mem_req(xq),.mem_addr(xad),.mem_accept(xa),.mem_rvalid(xv),.mem_rdata(DDRAM_DOUT),
  .out_valid(dma5_valid),.out_ready(dma5_ready),.out_data(dma5_data));
 // The EEPROM survives a power cycle: kept in the slot-1 save file. Reset only by the PLL, so

@@ -85,8 +85,8 @@ module tb_sys;
         .gpu_acks(gpu_acks), .last_key(last_key),
         .ee_b_addr(16'd0), .ee_b_we(1'b0), .ee_b_wdata(8'd0), .ee_b_q(), .ee_a_we(), .ee_a_addr(),
         .cold(cold), .fp_reset_request(fp_reset_request),
-        .dma5_start(dma5_start), .dma5_descriptor(dma5_descriptor), .dma5_done(dma5_done));
-    wire dma5_start, dma5_done, dma5_busy, dma5_valid, dma5_ready; wire [31:0] dma5_descriptor; wire [7:0] dma5_data;
+        .dma5_start(dma5_start), .dma5_stop(dma5_stop), .dma5_descriptor(dma5_descriptor), .dma5_done(dma5_done));
+    wire dma5_start, dma5_stop, dma5_done, dma5_busy, dma5_valid, dma5_ready; wire [31:0] dma5_descriptor; wire [7:0] dma5_data;
     wire xq, xa, xv; wire [28:0] xad;
     // DMA channel 5 in video-ES mode goes to the MPEG decoder (as the top level). This bench has
     // no decoder: a sink takes one byte per clock and reports what the decoder's parser would
@@ -102,7 +102,7 @@ module tb_sys;
         end
     end
     pace_transport_dma transport_dma (.clk(clk_sys), .reset(soc_reset), .hold(holding),
-        .start(dma5_start), .descriptor(dma5_descriptor), .done(dma5_done), .busy(dma5_busy),
+        .start(dma5_start), .stop(dma5_stop), .descriptor(dma5_descriptor), .done(dma5_done), .busy(dma5_busy),
         .mem_req(xq), .mem_addr(xad), .mem_accept(xa), .mem_rvalid(xv), .mem_rdata(DDRAM_DOUT),
         .out_valid(dma5_valid), .out_ready(dma5_ready), .out_data(dma5_data));
     pace_guide_blitter gpu (.clk(clk_sys), .reset(soc_reset), .hold(holding), .start(gpu_start),
@@ -284,6 +284,7 @@ module tb_sys;
                      devices.csr[33], dma5_done, gpu_done, devices.io_req && devices.io_we, devices.io_addr, devices.io_wdata);
         end
         if (es_end) $display("%0d us: ES sequence_end_code #%0d after %0d ES bytes", cycles / 50, es_ends + 1, es_bytes + 1);
+        if (dma5_stop) $display("%0d us: DMA5 stop (state %0d)", cycles / 50, transport_dma.state);
         if (dma5_start) $display("%0d us: DMA5 start descriptor %h (9010 bit5 was %b)", cycles / 50, dma5_descriptor,
                                  devices.csr[33][5]);   // csr index 33 = B0009010
         if (transport_dma.state != dma_state_q) begin
@@ -292,6 +293,20 @@ module tb_sys;
             $display("%0d us: DMA5 state %0d addr %h last %h done %b busybit %b | demux in_dma %b incoming %0d state %0d cfg %b",
                      cycles / 50, transport_dma.state, transport_dma.address, transport_dma.last, dma5_done, devices.csr[33][5],
                      demux.in_dma, demux.incoming, demux.state, demux.config_ready);
+        end
+    end
+    // +exctrace: every change of the CP0 cause/EPC that is not a plain interrupt (ExcCode != 0),
+    // and the first 40 after each warm reset, with the shadow sp/ra.
+    reg exctrace = 0; reg [31:0] exc_cause_q = 0, exc_epc_q = 0; integer exc_after_reset = 0;
+    always @(posedge clk_sys) if (exctrace) begin
+        if (soc_reset) exc_after_reset <= 40;
+        else if (dbg_cause != exc_cause_q || dbg_epc != exc_epc_q) begin
+            exc_cause_q <= dbg_cause; exc_epc_q <= dbg_epc;
+            if (dbg_cause[6:2] != 0 || exc_after_reset != 0) begin
+                $display("%0d us: EXC cause %h (code %0d) epc %h badva %h pc %h sp %h ra %h", cycles / 50,
+                         dbg_cause, dbg_cause[6:2], dbg_epc, dbg_badvaddr, pc, sreg[29], sreg[31]);
+                if (exc_after_reset != 0) exc_after_reset <= exc_after_reset - 1;
+            end
         end
     end
     // Every CPU access outside the physical map (pace_r4k drops the write / reads 0).
@@ -415,6 +430,7 @@ module tb_sys;
         natives = $test$plusargs("natives");
         printf_on = $test$plusargs("printf");
         dmatrace = $test$plusargs("dmatrace");
+        exctrace = $test$plusargs("exctrace");
         if ($value$plusargs("keys=%s", keystr)) begin
             for (i = 0; i + 1 < keystr.len() && nkeys < 16; i = i + 3) begin
                 keylist[nkeys] = keystr.substr(i, i + 1).atohex(); nkeys = nkeys + 1;
