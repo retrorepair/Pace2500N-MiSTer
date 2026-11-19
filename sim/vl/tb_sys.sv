@@ -251,8 +251,9 @@ module tb_sys;
     endfunction
     always @(posedge clk2x) if (printf_on && cpu.wb_valid && cpu.wb_pc[31:1] == 31'h4003e836) begin   // MIPS16: entered with PC bit 0 set
         printf_n = printf_n + 1;
-        $display("%0d us: PRINTF %s  (ra %h)", cycles / 50,
-                 guest_printf(sreg[4], sreg[5], sreg[6], sreg[7], sreg[8], sreg[9], sreg[10], sreg[11]), sreg[31]);
+        $display("%0d us: PRINTF %s  (ra %h; a0..a3 %h %h %h %h; a1 \"%s\" a2 \"%s\")", cycles / 50,
+                 guest_printf(sreg[4], sreg[5], sreg[6], sreg[7], sreg[8], sreg[9], sreg[10], sreg[11]), sreg[31],
+                 sreg[4], sreg[5], sreg[6], sreg[7], guest_str(sreg[5]), guest_str(sreg[6]));
     end
     // Every CPU access outside the physical map (pace_r4k drops the write / reads 0).
     reg [31:0] unmapped_seen = 0;

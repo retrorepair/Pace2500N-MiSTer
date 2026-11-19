@@ -345,6 +345,12 @@ module pace_guide_peripherals #(
      32'hb0009010:begin
       if(io_wdata[12] && (regval(32'hb0009010)&32'h1000)==0)gpu_start<=1;
       if(io_wdata[5] && (regval(32'hb0009010)&32'h20)==0)dma5_start<=1;
+      // Channel bits are not plain storage: set only by a start, cleared only by completion.
+      // (Stored as written, a read-modify-write in the clock a job completed put bit 12 back
+      // and every later graphics start was ignored.)
+      csr[csr_index(32'hb0009010)]<=(io_wdata&~32'h1020) |
+       (((regval(32'hb0009010)&32'h1000)!=0 ? !gpu_done : io_wdata[12]) ? 32'h1000 : 32'd0) |
+       (((regval(32'hb0009010)&32'h20)!=0 ? !dma5_finished : io_wdata[5]) ? 32'h20 : 32'd0);
      end
      32'hb0009090:dma5_descriptor<=io_wdata;
      32'hb00020b4:begin

@@ -2,6 +2,18 @@
 
 Open issues to come back to. Newest first. Each entry: what is seen, where, and any thoughts so far.
 
+## Drop RAM.bin / STATE.bin everywhere (raised 18 Nov 2026)
+
+- **Seen:** people ask for the "checkpoint bin". RAM.bin/STATE.bin are a simulator snapshot taken
+  after a host-forced application entry and two host RAM edits; they should not be needed.
+- **Where:** (1) the core: cold boot from flash (branch `cold-boot`) removes them from the MGL.
+  (2) Channel Builder: `pace_playout.py` loads the firmware's Huffman text tables from RAM.bin
+  (`huffman_ram`, `FirmwareHuffman.from_file`).
+- **Plan:** the app takes the tables from FLASH_U202.bin instead, by running the firmware's own
+  application unpacker (flash table at 9FC211DC: block 9FCD06F0 -> 800009F4 is LZ-style with
+  16-bit output, decoded by BFC20618; the others are plain copies) and reading the same addresses.
+- **Status:** after the cold boot reaches the Guide.
+
 ## Widescreen-on-4:3 option double-boxes pillarboxed programmes (reported 18 Nov 2026)
 
 - **Seen:** the OSD option *Widescreen on 4:3* (Letterbox) letterboxes 16:9 pictures correctly.
