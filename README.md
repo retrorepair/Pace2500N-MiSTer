@@ -26,7 +26,6 @@ Captured from the core on a MiSTer (v0.7.7-rc2), firmware-drawn Sky Guide over l
 | ![TV Guide](docs/screenshots/tv-guide.png) TV Guide | ![All Channels](docs/screenshots/all-channels.png) All Channels |
 | ![Next day](docs/screenshots/next-day.png) 7-day listings (+24 Hours) | ![Movies](docs/screenshots/genre-movies.png) Genre page |
 | ![Music & Radio](docs/screenshots/music-radio.png) Music & Radio with live track titles | ![Synopsis](docs/screenshots/synopsis.png) Programme synopsis from Plex |
-| ![Now/next banner](docs/screenshots/now-next-banner.png) Now/next banner | ![Information](docs/screenshots/channel-info.png) Information while watching |
 | ![Radio](docs/screenshots/radio-tuned.png) Internet radio station tuned | ![IPTV](docs/screenshots/iptv-guide.png) IPTV channel with its own guide (Pluto TV) |
 
 ## What works

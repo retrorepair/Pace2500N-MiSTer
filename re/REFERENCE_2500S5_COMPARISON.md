@@ -17,5 +17,5 @@ command protocol or reset behavior. Target-specific documentation names its
 watchdog controller U1300. Check this lead against the genuine NEC serial driver
 and reset path; no hardware-model behavior has been changed on this evidence.
 
-Downloaded comparison images are under `re/reference_comparison/` and are
-labelled2500S5 throughout. The sealed1416 checkpoint ZIP remains unchanged.
+The comparison photos are the article's own (third-party copyright) and are not kept in this
+repository; see the links above. The sealed1416 checkpoint ZIP remains unchanged.

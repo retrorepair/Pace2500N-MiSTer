@@ -8,7 +8,7 @@
 shows), SELECT the Server row: the firmware tunes, routes video PID 0x200 and
 audio PID 0x102 to its A/V decoder (B000A094/B000A098 = 0x4200/0x4102) and the
 core's decoder plays Children's BBC under the firmware's own OSD/banner
-(`re/v058_first_video.png`). Telemetry RD word = {pictures, VBUF fill,
+(screenshot removed: it showed broadcast content). Telemetry RD word = {pictures, VBUF fill,
 video_on, audio_on, live, mp2_synced, mp2_err, busy, 00, dropped}.
 
 - Fit 30,167 ALMs (72%), 537/553 M10K, 83 DSP; all clocks positive setup/hold.
@@ -383,7 +383,67 @@ to a real 81MHz-equivalent clock (the two must change together, otherwise
 ticks speed up with the CPU); create the private GitHub repository, excluding
 firmware dumps, RAM images, build trees and the GoRetroTv checkout.
 
-## Transport handoff implementation - v048 deployed, listings under investigationThe attached streamer handoff has been reviewed and revised in`re/TRANSPORT_INTEGRATION.md`. Native FPGA TS replay and 32-channel sectionDMA/interrupts are implemented in isolated `builds/v048_transport`. Compile gpasses reported timing: core +1.204ns, minimum +0.096ns, 75% ALMs, 387 M10Ks,50 DSPs. RBF SHA256 is`4085c2a69c1986b274da9f0830ec29b1d4aa81064ea7d95398f0f9d6803148d7`.It is deployed separately as `_Other/Pace2500N_TS.rbf`. The v047 fallback ispreserved. Build/source/ROM evidence: `re/deployment/v048_build_verified.json`.The launcher now loads flash, RAM, TS, then CPU state. Restoring CPU statebefore the TS upload caused an intermittent HALT05: ordinary upload hold resetsthe CPU decode/branch state. State-last launch passes that point. Restart throughthe MGL to change TS files; runtime hot replacement is not yet supported safely.Actual MiSTer readback confirms the entire TS file in DDR and CRC-valid C1,A2/A3, TOT, SDT/BAT and NIT records in the guest rings. Enter reaches the normalkeyboard/remote path. Hardware captures progress from ALL CHANNELS/no signalto Searching for listings. No populated rows have been verified.Longer validation exposed a guest software abort despite HALT00. Ghidra and avalidated SDK message-list census show free buffers=0, 270 queued to TASK30;the send/retry path aborts with code4C11. The producer of the queued event8messages is under investigation. `Pace2500N_Transport_Sparse.mgl` is the currentrate diagnostic: 8-second replay, table wave every2s, one fixed TOT per file.The standard and versioned-index launchers are also retained. Native long-runtrace `sim/guide_long_test.log` traps at the original software-abort entry.Protocol RTL tests pass (1802 exact DMA bytes, CRC/loss/duplicate handling,ring-full/wrap, 32 paired match units, wrong-table rejection, shared PIDs,BE status). The original boot DMA/indexed-port software tests still pass.An early native delivery run reached280M and programmed title PID36/A3,IDs0BB8/0BB9, MJDCD26. Its actual writes exposed/corrected an erroneous16-unitinterpretation in the public reference before deployment. A fresh run usesthe corrected filters plus matching synthetic OpenTV titles/B2 rows.The native Huffman encoder derives the exact tree from operator RAM. Its outputpasses the original 800BECF0 decoder running on the actual FPGA CPU model.The original 800044BC ring-length helper independently passes all three headerboundary positions. DMA now wraps individual bytes. A registered MMIO responseand packet-alignment counter replace the timing failures found in compile c.The registered-bus/circular-ring native run reached 300M instructions, consumed461 sections and acknowledged all461, no halt. A no-transport keyboard controlpasses the original21 DMA Guide redraws. The data-fed late-key runs do notredraw the menu yet. The fresh early-key/versioned-index run consumes 601 sectionsand renders ALL CHANNELS with a no-signal dialog, without programme rows.The frontend has reached native state 7/flag 1. The saved application stackcontains NVRAM/service-list routines and the favourites-rebuild bytecode loop;a longer run is needed before treating this as a persistent GUI failure.See `re/TRANSPORT_UI_FOLLOWUP.md`. A native notification trace is running.Compile e failed routing congestion (80% nominal ALMs,96% occupied LABs).Filter rules now use one M10K, removing about4800 registers. Reset/clear/seedrestore and packet tests pass. Compile g is the deployed timing-passing image.The PC scheduled localmedia producer passes real FFmpeg encode/probe/decode; this does not add MPEGdecoders to the FPGA. No historical data or placeholder web media was downloaded.Launcher: `Pace2500N_Transport.mgl`, index 3 full-day SI/OpenTV replay, distinct`_Other/Pace2500N_TS.rbf`. Transport/input validation passes; application-levelmessage exhaustion remains a blocker to populated listings.Populated OpenTV listings and protected-loader cold boot are still unresolved.
+## Transport handoff implementation - v048 deployed, listings under investigation
+
+The attached streamer handoff has been reviewed and revised in
+`re/TRANSPORT_INTEGRATION.md`. Native FPGA TS replay and 32-channel section
+DMA/interrupts are implemented in isolated `builds/v048_transport`. Compile g
+passes reported timing: core +1.204ns, minimum +0.096ns, 75% ALMs, 387 M10Ks,
+50 DSPs. RBF SHA256 is
+`4085c2a69c1986b274da9f0830ec29b1d4aa81064ea7d95398f0f9d6803148d7`.
+It is deployed separately as `_Other/Pace2500N_TS.rbf`. The v047 fallback is
+preserved. Build/source/ROM evidence: `re/deployment/v048_build_verified.json`.
+
+The launcher now loads flash, RAM, TS, then CPU state. Restoring CPU state
+before the TS upload caused an intermittent HALT05: ordinary upload hold resets
+the CPU decode/branch state. State-last launch passes that point. Restart through
+the MGL to change TS files; runtime hot replacement is not yet supported safely.
+
+Actual MiSTer readback confirms the entire TS file in DDR and CRC-valid C1,
+A2/A3, TOT, SDT/BAT and NIT records in the guest rings. Enter reaches the normal
+keyboard/remote path. Hardware captures progress from ALL CHANNELS/no signal
+to Searching for listings. No populated rows have been verified.
+
+Longer validation exposed a guest software abort despite HALT00. Ghidra and a
+validated SDK message-list census show free buffers=0, 270 queued to TASK30;
+the send/retry path aborts with code4C11. The producer of the queued event8
+messages is under investigation. `Pace2500N_Transport_Sparse.mgl` is the current
+rate diagnostic: 8-second replay, table wave every2s, one fixed TOT per file.
+The standard and versioned-index launchers are also retained. Native long-run
+trace `sim/guide_long_test.log` traps at the original software-abort entry.
+
+Protocol RTL tests pass (1802 exact DMA bytes, CRC/loss/duplicate handling,
+ring-full/wrap, 32 paired match units, wrong-table rejection, shared PIDs,
+BE status). The original boot DMA/indexed-port software tests still pass.
+An early native delivery run reached280M and programmed title PID36/A3,
+IDs0BB8/0BB9, MJDCD26. Its actual writes exposed/corrected an erroneous16-unit
+interpretation in the public reference before deployment. A fresh run uses
+the corrected filters plus matching synthetic OpenTV titles/B2 rows.
+The native Huffman encoder derives the exact tree from operator RAM. Its output
+passes the original 800BECF0 decoder running on the actual FPGA CPU model.
+The original 800044BC ring-length helper independently passes all three header
+boundary positions. DMA now wraps individual bytes. A registered MMIO response
+and packet-alignment counter replace the timing failures found in compile c.
+The registered-bus/circular-ring native run reached 300M instructions, consumed
+461 sections and acknowledged all461, no halt. A no-transport keyboard control
+passes the original21 DMA Guide redraws. The data-fed late-key runs do not
+redraw the menu yet. The fresh early-key/versioned-index run consumes 601 sections
+and renders ALL CHANNELS with a no-signal dialog, without programme rows.
+The frontend has reached native state 7/flag 1. The saved application stack
+contains NVRAM/service-list routines and the favourites-rebuild bytecode loop;
+a longer run is needed before treating this as a persistent GUI failure.
+See `re/TRANSPORT_UI_FOLLOWUP.md`. A native notification trace is running.
+Compile e failed routing congestion (80% nominal ALMs,96% occupied LABs).
+Filter rules now use one M10K, removing about4800 registers. Reset/clear/seed
+restore and packet tests pass. Compile g is the deployed timing-passing image.
+The PC scheduled local
+media producer passes real FFmpeg encode/probe/decode; this does not add MPEG
+decoders to the FPGA. No historical data or placeholder web media was downloaded.
+
+Launcher: `Pace2500N_Transport.mgl`, index 3 full-day SI/OpenTV replay, distinct
+`_Other/Pace2500N_TS.rbf`. Transport/input validation passes; application-level
+message exhaustion remains a blocker to populated listings.
+Populated OpenTV listings and protected-loader cold boot are still unresolved.
 
 ## Latest hardware deployment — v047 Guide
 
