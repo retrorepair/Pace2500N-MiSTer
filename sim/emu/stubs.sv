@@ -31,7 +31,7 @@ module pace_mpeg_video(
     output wire [7:0] r, g, b, output wire pixel_en, hs, vs, output wire [11:0] h_pos, v_pos,
     output wire video_live, busy, output wire [15:0] pictures, pickups, frames_late, output wire [7:0] vbuf_fill,
     output wire [13:0] horizontal_size, vertical_size,
-    output reg seq_evt = 0, gop_evt = 0, pic_evt = 0, field_evt = 0,
+    output reg seq_evt = 0, gop_evt = 0, pic_evt = 0, field_evt = 0, end_evt = 0,
     output reg [11:0] seq_hsize = 0, seq_vsize = 0, output reg [3:0] seq_aspect = 0,
     output reg [22:0] gop_time_code = 0, output reg [1:0] pic_structure = 0
 );

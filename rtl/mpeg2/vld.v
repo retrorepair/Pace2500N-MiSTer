@@ -59,7 +59,7 @@ module vld(clk, clk_en, rst,
   mpeg1,                                                                                    // DVD-FORK FIX (mpeg1): stream is MPEG-1 (no sequence extension) — to rld via the rld fifo
   vbuf_flush,                                                                               // DVD-FORK FIX (seek realign, issue #45): a VBUF flush happened — the references are now stale
   bitpos, pic_hdr_pulse, pic_hdr_bitpos, pic_hdr_upd, pic_hdr_second,
-  pace_seq_evt, pace_gop_evt, pace_pic_evt, pace_time_code,                                // PACE: header events for the EMMA decoder status model                      // DVD-FORK (PTS association): where in the stream each picture header was parsed
+  pace_seq_evt, pace_gop_evt, pace_pic_evt, pace_end_evt, pace_time_code,                                // PACE: header events for the EMMA decoder status model                      // DVD-FORK (PTS association): where in the stream each picture header was parsed
   skip_ack, skip_rff, skip_field, skip_tff, skip_pf                                         // DVD-FORK (PTS scheduling): a picture was dropped for ANY reason (governor or realign)
   );
 
@@ -327,6 +327,8 @@ module vld(clk, clk_en, rst,
   output reg       pace_seq_evt;
   output reg       pace_gop_evt;
   output reg       pace_pic_evt;
+  /* PACE: one-clk pulse when the parser acts on a sequence_end_code (0x000001B7). */
+  output reg       pace_end_evt;
   output wire[22:0]pace_time_code;   // {hours[4:0], minutes[5:0], seconds[5:0], pictures[5:0]}
   output reg [31:0]pic_hdr_bitpos;
   output reg       pic_hdr_upd;
@@ -2470,6 +2472,7 @@ module vld(clk, clk_en, rst,
         pace_seq_evt   <= 1'b0;
         pace_gop_evt   <= 1'b0;
         pace_pic_evt   <= 1'b0;
+        pace_end_evt   <= 1'b0;
         pace_pic_armed <= 1'b0;
       end
     else
@@ -2477,6 +2480,7 @@ module vld(clk, clk_en, rst,
         pace_seq_evt <= clk_en && (state == STATE_SEQUENCE_HEADER3);
         pace_gop_evt <= clk_en && (state == STATE_GROUP_HEADER0);
         pace_pic_evt <= clk_en && (state == STATE_SLICE) && pace_pic_armed;
+        pace_end_evt <= clk_en && (state == STATE_SEQUENCE_END);
         if (clk_en && (state == STATE_PICTURE_HEADER)) pace_pic_armed <= 1'b1;
         else if (clk_en && (state == STATE_SLICE)) pace_pic_armed <= 1'b0;
       end

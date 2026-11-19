@@ -39,7 +39,8 @@ module pace_guide_peripherals #(
  input wire cold,
  output reg fp_reset_request=0,
  // EMMA memory-to-transport DMA, channel 5 (rtl/pace_transport_dma.sv): B0009090 = descriptor
- // address, B0009010 bit 5 = start, B0009120 bit 5 = transfer complete.
+ // address, B0009010 bit 5 = start, B0009120 bit 5 = transfer complete (pending until acknowledged
+ // through B0009130 bit 5; it raises the DMA interrupt like the graphics channel, bit 12).
  output reg dma5_start=0,
  output reg [31:0] dma5_descriptor=0,
  input wire dma5_done
@@ -75,7 +76,7 @@ module pace_guide_peripherals #(
  wire [7:0] wall_sum=wall_acc+8'd81;
  wire [1:0] wall_step=wall_sum>=8'd100 ? 2'd2 : 2'd1;
  wire [31:0] timer_step=WALL_TIMER ? {30'd0,wall_step} : (tick ? TIMER_COUNTS_PER_INSTRUCTION : 32'd0);
- reg timer_pending=0,gpu_pending=0;
+ reg timer_pending=0,gpu_pending=0,dma5_pending=0;
  reg [13:0] clock_delay=0;
  reg clock_waiting=0;
  reg [7:0] serial_rx=0;
@@ -121,7 +122,7 @@ module pace_guide_peripherals #(
        ((regval(32'hb2009020)&regval(32'hb2009030)&1)!=0?32'h2000:32'd0) |
        ((regval(32'hb2006050)&regval(32'hb2006060)&1)!=0?32'h200000:32'd0) |
        ((regval(32'hb2002060)&regval(32'hb2002070))!=0?32'h10000:32'd0) |
-       (gpu_pending?32'd2:32'd0) | (transport_irq?32'h01000000:32'd0) | (mpeg_irq?32'h00000400:32'd0);
+       (gpu_pending || dma5_pending?32'd2:32'd0) | (transport_irq?32'h01000000:32'd0) | (mpeg_irq?32'h00000400:32'd0);
  assign io_irq=(irq_status&regval(32'hb0000040))!=0;
  assign io_ready=io_req && ee_commit_count==0 && model_halt==0;
  assign gpu_descriptor=regval(32'hb0009100);
@@ -177,10 +178,15 @@ module pace_guide_peripherals #(
     32'hb0000030:io_rdata=irq_status;
     32'hb000d0d0:io_rdata={31'd0,timer_pending};
     32'hb2009010:io_rdata={24'd0,serial_rx};
-    // Graphics/DMA status: bit 12 = graphics completion pending (acknowledged through B0009130),
-    // bit 5 = DMA channel 5 transfer complete. The loader's demux self-test (BFC0B118,
-    // re/loader_gpu_poll_ghidra.txt) starts the DMA and then waits for bit 5.
-    32'hb0009120,32'hb0009122:io_rdata=(gpu_pending?32'h1000:32'd0) | (dma5_done?32'h20:32'd0);
+    // DMA completion status, one bit per channel, pending until written to B0009130:
+    // bit 12 = graphics, bit 5 = channel 5. The loader's demux self-test (BFC0B118,
+    // re/loader_gpu_poll_ghidra.txt) acknowledges B0009130 = 0x20, starts the DMA and polls
+    // for bit 5. The application's DMA interrupt handler 0x80005E28 (EMMA interrupt bit 1,
+    // re/application_dma_irq_handler_ghidra.txt) reads B0009122, and for each channel bit set
+    // clears that channel's B0009010 bit, calls the channel's completion callback (channel 5:
+    // the Guide backdrop feed's semaphore, waited on by 0x8000F890) and writes the bits to
+    // B0009130.
+    32'hb0009120,32'hb0009122:io_rdata=(gpu_pending?32'h1000:32'd0) | (dma5_pending?32'h20:32'd0);
     32'hb0009140,32'hb0009142:io_rdata=0;
     32'hb00020b0:io_rdata=boot_fifo_mode==2 && !boot_fifo_empty ? boot_fifo[boot_fifo_read[5:0]] : 32'd0;
     32'hb00020b8:io_rdata=0;
@@ -210,7 +216,7 @@ module pace_guide_peripherals #(
    boot_fifo_write<=0;boot_fifo_read<=0;boot_fifo_mode<=0;
    for(n=0;n<8;n=n+1)uart[n]<=0;
    uart[3]<=3;
-   last_retired<=retired;timer_remaining<=cold ? 32'd0 : 32'd740656;timer_pending<=0;gpu_pending<=0;wall_acc<=0;
+   last_retired<=retired;timer_remaining<=cold ? 32'd0 : 32'd740656;timer_pending<=0;gpu_pending<=0;dma5_pending<=0;wall_acc<=0;
    clock_waiting<=0;serial_rx<=0;clock_delay<=0;tx_count<=0;tx_escape<=0;
    ack_pending<=0;key_write<=0;key_read<=0;wire_active<=0;wire_escape<=0;
    i2c_delay<=0;serial0_delay<=0;i2c_address_valid<=0;i2c_start<=0;
@@ -322,6 +328,7 @@ module pace_guide_peripherals #(
    end
    dma5_done_q<=dma5_done;
    if(gpu_done)gpu_pending<=1;
+   if(dma5_finished)dma5_pending<=1;
    if(gpu_done || dma5_finished)
     csr[csr_index(32'hb0009010)]<=regval(32'hb0009010)&~(gpu_done?32'h1000:32'd0)&~(dma5_finished?32'h20:32'd0);
    if(io_req && io_ready && !io_we && io_addr==32'hb00020b0 && boot_fifo_mode==2 && !boot_fifo_empty)
@@ -360,7 +367,10 @@ module pace_guide_peripherals #(
      32'hb00020b0:if(boot_fifo_mode==1 && !boot_fifo_full)begin
       boot_fifo[boot_fifo_write[5:0]]<=io_wdata;boot_fifo_write<=boot_fifo_write+1'b1;
      end
-     32'hb0009130:if(io_wdata[12])begin gpu_pending<=0;gpu_acks<=gpu_acks+1'b1;end
+     32'hb0009130:begin
+      if(io_wdata[12])begin gpu_pending<=0;gpu_acks<=gpu_acks+1'b1;end
+      if(io_wdata[5] && !dma5_finished)dma5_pending<=0;
+     end
      32'hb200a000:if((regval(32'hb200a000)&1)!=0 && !io_wdata[0] && (regval(32'hb2009000)&128)!=0)begin clock_waiting<=1;clock_delay<=64;end
      32'hb2002050:serial0_delay<=64;
      32'hb2006000:begin

@@ -15,26 +15,28 @@ module tb_mpeg_video;
  wire es_ready;wire es_valid=!reset && position<es_bytes;
  wire [28:0] ddr_addr;wire [7:0] ddr_burstcnt,ddr_be;wire ddr_read,ddr_write;wire [63:0] ddr_wdata;
  reg [63:0] ddr_rdata=0;reg ddr_rvalid=0;wire ddr_waitrequest;
+ reg still_in=0;   // +STILL: memory-fed still, as the firmware's DMA-fed Guide backdrop
  wire [7:0] r,g,b;wire pixel_en,hs,vs;wire [11:0] h_pos,v_pos;
  wire video_live,busy;wire [15:0] pictures,pickups,frames_late;wire [7:0] vbuf_fill;wire [13:0] hsize,vsize;
- pace_mpeg_video dut(.clk_sys(clk_sys),.clk_dec(clk_dec),.clk_mem(clk_mem),.clk_dot(clk_dot),.reset(reset),.enable(1'b1),.still(1'b0),.flush(1'b0),
+ pace_mpeg_video dut(.clk_sys(clk_sys),.clk_dec(clk_dec),.clk_mem(clk_mem),.clk_dot(clk_dot),.reset(reset),.enable(1'b1),.still(still_in),.flush(1'b0),
   .es_data(es[position]),.es_valid(es_valid),.es_ready(es_ready),
   .ddr_addr(ddr_addr),.ddr_burstcnt(ddr_burstcnt),.ddr_read(ddr_read),.ddr_write(ddr_write),.ddr_wdata(ddr_wdata),.ddr_be(ddr_be),
   .ddr_rdata(ddr_rdata),.ddr_rvalid(ddr_rvalid),.ddr_waitrequest(ddr_waitrequest),
   .r(r),.g(g),.b(b),.pixel_en(pixel_en),.hs(hs),.vs(vs),.h_pos(h_pos),.v_pos(v_pos),
   .video_live(video_live),.busy(busy),.pictures(pictures),.pickups(pickups),.frames_late(frames_late),.vbuf_fill(vbuf_fill),
   .horizontal_size(hsize),.vertical_size(vsize),
-  .seq_evt(seq_evt),.gop_evt(gop_evt),.pic_evt(pic_evt),.field_evt(field_evt),
+  .seq_evt(seq_evt),.gop_evt(gop_evt),.pic_evt(pic_evt),.field_evt(field_evt),.end_evt(end_evt),
   .seq_hsize(seq_h),.seq_vsize(seq_v),.seq_aspect(seq_ar),.gop_time_code(gop_tc),.pic_structure(pic_ps));
  always @(posedge clk_sys)if(es_valid && es_ready)position<=position+1;
  // ---- EMMA decoder status block, driven the way the firmware's ISR 0x8000FDEC
  // does: enable the groups, and on each interrupt read the three status
  // registers and the header registers, then acknowledge with the complement.
- wire seq_evt,gop_evt,pic_evt,field_evt;wire [11:0] seq_h,seq_v;wire [3:0] seq_ar;wire [22:0] gop_tc;wire [1:0] pic_ps;
+ wire seq_evt,gop_evt,pic_evt,field_evt,end_evt;wire [11:0] seq_h,seq_v;wire [3:0] seq_ar;wire [22:0] gop_tc;wire [1:0] pic_ps;
  reg acc=0,we=0;reg [31:0] addr=0,wdata=0;wire hit,irq;wire [31:0] rdata;
  pace_mpeg_status status(.clk(clk_sys),.reset(reset),.access(acc),.we(we),.addr(addr),.wdata(wdata),.hit(hit),.rdata(rdata),.irq(irq),
-  .seq_evt(seq_evt),.gop_evt(gop_evt),.pic_evt(pic_evt),.field_evt(field_evt),
+  .seq_evt(seq_evt),.gop_evt(gop_evt),.pic_evt(pic_evt),.field_evt(field_evt),.end_evt(end_evt),
   .seq_hsize(seq_h),.seq_vsize(seq_v),.seq_aspect(seq_ar),.gop_time_code(gop_tc),.pic_structure(pic_ps));
+ integer n_end=0;
  integer n_seq=0,n_gop=0,n_pic=0,n_field=0,irqs=0;
  reg [31:0] s1,s2,s3;
  task automatic wr(input [31:0] a,input [31:0] d);begin @(posedge clk_sys);acc<=1;we<=1;addr<=a;wdata<=d;@(posedge clk_sys);acc<=0;we<=0;end endtask
@@ -42,7 +44,7 @@ module tb_mpeg_video;
  reg [31:0] v;
  initial begin
   wait(!reset);repeat(5)@(posedge clk_sys);
-  wr(32'hb0002490,32'h00000800);wr(32'hb0002494,32'h80000800);wr(32'hb0002498,32'h00000001);
+  wr(32'hb0002490,32'h00010800);wr(32'hb0002494,32'h80000800);wr(32'hb0002498,32'h00000001);
   forever begin
    @(posedge clk_sys);
    if(irq)begin
@@ -52,13 +54,14 @@ module tb_mpeg_video;
     if(s2[11])begin n_gop=n_gop+1;rd(32'hb000216c,v);if(n_gop<=3)$display("IRQ GOP: B000216C=%h  %0d:%0d:%0d pic %0d",v,v[23:19],v[18:13],v[11:6],v[5:0]);end
     if(s1[11])begin n_pic=n_pic+1;rd(32'hb0002120,v);if(n_pic<=3)$display("IRQ picture: B0002120=%h structure %0d",v,v[29:28]);end
     if(s3[0])n_field=n_field+1;
-    wr(32'hb0002480,~(s1&32'h00000800));wr(32'hb0002484,~(s2&32'h80000800));wr(32'hb0002488,~(s3&32'h1));
+    if(s1[16])begin n_end=n_end+1;$display("IRQ sequence end #%0d at t=%0t, ES position %0d",n_end,$time,position);end
+    wr(32'hb0002480,~(s1&32'h00010800));wr(32'hb0002484,~(s2&32'h80000800));wr(32'hb0002488,~(s3&32'h1));
     @(posedge clk_sys);
     if(irq && (s1|s2|s3)!=0 && 0)$display("irq still high");
    end
   end
  end
- final $display("STATUS: irqs %0d, sequence headers %0d, GOPs %0d, pictures %0d, fields %0d",irqs,n_seq,n_gop,n_pic,n_field);
+ final $display("STATUS: irqs %0d, sequence headers %0d, GOPs %0d, pictures %0d, fields %0d, sequence ends %0d",irqs,n_seq,n_gop,n_pic,n_field,n_end);
  // ---- DDR3 model: 32 MB window at word address 0x07000000, burst reads, 6-cycle latency.
  reg [63:0] mem[0:4*1024*1024-1];
  reg [21:0] rd_word=0;reg [8:0] rd_left=0;reg [3:0] rd_wait=0;
@@ -112,6 +115,7 @@ module tb_mpeg_video;
   if($value$plusargs("ES=%s",es_file))begin end
   if($value$plusargs("OUT=%s",out_prefix))begin end
   if($value$plusargs("FIELDS=%d",max_fields))begin end
+  if($test$plusargs("STILL"))still_in=1;
   if(!$value$plusargs("BYTES=%d",es_bytes))es_bytes=4*1024*1024;
   $readmemh(es_file,es);
   repeat(40)@(posedge clk_sys);reset=0;

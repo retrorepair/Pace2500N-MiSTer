@@ -22,6 +22,13 @@
 //   group 2 bit 11  GOP header parsed           (reads B000216C)
 //   group 1 bit 11  picture decoding starts     (reads B0002120)
 //   group 3 bit 0   display field               (the ISR's per-field counters)
+//   group 1 bit 16  sequence_end_code acted on by the parser. Inferred from the firmware's
+//                   memory-fed still path (AV command 0x23): after the last 8 KiB block of
+//                   the Guide backdrop ES (which ends in 000001B7) the flush 0x8000FA04
+//                   sends 0x20C-byte blocks of zero stuffing ending in 000001B7 (and once
+//                   000001B0+00 in driver mode 2), then 0x8000F950 enables only this bit
+//                   and waits up to 100 ticks for the ISR to set 0x80105A5B; the ISR's
+//                   bit-16 handler sets that flag and disables the bit again.
 // Fields and bits whose meaning is not established from the firmware are not
 // driven (read as 0).
 module pace_mpeg_status(
@@ -32,7 +39,7 @@ module pace_mpeg_status(
  output reg [31:0] rdata,
  output wire irq,                 // to EMMA interrupt controller bit 0x400
  // decoder events (clk domain, one-cycle pulses) and their values
- input wire seq_evt,gop_evt,pic_evt,field_evt,
+ input wire seq_evt,gop_evt,pic_evt,field_evt,end_evt,
  input wire [11:0] seq_hsize,seq_vsize,input wire [3:0] seq_aspect,
  input wire [22:0] gop_time_code,input wire [1:0] pic_structure
 );
@@ -48,7 +55,7 @@ module pace_mpeg_status(
    if(w && addr==32'hb0002494)en2<=wdata;
    if(w && addr==32'hb0002498)en3<=wdata;
    // status: acknowledge (keep bits written as 1), then raise new events
-   st1<=((w && addr==32'hb0002480) ? st1&wdata : st1) | (pic_evt ? 32'h00000800 : 32'd0);
+   st1<=((w && addr==32'hb0002480) ? st1&wdata : st1) | (pic_evt ? 32'h00000800 : 32'd0) | (end_evt ? 32'h00010000 : 32'd0);
    st2<=((w && addr==32'hb0002484) ? st2&wdata : st2) | (seq_evt ? 32'h80000000 : 32'd0) | (gop_evt ? 32'h00000800 : 32'd0);
    st3<=((w && addr==32'hb0002488) ? st3&wdata : st3) | (field_evt ? 32'h00000001 : 32'd0);
    // header information, as parsed

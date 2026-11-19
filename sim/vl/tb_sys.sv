@@ -88,6 +88,19 @@ module tb_sys;
         .dma5_start(dma5_start), .dma5_descriptor(dma5_descriptor), .dma5_done(dma5_done));
     wire dma5_start, dma5_done, dma5_busy, dma5_valid, dma5_ready; wire [31:0] dma5_descriptor; wire [7:0] dma5_data;
     wire xq, xa, xv; wire [28:0] xad;
+    // DMA channel 5 in video-ES mode goes to the MPEG decoder (as the top level). This bench has
+    // no decoder: a sink takes one byte per clock and reports what the decoder's parser would
+    // (sequence_end_code seen -> status group 1 bit 16), with the bytes counted for the trace.
+    wire dma_video_es, demux_dma_ready;
+    assign dma5_ready = dma_video_es ? !holding : demux_dma_ready;
+    reg [31:0] es_window = 32'hffffffff; reg es_end = 0; integer es_bytes = 0, es_ends = 0;
+    always @(posedge clk_sys) begin
+        es_end <= 0;
+        if (dma_video_es && dma5_valid && dma5_ready) begin
+            es_window <= {es_window[23:0], dma5_data}; es_bytes <= es_bytes + 1;
+            if ({es_window[23:0], dma5_data} == 32'h000001b7) begin es_end <= 1; es_ends <= es_ends + 1; end
+        end
+    end
     pace_transport_dma transport_dma (.clk(clk_sys), .reset(soc_reset), .hold(holding),
         .start(dma5_start), .descriptor(dma5_descriptor), .done(dma5_done), .busy(dma5_busy),
         .mem_req(xq), .mem_addr(xad), .mem_accept(xa), .mem_rvalid(xv), .mem_rdata(DDRAM_DOUT),
@@ -99,7 +112,8 @@ module tb_sys;
         .mem_accept(ga), .mem_rvalid(gv), .mem_rdata(DDRAM_DOUT));
     pace_section_demux demux (.clk(clk_sys), .reset(soc_reset), .stream_reset(1'b0), .hold(holding),
         .ts_valid(ts_valid), .ts_ready(ts_ready), .ts_data(ts_byte),
-        .dma_valid(dma5_valid), .dma_busy(dma5_busy), .dma_ready(dma5_ready), .dma_data(dma5_data), .cold(cold),
+        .dma_valid(dma5_valid && !dma_video_es), .dma_busy(dma5_busy && !dma_video_es), .dma_ready(demux_dma_ready),
+        .dma_data(dma5_data), .dma_video_es(dma_video_es), .cold(cold),
         .io_req(device_req && demux_selected), .io_we(iw), .io_addr(ia), .io_wdata(id), .io_size(iz),
         .io_rdata(dir), .irq(demux_irq), .config_ready(demux_config_ready),
         .mem_req(dq), .mem_addr(dad), .mem_wdata(dwd), .mem_be(dbe), .mem_accept(da),
@@ -107,7 +121,7 @@ module tb_sys;
     pace_mpeg_status mpeg_status (.clk(clk_sys), .reset(soc_reset),
         .access(device_req && device_ready && !holding && !demux_selected), .we(iw), .addr(ia), .wdata(id),
         .hit(mpeg_hit), .rdata(mpeg_rdata), .irq(mpeg_irq),
-        .seq_evt(1'b0), .gop_evt(1'b0), .pic_evt(1'b0), .field_evt(1'b0),
+        .seq_evt(1'b0), .gop_evt(1'b0), .pic_evt(1'b0), .field_evt(1'b0), .end_evt(es_end),
         .seq_hsize(12'd0), .seq_vsize(12'd0), .seq_aspect(4'd0), .gop_time_code(23'd0), .pic_structure(2'd0));
 
     // ------------------------------------------- DDR arbiter (as the top level) and model
@@ -117,7 +131,7 @@ module tb_sys;
     reg [7:0] read_beats = 0; reg read_pending = 0; reg [2:0] read_owner = 0;
     wire [2:0] owner = gq ? 3'd1 : dq ? 3'd4 : xq ? 3'd7 : 3'd0;
     wire request = gq || dq || xq || cq;
-    wire write_request = owner == 4 ? 1'b1 : owner == 1 ? gw : cw;
+    wire write_request = owner == 4 || (owner == 1 && gw) || (owner == 0 && cw);   // as the top level: DMA5 (7) only reads
     wire DDRAM_BUSY = ddr_busy;
     wire accepted = request && !holding && !read_pending && !DDRAM_BUSY;
     assign ca = accepted && owner == 0;
@@ -255,6 +269,31 @@ module tb_sys;
                  guest_printf(sreg[4], sreg[5], sreg[6], sreg[7], sreg[8], sreg[9], sreg[10], sreg[11]), sreg[31],
                  sreg[4], sreg[5], sreg[6], sreg[7], guest_str(sreg[5]), guest_str(sreg[6]));
     end
+    // +dmatrace: DMA channel 5 (memory -> transport) starts, completions and stalls.
+    reg dmatrace = 0; integer dma_idle_n = 0; reg [2:0] dma_state_q = 0; reg [31:0] csr9010_q = 0;
+    reg dma_video_es_q = 0; reg [31:0] pending9120_q = 0;
+    always @(posedge clk_sys) if (dmatrace) begin
+        dma_video_es_q <= dma_video_es;
+        if (dma_video_es != dma_video_es_q) $display("%0d us: DMA5 video-ES mode %b (ES bytes so far %0d)", cycles / 50, dma_video_es, es_bytes);
+        pending9120_q[0] <= devices.dma5_pending;
+        if (devices.dma5_pending != pending9120_q[0])
+            $display("%0d us: DMA5 pending %b (irq mask %h)", cycles / 50, devices.dma5_pending, devices.regval(32'hb0000040));
+        if (devices.csr[33] != csr9010_q) begin
+            csr9010_q <= devices.csr[33];
+            $display("%0d us: B0009010 %h -> %h (dma5_done %b gpu_done %b io %b %h %h)", cycles / 50, csr9010_q,
+                     devices.csr[33], dma5_done, gpu_done, devices.io_req && devices.io_we, devices.io_addr, devices.io_wdata);
+        end
+        if (es_end) $display("%0d us: ES sequence_end_code #%0d after %0d ES bytes", cycles / 50, es_ends + 1, es_bytes + 1);
+        if (dma5_start) $display("%0d us: DMA5 start descriptor %h (9010 bit5 was %b)", cycles / 50, dma5_descriptor,
+                                 devices.csr[33][5]);   // csr index 33 = B0009010
+        if (transport_dma.state != dma_state_q) begin
+            dma_state_q <= transport_dma.state;
+            if (transport_dma.state < 3 || (transport_dma.state == 3 && dma_state_q == 2))
+            $display("%0d us: DMA5 state %0d addr %h last %h done %b busybit %b | demux in_dma %b incoming %0d state %0d cfg %b",
+                     cycles / 50, transport_dma.state, transport_dma.address, transport_dma.last, dma5_done, devices.csr[33][5],
+                     demux.in_dma, demux.incoming, demux.state, demux.config_ready);
+        end
+    end
     // Every CPU access outside the physical map (pace_r4k drops the write / reads 0).
     reg [31:0] unmapped_seen = 0;
     always @(posedge clk_sys) if (cpu_unmapped != unmapped_seen) begin
@@ -375,6 +414,7 @@ module tb_sys;
         if ($value$plusargs("watchafter=%d", watchafter)) ;
         natives = $test$plusargs("natives");
         printf_on = $test$plusargs("printf");
+        dmatrace = $test$plusargs("dmatrace");
         if ($value$plusargs("keys=%s", keystr)) begin
             for (i = 0; i + 1 < keystr.len() && nkeys < 16; i = i + 3) begin
                 keylist[nkeys] = keystr.substr(i, i + 1).atohex(); nkeys = nkeys + 1;

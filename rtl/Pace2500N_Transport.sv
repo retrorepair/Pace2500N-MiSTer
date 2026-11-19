@@ -143,7 +143,7 @@ wire [63:0] cwd,gwd,dwd;wire [7:0] cbe,gbe,dbe;
 wire iq,iw,irdy,irq,prdy,device_req,device_ready;wire [31:0] ia,id,ir,pir,dir;wire [1:0] iz;
 // EMMA MPEG decoder interrupt status / header registers (driven by the decoder)
 wire mpeg_hit,mpeg_irq;wire [31:0] mpeg_rdata;
-wire dec_seq_evt,dec_gop_evt,dec_pic_evt,dec_field_evt;wire [11:0] dec_seq_h,dec_seq_v;wire [3:0] dec_seq_ar;
+wire dec_seq_evt,dec_gop_evt,dec_pic_evt,dec_field_evt,dec_end_evt;wire [11:0] dec_seq_h,dec_seq_v;wire [3:0] dec_seq_ar;
 wire [22:0] dec_gop_tc;wire [1:0] dec_pic_ps;
 wire demux_selected=ia[31:12]==20'hb000a;
 wire demux_config_ready;
@@ -194,7 +194,9 @@ pace_guide_peripherals devices(.clk(clk_sys),.reset(soc_reset),.hold(holding),.r
  .cold(cold_boot),.fp_reset_request(fp_reset_request),
  .dma5_start(dma5_start),.dma5_descriptor(dma5_descriptor),.dma5_done(dma5_done));
 // EMMA memory-to-transport DMA (channel 5): the loader's demux self-test copies transport
-// packets from flash into the demux through it.
+// packets from flash into the demux through it; the application feeds the Guide backdrop's
+// MPEG video ES to the decoder through it (dma_video_es, rtl/pace_section_demux.sv).
+wire dma_video_es,demux_dma_ready;
 wire dma5_start,dma5_done,dma5_busy,dma5_valid,dma5_ready;wire [31:0] dma5_descriptor;wire [7:0] dma5_data;
 wire xq,xa,xv;wire [28:0] xad;
 pace_transport_dma transport_dma(.clk(clk_sys),.reset(soc_reset),.hold(holding),
@@ -248,7 +250,8 @@ pace_tot_clock broadcast_clock(.clk(clk_sys),.reset(core_reset || stream_loading
  .seconds_of_day(utc_seconds),.time_valid(utc_valid));
 pace_section_demux demux(.clk(clk_sys),.reset(soc_reset),.stream_reset(stream_loading),.hold(holding),
  .ts_valid(ts_valid),.ts_ready(ts_ready),.ts_data(ts_data),
- .dma_valid(dma5_valid),.dma_busy(dma5_busy),.dma_ready(dma5_ready),.dma_data(dma5_data),.cold(cold_boot),
+ .dma_valid(dma5_valid && !dma_video_es),.dma_busy(dma5_busy && !dma_video_es),.dma_ready(demux_dma_ready),.dma_data(dma5_data),
+ .dma_video_es(dma_video_es),.cold(cold_boot),
  .io_req(device_req && demux_selected),.io_we(iw),.io_addr(ia),.io_wdata(id),.io_size(iz),.io_rdata(dir),.irq(demux_irq),.config_ready(demux_config_ready),
  .mem_req(dq),.mem_addr(dad),.mem_wdata(dwd),.mem_be(dbe),.mem_accept(da),
  .packets(ts_packets),.sections(ts_sections),.dropped(ts_dropped),.crc_errors(ts_crc_errors),
@@ -271,20 +274,27 @@ wire still_q,still_a,still_v;
 wire [28:0] still_addr;
 wire [7:0] still_data;
 wire still_valid,still_present,decoder_ready;
-wire still_enable=epg_mode && !holding;
-reg still_enable_q=0;
+// Host-injected Guide backdrop: checkpoint boot only. A cold-booted firmware sends the
+// backdrop itself, through DMA channel 5 (es_dma below).
+wire still_enable=epg_mode && !holding && !cold_boot;
+wire es_dma=dma_video_es && !holding;
+wire es_memory=still_enable || es_dma;   // decoder fed from memory instead of the broadcast
+reg es_memory_q=0;
 reg [7:0] flush_count=0;
-wire decoder_flush=still_enable!=still_enable_q || flush_count!=0;
+wire decoder_flush=es_memory!=es_memory_q || flush_count!=0;
 always @(posedge clk_sys)begin
- still_enable_q<=still_enable;
+ es_memory_q<=es_memory;
  if(core_reset)flush_count<=0;
- else if(still_enable!=still_enable_q)flush_count<=8'd255;
+ else if(es_memory!=es_memory_q)flush_count<=8'd255;
  else if(flush_count!=0)flush_count<=flush_count-1'b1;
 end
+// (Checkpoint boot: the host-injected backdrop owns the decoder, so a firmware ES transfer is
+// taken and dropped there, as it was when it went into the demux.)
+assign dma5_ready=dma_video_es ? !holding && (still_enable || (decoder_ready && !decoder_flush)) : demux_dma_ready;
 pace_guide_still guide_still(.clk(clk_sys),.reset(soc_reset),.enable(still_enable),
  .mem_req(still_q),.mem_addr(still_addr),.mem_accept(still_a),.mem_rvalid(still_v),.mem_rdata(DDRAM_DOUT),
  .data(still_data),.valid(still_valid),.ready(decoder_ready && !decoder_flush),.present(still_present));
-assign ves_ready=decoder_ready && !still_enable && !decoder_flush;
+assign ves_ready=decoder_ready && !es_memory && !decoder_flush;
 wire [31:0] ves_bytes,aes_bytes;wire [15:0] ves_dropped,aes_dropped;
 pace_av_pes #(.FIFO_BITS(10)) av_pes(.clk(clk_sys),.reset(soc_reset || stream_loading || stream_restart),.ts_strobe(ts_valid && ts_ready),.ts_data(ts_data),
  .video_pid(av_video[12:0]),.audio_pid(audio_route),.video_on(video_on),.audio_on(audio_on && !audio_reset),
@@ -294,22 +304,23 @@ pace_av_pes #(.FIFO_BITS(10)) av_pes(.clk(clk_sys),.reset(soc_reset || stream_lo
 wire [7:0] dec_r,dec_g,dec_b;wire dec_en,dec_hs,dec_vs;wire [11:0] dec_h,dec_v;
 wire dec_live,dec_busy;wire [15:0] dec_pictures,dec_pickups,dec_late;wire [7:0] dec_vbuf;wire [13:0] dec_hsize,dec_vsize;
 pace_mpeg_video mpeg_video(.clk_sys(clk_sys),.clk_dec(clk_dec),.clk_mem(clk_mem),.clk_dot(clk_dot),
- .reset(!pll_locked || RESET),.flush(decoder_flush),.enable(video_on || still_enable),.still(still_enable),
- .es_data(still_enable ? still_data : ves_data),
- .es_valid(!decoder_flush && (still_enable ? still_valid : ves_valid)),.es_ready(decoder_ready),
+ .reset(!pll_locked || RESET),.flush(decoder_flush),.enable(video_on || es_memory),.still(es_memory),
+ .es_data(still_enable ? still_data : es_dma ? dma5_data : ves_data),
+ .es_valid(!decoder_flush && (still_enable ? still_valid : es_dma ? dma5_valid : ves_valid)),.es_ready(decoder_ready),
  .ddr_addr(DDRAM2_ADDR),.ddr_burstcnt(DDRAM2_BURSTCNT),.ddr_read(DDRAM2_RD),.ddr_write(DDRAM2_WE),
  .ddr_wdata(DDRAM2_DIN),.ddr_be(DDRAM2_BE),.ddr_rdata(DDRAM2_DOUT),.ddr_rvalid(DDRAM2_DOUT_READY),.ddr_waitrequest(DDRAM2_BUSY),
  .r(dec_r),.g(dec_g),.b(dec_b),.pixel_en(dec_en),.hs(dec_hs),.vs(dec_vs),.h_pos(dec_h),.v_pos(dec_v),
  .video_live(dec_live),.busy(dec_busy),.pictures(dec_pictures),.pickups(dec_pickups),.frames_late(dec_late),.vbuf_fill(dec_vbuf),
  .horizontal_size(dec_hsize),.vertical_size(dec_vsize),
- .seq_evt(dec_seq_evt),.gop_evt(dec_gop_evt),.pic_evt(dec_pic_evt),.field_evt(dec_field_evt),
+ .seq_evt(dec_seq_evt),.gop_evt(dec_gop_evt),.pic_evt(dec_pic_evt),.field_evt(dec_field_evt),.end_evt(dec_end_evt),
  .seq_hsize(dec_seq_h),.seq_vsize(dec_seq_v),.seq_aspect(dec_seq_ar),.gop_time_code(dec_gop_tc),.pic_structure(dec_pic_ps));
 pace_mpeg_status mpeg_status(.clk(clk_sys),.reset(soc_reset),
  .access(device_req && device_ready && !holding && !demux_selected),.we(iw),.addr(ia),.wdata(id),
  .hit(mpeg_hit),.rdata(mpeg_rdata),.irq(mpeg_irq),
- // The host-injected Guide backdrop is unrelated to the guest's broadcast ES.
- .seq_evt(dec_seq_evt && video_on),.gop_evt(dec_gop_evt && video_on),
- .pic_evt(dec_pic_evt && video_on),.field_evt(dec_field_evt),
+ // The host-injected Guide backdrop is unrelated to the guest's broadcast ES; the
+ // firmware's own DMA-fed ES is the guest's.
+ .seq_evt(dec_seq_evt && (video_on || es_dma)),.gop_evt(dec_gop_evt && (video_on || es_dma)),
+ .pic_evt(dec_pic_evt && (video_on || es_dma)),.field_evt(dec_field_evt),.end_evt(dec_end_evt && (video_on || es_dma)),
  .seq_hsize(dec_seq_h),.seq_vsize(dec_seq_v),.seq_aspect(dec_seq_ar),.gop_time_code(dec_gop_tc),.pic_structure(dec_pic_ps));
 assign DDRAM2_CLK=clk_mem;
 // MPEG-1 Layer II audio, 48 kHz from the core clock (the replayed broadcast is
@@ -348,7 +359,7 @@ wire osd_key,osd_background;wire [23:0] mixed_rgb;
 reg [2:0] video_on_s=0,still_on_s=0,live_s=0;
 always @(posedge clk_video)begin
  video_on_s<={video_on_s[1:0],video_on};
- still_on_s<={still_on_s[1:0],still_enable && still_present};
+ still_on_s<={still_on_s[1:0],(still_enable && still_present) || es_dma};
  live_s<={live_s[1:0],dec_live};
 end
 wire show_still=still_on_s[2] && live_s[2];

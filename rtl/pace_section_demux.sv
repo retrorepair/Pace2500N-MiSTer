@@ -34,6 +34,16 @@ module pace_section_demux(
  // Second transport input: the EMMA memory-to-transport DMA (rtl/pace_transport_dma.sv) that
  // the boot loader's demux self-test feeds from flash. dma_busy: a transfer is in progress.
  input wire dma_valid,dma_busy,output wire dma_ready,input wire [7:0] dma_data,
+ // The application's memory-fed MPEG still (AV command 0x23, the Guide backdrop; feed
+ // 0x80020450 -> 0x8000F890 -> DMA channel 5) programs the input for it before the first
+ // block: B000A094 = 1FFF (video PID off), A000 bit 5 pulsed, B000A004 = 0 then 1, B000A000 =
+ // 0x1000 (bit 12 alone). The data it then sends is a video elementary stream (the feed checks
+ // for the 000001B7 sequence_end_code), not transport packets. Live viewing runs with A000 =
+ // 0x0F00 and the loader's transport self-test with A000 bit 12 set but A004 = 0, so the
+ // combination A000 bit 12 + A004 bit 0 is taken as "DMA input is a video ES for the MPEG
+ // decoder" (inferred from these firmware uses; no EMMA documentation). The top level then
+ // routes the DMA to the decoder instead of this demux.
+ output wire dma_video_es,
  // Cold boot from flash: a hardware reset leaves every table and register at zero (the
  // simulator's declared unknown-register policy) instead of the checkpoint's values.
  input wire cold
@@ -52,6 +62,8 @@ module pace_section_demux(
  reg init_active=1,init_seed=1;
  reg [31:0] status[0:3],enables[0:3];
  reg [31:0] control=32'h00100001,indirect_data=0,match_data=0;
+ reg [31:0] input_control=0,input_format=0;   // B000A000 / B000A004 as last written
+ assign dma_video_es=input_control[12] && input_format[0];
  reg [4:0] selected=0;
  reg [4:0] channel=0;reg new_allowed=0;
  // ---- Per-channel tables (MLAB, one write port, asynchronous read).
@@ -182,6 +194,12 @@ module pace_section_demux(
  wire [4:0] shift=io_size==0?{(2'd3-io_addr[1:0]),3'b000}:io_size==1?{io_addr[1]?2'd0:2'd2,3'b000}:5'd0;
  wire [31:0] lane_mask=(io_size==0?32'hff:io_size==1?32'hffff:32'hffffffff)<<shift;
  wire [31:0] lane_bits=(io_wdata<<shift)&lane_mask;
+ always @(posedge clk)
+  if(reset)begin input_control<=0;input_format<=0;end
+  else if(!hold && io_req && io_we)begin
+   if(off==12'h000)input_control<=io_wdata;
+   if(off==12'h004)input_format<=io_wdata;
+  end
  assign config_ready=!init_active;
  assign irq=(status[2]&enables[2])!=0;
  // Sources change only between packets (incoming==0): the DMA takes the input while busy.

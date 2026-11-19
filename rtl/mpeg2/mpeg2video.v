@@ -68,7 +68,7 @@ module mpeg2video(clk, mem_clk, dot_clk, dot_ce,
              vertical_size_out,                                   // DVD-FORK FIX (PAL auto-detect): sequence-header frame height
              horizontal_size_out,                                 // DVD-FORK (CRT anamorphic overlay align): sequence-header frame width
              aspect_ratio_out,                                    // DVD-FORK FIX (aspect ratio): sequence-header display-AR code
-             pace_seq_evt, pace_gop_evt, pace_pic_evt, pace_time_code, pace_picture_structure, // PACE: EMMA decoder status model
+             pace_seq_evt, pace_gop_evt, pace_pic_evt, pace_end_evt, pace_time_code, pace_picture_structure, // PACE: EMMA decoder status model
              ref_prefetch_en,                                     // DVD-FORK (ref prefetch O[18]): 1=deep ref run-ahead, 0=baseline fill
              frame_drop_en,                                       // DVD-FORK (frame-drop O[12]): 1=drop B-frames when behind
              dbg_frames_late, dbg_frames_dropped,                 // DVD-FORK (frame-drop O[12]): overlay counters
@@ -185,7 +185,7 @@ module mpeg2video(clk, mem_clk, dot_clk, dot_ce,
   output     [3:0]aspect_ratio_out;
   /* PACE (Pace 2500N): header events and fields for the EMMA decoder status
    * model (rtl/pace_mpeg_status.sv), clk domain. */
-  output           pace_seq_evt, pace_gop_evt, pace_pic_evt;
+  output           pace_seq_evt, pace_gop_evt, pace_pic_evt, pace_end_evt;
   output     [22:0]pace_time_code;
   output      [1:0]pace_picture_structure;
   /* DVD-FORK (ref prefetch O[18], clk domain, 2-FF synced in emu): 1 = let the deepened
@@ -1215,7 +1215,7 @@ module mpeg2video(clk, mem_clk, dot_clk, dot_ce,
     /* DVD-FORK (PTS association): where each picture header was parsed */
     .bitpos(vld_bitpos),                                     // from getbits
     .pic_hdr_pulse(pic_hdr_pulse),
-    .pace_seq_evt(pace_seq_evt), .pace_gop_evt(pace_gop_evt), .pace_pic_evt(pace_pic_evt), .pace_time_code(pace_time_code), // PACE
+    .pace_seq_evt(pace_seq_evt), .pace_gop_evt(pace_gop_evt), .pace_pic_evt(pace_pic_evt), .pace_end_evt(pace_end_evt), .pace_time_code(pace_time_code), // PACE
     .pic_hdr_bitpos(pic_hdr_bitpos),
     .pic_hdr_upd(pic_hdr_upd),
     .pic_hdr_second(pic_hdr_second),
