@@ -4,6 +4,30 @@
 Quartus results and HDL regressions. The latest session is directly below; the original
 7 Nov snapshot further down is retained for history only (it predates everything that works).
 
+## Session 19 Nov 2026 - the Guide backdrop path a cold box needs (V079H/V079I, branch cold-boot)
+
+- The blue 3 s / black 0.25 s cycle on V079G: the application draws the Guide backdrop by
+  feeding its MPEG still (AV command 0x23; provider 0x80020450, 8 KiB blocks) through DMA
+  channel 5 to the video decoder (0x8000F890), and waits on (1) the DMA completion interrupt
+  (handler 0x80005E28: B0009122 -> clear B0009010 bit, callback, ack B0009130) and (2) decoder
+  status group 1 bit 16 after the flush 0x8000FA04 (0x20C-byte zero blocks ending 000001B7),
+  enabled alone by 0x8000F950. None of this was modelled; the checkpoint used the host still.
+- Modelled (926dc8a): DMA5 pending/IRQ/ack; A000 bit 12 + A004 bit 0 routes DMA5 to the decoder
+  as an ES (inferred from the firmware's still set-up: A094=1FFF, A000 bit 5 pulse, A004=0->1,
+  A000=0x1000); vld tap "sequence end acted on" -> B0002480 bit 16; host still checkpoint-only.
+  sim/tb_mpeg_video +STILL with the firmware-style feed (still once + six padding blocks):
+  720x576, picture live, bit 16 on each sequence end -> the Sky Guide picture (no repeats).
+- The "stuck flush DMA" seen in tb_sys was a TESTBENCH bug (its arbiter took owner 7 reads as
+  writes when the CPU's write line was high); the real top level was right.
+- V079H on hardware: halted E2 (front-panel frame) at 5.7 M instructions, right after the loader
+  enables interrupt mask 6. Cause: the loader's 32-byte flush DMA completed ~160 us after the
+  loader acknowledged it (the demux only takes the DMA input at a broadcast packet boundary), so
+  its completion stayed pending into the loader's interrupt enable. Fix: 64-byte input buffer in
+  pace_transport_dma (completion = bytes left memory); tb_sys shows the flush complete before
+  the acknowledge and the loader continuing. V079I = that fix (build started 09:54).
+- V079H timing: HDMI scaler clock setup -2.475 ns (framework pll_hdmi), core clocks met.
+- PC trap: builds ran ~3x slower with <1 GB free; `wsl --shutdown` after sims before building.
+
 ## Session 18 Nov 2026 (evening) - cold boot runs on the MiSTer (V079E, branch cold-boot)
 
 - V079C/D held on the boot monitor: the guest RAM clear's first 8 DDR writes wedged the HPS
