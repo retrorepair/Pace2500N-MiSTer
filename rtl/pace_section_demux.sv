@@ -226,6 +226,11 @@ module pace_section_demux(
    12'h098:io_rdata={16'd0,av_audio};
    12'h010:io_rdata={16'd0,av_pcr};
    12'h140:io_rdata=control;
+   // B000A000/A004 read back as written: the application pulses A000 bit 5 by read-modify-write
+   // (read, |0x20, read, &~0x20) on every Guide backdrop start after the first, which with a
+   // zero read-back cleared bit 12 and so the backdrop's memory input (re/ hardware trace V079M).
+   12'h000:io_rdata=input_control;
+   12'h004:io_rdata=input_format;
    default:begin end
   endcase
   io_rdata=(io_rdata>>shift)&(io_size==0?32'hff:io_size==1?32'hffff:32'hffffffff);

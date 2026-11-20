@@ -468,10 +468,23 @@ wire trace_demux=demux_selected && iw && ia[11:0]!=12'h0b8 && ia[11:0]!=12'h124 
 wire trace_serial=ia[31:12]==20'hb2009 || (iw && ia==32'hb200a000);
 // Demodulator (I2C 18/19) register traffic, and DMA controller set-up/status (B0009xxx).
 wire trace_lsi=(ia[31:12]==20'hb2006 && (lsi_bus || (iw && ia==32'hb2006040))) || ia[31:12]==20'hb0009;
-wire trace_event=device_req && device_ready && !holding && (ia[31:12]==20'hb0002 || ia[31:12]==20'hb0008 || trace_demux || trace_serial || trace_lsi);
+// The decoder ISR's per-field status reads and acknowledges (B0002480-8C) are left out: at
+// 50 fields/s they filled the trace FIFO and other events were dropped.
+wire trace_status=ia[31:4]==28'hb000248;
+wire trace_event=device_req && device_ready && !holding && !trace_status &&
+                 (ia[31:12]==20'hb0002 || ia[31:12]==20'hb0008 || trace_demux || trace_serial || trace_lsi);
+// Diagnostics: decoder sequence-end events (raw, and as gated to the EMMA status block),
+// sequence headers, and the memory-ES routing state, in the telemetry WD word.
+reg [7:0] diag_end_raw=0,diag_end_gated=0,diag_seq_raw=0;
+always @(posedge clk_sys)begin
+ if(dec_end_evt)diag_end_raw<=diag_end_raw+1'b1;
+ if(dec_end_evt && (video_on || es_dma))diag_end_gated<=diag_end_gated+1'b1;
+ if(dec_seq_evt)diag_seq_raw<=diag_seq_raw+1'b1;
+end
+wire [7:0] diag_flags={es_dma,dma_video_es,video_on,es_memory,decoder_flush,still_enable,dec_live,decoder_ready};
 pace_debug_uart telemetry(.clk(clk_sys),.reset(!pll_locked),.tx(UART_TXD),
  .pc(pc),.instruction(inst),.retired(retired),.ram_writes(ram_writes),
- .mmio_address({gpu_count[15:0],ts_sections[15:0]}),.mmio_value({key_count[15:0],key_frames[15:0]}),
+ .mmio_address({gpu_count[15:0],ts_sections[15:0]}),.mmio_value({diag_end_raw,diag_end_gated,diag_seq_raw,diag_flags}),
  .mmio_read({dec_pictures[7:0],dec_vbuf,video_on,audio_on,dec_live,mp2_synced,mp2_err,dec_busy,2'd0,ves_dropped[7:0]}),.interrupt_count(interrupt_count),
  .guessed_reads(streaming ? {stream_underruns[15:0],stream_written[25:10]-stream_played[25:10]} : ts_packets),.mmio_policy(2'd1),.halt_code(halt_code),.mips16(mips16),.full_flash_loaded(loaded_flash),
  .ev_valid(trace_event),.ev_we(iw),.ev_addr(ia),.ev_data(iw ? id : (demux_selected ? dir : pir)),.prof(trace_page_data),.prof_sent(trace_next),.prof_fast(trace_frozen));
