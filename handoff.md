@@ -4,6 +4,27 @@
 Quartus results and HDL regressions. The latest session is directly below; the original
 7 Nov snapshot further down is retained for history only (it predates everything that works).
 
+## 20 Nov 2026 (evening) - V079N built and tested: REGRESSION, do not use
+
+- PC was rebooted 16:05 (the earlier V079N fit never finished). V079N rebuilt from 7138cfd in
+  41 min (fresh RAM). Timing: core clocks met (general[5] +0.088 ns); HDMI scaler -2.427 ns as
+  before. RBF: output_files/Pace2500N_V079N.rbf, on the MiSTer as _Other/Pace2500N_V079N.rbf.
+- Channel Builder had to be restarted after the reboot (playout took >25 s to listen on 8250).
+- **Result: V079N does not reach the application.** Run 1 (no feed at load, then reloaded with the
+  feed): the loader ends in its idle loop at 9FC0DE4C/60 (all tasks blocked) right after its
+  boot-data-port test; no A000 = 0x73, no warm boot. Run 2: the UART trace and telemetry stop
+  at 9.03 s, mid boot-data-port test (B00020B4 = 2); not yet established whether the core
+  stopped or only the UART. Flash aligned both times.
+- The only RTL difference from V079M (which reached the application and the backdrop loop) is
+  B000A000/A004 read-back (pace_section_demux.sv). The sim log (dt14) shows the loader never
+  reads A000 and reads A004 only while it is 0, so the read-back should not affect the loader -
+  cause unexplained. Next: confirm whether V079M still boots past the loader now (run-to-run
+  variation was seen before: V079I/V079K/V079L/V079M behaved differently between runs), and if
+  V079N alone fails, find what differs (Ghidra on the loader around 9FC0DE4C waiters, HPS RAM
+  liveness check, UART trace ending).
+- The MiSTer was left on V078 before the test; V078 was reloaded at the end of the session
+  (_Other/Pace2500N_V078_Live.mgl) for normal use.
+
 ## Session 19-20 Nov 2026 (continued) - backdrop decoded on hardware; restart loop found (V079K-N)
 
 **State at hand-over:** V079N (commit 7138cfd) was still in the Quartus fitter, started
