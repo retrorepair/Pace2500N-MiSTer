@@ -22,6 +22,15 @@ Quartus results and HDL regressions. The latest session is directly below; the o
   variation was seen before: V079I/V079K/V079L/V079M behaved differently between runs), and if
   V079N alone fails, find what differs (Ghidra on the loader around 9FC0DE4C waiters, HPS RAM
   liveness check, UART trace ending).
+- **Quick check (same evening): the failure is V079N-specific and repeatable.** V079M, loaded
+  straight after under the same conditions, boots normally: loader self-test, A000 = 0x73 at
+  9.6 s, warm boot 15.1 s, application demux set-up 24.4 s, backdrop set-up 31.3 s. V079N run 3
+  stopped exactly like run 2: B00020B4 = 1 at 8.89 s, = 2 at 9.13 s, then the UART trace and the
+  telemetry frames stop (last PACE frame PC BFC18EE8, 2.5 M instructions). So the core (or at
+  least its clk_sys debug path) stops during the loader's boot-data-port test (B00020B0/B4/B8 in
+  pace_guide_peripherals), long before any demux read. Suspect a build/placement effect rather
+  than the read-back logic itself; next: HPS RAM liveness check on V079N, compare V079N and
+  V079M fitter reports, and rebuild V079N with another seed before changing RTL.
 - The MiSTer was left on V078 before the test; V078 was reloaded at the end of the session
   (_Other/Pace2500N_V078_Live.mgl) for normal use.
 
