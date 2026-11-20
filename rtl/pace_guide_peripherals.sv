@@ -85,6 +85,16 @@ module pace_guide_peripherals #(
  reg timer_pending=0,gpu_pending=0,dma5_pending=0;
  reg [13:0] clock_delay=0;
  reg clock_waiting=0;
+ // Front-panel link: each byte the box writes to B2009010 is sent once. A transfer (started by the
+ // box's clock write to B200A000, or by the front-panel controller to clock in its reply/key
+ // bytes while the box holds the clock line at 1) takes the byte when it starts; a transfer with
+ // nothing written since the previous one still delivers the controller's byte to the box but
+ // adds nothing to the box's frame. Previously the byte was read from B2009010 when a transfer
+ // completed: when the box was preempted between raising and lowering the clock, the
+ // controller's transfer completed with the box's byte and the box's own transfer then counted
+ // it again -> frame length mismatch, model halt E2 in the loader (V079H, V079N; the frozen CPU
+ // trace shows the loader mid-handshake: W B2009010, W B200A000 = 1, ..., = 0).
+ reg [7:0] tx_shift=0;reg tx_full=0,tx_valid=0;
  reg [7:0] serial_rx=0;
  reg [7:0] tx_body[0:15];reg [4:0] tx_count=0;reg tx_escape=0;
  reg ack_pending=0;reg [47:0] ack_body=0;reg [2:0] ack_len=0;
@@ -224,7 +234,7 @@ module pace_guide_peripherals #(
    for(n=0;n<8;n=n+1)uart[n]<=0;
    uart[3]<=3;
    last_retired<=retired;timer_remaining<=cold ? 32'd0 : 32'd740656;timer_pending<=0;gpu_pending<=0;dma5_pending<=0;wall_acc<=0;
-   clock_waiting<=0;serial_rx<=0;clock_delay<=0;tx_count<=0;tx_escape<=0;
+   clock_waiting<=0;serial_rx<=0;clock_delay<=0;tx_count<=0;tx_escape<=0;tx_shift<=0;tx_full<=0;tx_valid<=0;
    ack_pending<=0;key_write<=0;key_read<=0;wire_active<=0;wire_escape<=0;
    i2c_delay<=0;serial0_delay<=0;i2c_address_valid<=0;i2c_start<=0;
    lsi_group<=7;lsi_apr<=cold ? 13'd0 : 13'd29;ee_pointer<=cold ? 16'd0 : 16'd14090;ee_address_count<=0;
@@ -248,6 +258,7 @@ module pace_guide_peripherals #(
    end
    if(!clock_waiting && wire_active && (regval(32'hb200a000)&1)!=0 && (regval(32'hb2009020)&1)==0)begin
      clock_waiting<=1;clock_delay<=8192;
+     tx_shift<=regval(32'hb2009010);tx_valid<=tx_full;tx_full<=0;
    end
    if(ee_commit_count!=0)begin
     ee_commit_index<=ee_commit_index+1'b1;ee_commit_count<=ee_commit_count-1'b1;
@@ -277,13 +288,14 @@ module pace_guide_peripherals #(
        else if(!wire_escape && (wire_raw==0 || wire_raw==8'h1b))wire_escape<=1;
        else begin wire_escape<=0;wire_pos<=wire_pos+1'b1;end
       end
-      if(tx_escape)begin
-       if(tx_count<16)begin tx_body[tx_count[3:0]]<=regval(32'hb2009010);tx_count<=tx_count+1'b1;end
+      if(!tx_valid)begin end
+      else if(tx_escape)begin
+       if(tx_count<16)begin tx_body[tx_count[3:0]]<=tx_shift;tx_count<=tx_count+1'b1;end
        else model_halt<=8'he1;
        tx_escape<=0;
-      end else if((regval(32'hb2009010)&255)==27)tx_escape<=1;
-      else if((regval(32'hb2009010)&255)!=0)begin
-       if(tx_count<16)begin tx_body[tx_count[3:0]]<=regval(32'hb2009010);tx_count<=tx_count+1'b1;end
+      end else if(tx_shift==8'd27)tx_escape<=1;
+      else if(tx_shift!=8'd0)begin
+       if(tx_count<16)begin tx_body[tx_count[3:0]]<=tx_shift;tx_count<=tx_count+1'b1;end
        else model_halt<=8'he1;
       end else if(tx_count!=0)begin
        tx_count<=0;serial_frames<=serial_frames+1'b1;
@@ -380,7 +392,13 @@ module pace_guide_peripherals #(
       if(io_wdata[12])begin gpu_pending<=0;gpu_acks<=gpu_acks+1'b1;end
       if(io_wdata[5] && !dma5_finished)dma5_pending<=0;
      end
-     32'hb200a000:if((regval(32'hb200a000)&1)!=0 && !io_wdata[0] && (regval(32'hb2009000)&128)!=0)begin clock_waiting<=1;clock_delay<=64;end
+     32'hb200a000:if((regval(32'hb200a000)&1)!=0 && !io_wdata[0] && (regval(32'hb2009000)&128)!=0)begin
+      clock_waiting<=1;clock_delay<=64;
+      // A box clock while the controller's transfer is under way is that same transfer.
+      if(!clock_waiting)begin tx_shift<=regval(32'hb2009010);tx_valid<=tx_full;tx_full<=0;end
+      else if(tx_full)begin tx_shift<=regval(32'hb2009010);tx_valid<=1;tx_full<=0;end
+     end
+     32'hb2009010:tx_full<=1;
      32'hb2002050:serial0_delay<=64;
      32'hb2006000:begin
       if(io_wdata==32'h9a)begin i2c_start<=1;i2c_first_payload<=1;end
