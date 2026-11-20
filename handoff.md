@@ -4,6 +4,56 @@
 Quartus results and HDL regressions. The latest session is directly below; the original
 7 Nov snapshot further down is retained for history only (it predates everything that works).
 
+## Session 19-20 Nov 2026 (continued) - backdrop decoded on hardware; restart loop found (V079K-N)
+
+**State at hand-over:** V079N (commit 7138cfd) was still in the Quartus fitter, started
+20 Nov 09:31, left running; it has NOT been tested. The MiSTer runs V079M. To finish:
+`quartus_cpf -c -o bitstream_compression=on output_files\Pace2500N.sof
+output_files\Pace2500N_V079N.rbf`, copy it and `Pace2500N_V079N_Live.mgl` to
+/media/fat/_Other/, `load_core` the MGL (playout/Channel Builder must be running on the PC),
+then capture `python3 /tmp/ut.py 120 --all` (tools/mister/mister_uart_trace.py) and screenshots.
+Expected if the fix is right: the WD telemetry word shows sequence headers and sequence-end
+events counting (top three bytes), the firmware's bit-16 wait succeeds and the Guide backdrop
+stays up instead of cycling blue/black/backdrop every ~4 s.
+
+What was found and fixed (all pushed to cold-boot):
+- **0411acd, V079K: DMA stop.** Ghidra: the application stops a DMA channel by clearing its
+  B0009010 bit (0x80005D30), the loader clears bit 5 ~3 us after starting its 32-byte flush.
+  The model ignored the clear; with MiSTer DDR latency the flush completed after the loader's
+  B0009130 acknowledge, leaving a pending DMA interrupt -> V079H halted E2 in the loader, V079I's
+  application idled. Now a clear stops channel 5 with no completion. (Sim with fast DDR never
+  showed it: the flush finished before the stop.)
+- **V079L (05f0c92), diagnostics:** UART trace adds demodulator I2C and B0009xxx DMA accesses;
+  the CPU trace ring freezes on any model halt. Result: the application passes demodulator
+  set-up and graphics DMA, and **the Sky Guide backdrop was decoded on hardware from the
+  firmware's own DMA5 feed** (v079l_guide_backdrop_hw.png), but it kept restarting.
+- **7138cfd, V079N: demux A000/A004 read back as written.** V079M (decoder ISR traffic removed
+  from the UART trace so events are no longer dropped) showed the app sets up the backdrop
+  input once (A094=1FFF, A000 bit-5 pulse, A004 0->1, A000=0x1000, B0002144=0x980,
+  B0002140=0x41/0x01) and on every later start pulses A000 bit 5 by read-modify-write. A000
+  read as 0, so bit 12 (memory input) was cleared, the ES went to the demux, the decoder saw no
+  sequence header/end, the firmware's 100-tick bit-16 wait (0x8000F950) timed out and it
+  restarted. Telemetry WD now = {seq-end raw, seq-end gated, seq headers, flags es_dma,
+  dma_video_es, video_on, es_memory, decoder_flush, still_enable, dec_live, decoder_ready}.
+
+Open items:
+- **DMA channel 8 not modelled** (Ghidra, re/app_ch8_users_ghidra.txt,
+  re/app_dma_callers_ghidra.txt): 0x8000AD14 fills the video frame buffer with one colour
+  (luma 720x288 per field via 0x8000B128, count 0x8700; CbCr interleaved 720x144 via
+  0x8000B1E0, count 0x4380; second field +0x80000; B00020C0=0x12, B00020D0=frame base from
+  B00020A0/A4/98/9C, B00020C4=1, then DMA ch8 from RAM). Used to paint the video black around
+  the backdrop. Each times out (11 ticks). Needs the EMMA frame-store layout mapped onto the
+  mpeg2fpga frame store - not started.
+- **V079K once halted E5** (demodulator group-4 read at APR >= 128) on hardware; not seen
+  since. Earlier Python runs only ever wrote group 4 at 0x00-0x59. Unexplained, timing-related.
+- **tb_sys has no video raster**, so the firmware's per-field decoder interrupts never come:
+  the sim stops right after the backdrop set-up (22.86 s). Add a field tick to tb_sys before
+  using it past that point. Slow-DDR runs (+lat=20 +busy=30) crash the warm boot with an
+  exception at 9FC0EE50 (bad sp); not seen on hardware; not investigated.
+- HDMI scaler clock (pll_hdmi) fails setup by -2.0..-2.5 ns on V079H-L; core clocks met.
+- PC: the RAM held outside processes builds up during heavy WSL use (sims, Ghidra) and is only
+  freed by a reboot; builds then take 3-5 h instead of ~1 h. Reboot before a build.
+
 ## Session 19 Nov 2026 - the Guide backdrop path a cold box needs (V079H/V079I, branch cold-boot)
 
 - The blue 3 s / black 0.25 s cycle on V079G: the application draws the Guide backdrop by
