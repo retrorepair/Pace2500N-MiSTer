@@ -4,6 +4,33 @@
 Quartus results and HDL regressions. The latest session is directly below; the original
 7 Nov snapshot further down is retained for history only (it predates everything that works).
 
+## 20 Nov 2026 (late) - V079O: loader fixed, application now requests a reset (STOPPED HERE)
+
+- **V079N's failure explained:** the boot monitor on V079N showed model halt **E2**
+  (front-panel frame length) at PC 9FC01BDD, 5.5 M instructions - the same as V079H. Frozen CPU
+  trace: the loader mid-handshake (W B2009010 byte, B200A000 = 1, ..., = 0). Cause: the link
+  model read B2009010 when a transfer *completed*; if the box was preempted between raising and
+  lowering the clock, the controller's own transfer (clocking in its reply) completed with the
+  box's byte and the box's transfer counted it again. Build-dependent because it depends on
+  where interrupts fall. Not related to the A000/A004 read-back.
+- **75654dd, V079O** = V079N + link fix: a transfer takes the B2009010 byte when it starts, each
+  written byte is counted once, a transfer with nothing newly written only delivers the
+  controller's byte. tb_sys: loader exchange (412 frames), 0x12 reset at 5.296 s and application
+  entry at 7.626 s unchanged. Built in 42 min (RAM checked first: 5.9 GB free after
+  `wsl --shutdown`). Timing: core clocks met; HDMI scaler -1.9 ns as before.
+- **V079O on hardware:** flash aligned; the loader now passes (no E2) and the application starts
+  (demux set-up at 33.3 s of the capture), but about 10 s later the box restarts completely (loader
+  at 43.3 s and 48.8 s, application again at 60.5 s); a front-panel frame with code 0x12 (the
+  box's reset request) appears in that window. Screen black throughout; decoder counters 0;
+  no halts. Not established whether the link change causes the application's reset request
+  (its 0x52/0x18 controller exchange timing out?) or something else - V079M (old link model)
+  did not reboot in its 45 s capture. The UART trace still drops serial events, so whole
+  frames cannot be rebuilt from it.
+- Next: make the trace keep serial frames (e.g. drop B00020B0/B8 and keep only frame bytes),
+  rebuild the application's frames before the 0x12, and check them against the controller
+  model's replies; also run tb_sys past application entry with a field tick (see below).
+- MiSTer left on V078. Builds V079K-O are in /media/fat/_Other/.
+
 ## 20 Nov 2026 (evening) - V079N built and tested: REGRESSION, do not use
 
 - PC was rebooted 16:05 (the earlier V079N fit never finished). V079N rebuilt from 7138cfd in
