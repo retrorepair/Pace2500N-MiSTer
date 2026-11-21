@@ -75,6 +75,19 @@ hps_io #(.CONF_STR(CONF_STR),.WIDE(1),.VDNUM(2)) io (
  .sd_lba('{sd_lba,ee_sd_lba}),.sd_blk_cnt('{sd_blk_cnt,ee_sd_blk_cnt}),.sd_rd({ee_sd_rd,sd_rd}),.sd_wr({ee_sd_wr,sd_wr}),.sd_ack(sd_acks),
  .sd_buff_addr(sd_buff_addr),.sd_buff_dout(sd_buff_dout),.sd_buff_din('{sd_buff_din,ee_sd_din}),.sd_buff_wr(sd_buff_wr));
 wire core_reset=!pll_locked || RESET || buttons[1] || status[0];
+`ifdef PACE_TELETEXT_TEST
+// F11 is a lab-only output test; never sends a firmware remote command.
+reg ttx_trigger=0,ttx_key_old=0;
+(* async_reg="true" *) reg [31:0] ttx_meta=0,ttx_status=0;
+assign PACE_TTX_TRIGGER=ttx_trigger;
+always @(posedge clk_sys)begin
+ ttx_meta<=PACE_TTX_STATUS;ttx_status<=ttx_meta;
+ ttx_key_old<=ps2_key[10];
+ if(core_reset)begin ttx_trigger<=0;ttx_key_old<=ps2_key[10];end
+ else if(ps2_key[10]!=ttx_key_old && ps2_key[9] && ps2_key[8:0]==9'h078)
+  ttx_trigger<=!ttx_trigger;
+end
+`endif
 // Cold boot (OSD "Boot: Cold from flash", the default on this branch): the CPU starts at the reset vector with no RAM/CPU
 // checkpoint, as a powered-on box does. The front-panel controller resets the CPU when the
 // firmware sends it command 0x12 (the loader's handoff to the application: it stores the chosen
@@ -143,13 +156,14 @@ wire [63:0] cwd,gwd,dwd;wire [7:0] cbe,gbe,dbe;
 wire iq,iw,irdy,irq,prdy,device_req,device_ready;wire [31:0] ia,id,ir,pir,dir;wire [1:0] iz;
 // EMMA MPEG decoder interrupt status / header registers (driven by the decoder)
 wire mpeg_hit,mpeg_irq;wire [31:0] mpeg_rdata;
+wire image_hit;wire [31:0] image_rdata;
 wire dec_seq_evt,dec_gop_evt,dec_pic_evt,dec_field_evt,dec_end_evt;wire [11:0] dec_seq_h,dec_seq_v;wire [3:0] dec_seq_ar;
 wire [22:0] dec_gop_tc;wire [1:0] dec_pic_ps;
 wire demux_selected=ia[31:12]==20'hb000a;
 wire demux_config_ready;
-assign device_ready=demux_selected?device_req && demux_config_ready:prdy;
+assign device_ready=demux_selected?device_req && demux_config_ready:image_hit?device_req:prdy;
 pace_mmio_response mmio_bus(.clk(clk_sys),.reset(soc_reset),.hold(holding),.cpu_req(iq),
- .cpu_ready(irdy),.cpu_data(ir),.device_req(device_req),.device_ready(device_ready),.device_data(demux_selected?dir:mpeg_hit?mpeg_rdata:pir));
+ .cpu_ready(irdy),.cpu_data(ir),.device_req(device_req),.device_ready(device_ready),.device_data(demux_selected?dir:image_hit?image_rdata:mpeg_hit?mpeg_rdata:pir));
 wire ts_valid,ts_ready,demux_irq;wire [7:0] ts_data;
 wire [15:0] av_video,av_audio;
 wire raw_valid,raw_ready;wire [7:0] raw_data;wire [31:0] tot_rewrites;
@@ -159,14 +173,14 @@ wire [7:0] cpu_halt,model_halt,gpu_error,video_error;
 wire mips16;
 wire gpu_start,gpu_done,gpu_busy;wire [7:0] gburst;
 wire [31:0] gpu_descriptor,osd_root,gpu_count,gpu_last,serial_frames,key_frames,timer_acks,gpu_acks,video_frames,video_underruns;
-wire [7:0] halt_code=cpu_halt!=0?cpu_halt:model_halt!=0?model_halt:gpu_error!=0?gpu_error:video_error;
-// The CPU: pipelined, cached NEC VR4110 (rtl/pace_r4k.sv, rtl/r4k), 75 MHz core. It reads the
+wire [7:0] halt_code=cpu_halt!=0?cpu_halt:model_halt!=0?model_halt:gpu_error!=0?gpu_error:video_error!=0?video_error:capture_error;
+// The CPU: pipelined, cached NEC VR4110 (rtl/pace_r4k.sv, rtl/r4k), 67.5 MHz core. It reads the
 // whole flash (boot block included) from DDR through its caches, as the real one reads U202.
 wire trace_next,trace_frozen;wire [511:0] trace_page_data;
 wire [31:0] dbg_fetch_stall,dbg_cached_stall,dbg_mem_stall,dbg_exceptions,dbg_cause,dbg_epc,dbg_badvaddr;
 wire [5:0] cpu_errors;wire [31:0] cpu_unmapped;wire [7:0] cburst;
-pace_r4k #(.COUNT_NUM(27),.COUNT_DEN(100)) cpu(.clk_sys(clk_sys),.clk1x(clk_cpu1x),.clk2x(clk_cpu2x),
- .reset_sys(soc_reset),.hold_sys(holding),.ckpt_loaded(loaded_state && !cold_boot),
+pace_r4k #(.COUNT_NUM(3),.COUNT_DEN(10),.TRACE_PC(32'h800519aa),.TRACE_STACKFAULT(1)) cpu(.clk_sys(clk_sys),.clk1x(clk_cpu1x),.clk2x(clk_cpu2x),
+ .reset_sys(soc_reset),.trace_reset(core_reset),.hold_sys(holding),.ckpt_loaded(loaded_state && !cold_boot),
  .state_wr(state_write),.state_index(ioctl_addr[8:2]),.state_data(state_data),.io_irq(irq),
  .ddr_req(cq),.ddr_we(cw),.ddr_addr(cad),.ddr_wdata(cwd),.ddr_be(cbe),.ddr_burst(cburst),
  .ddr_accept(ca),.ddr_rvalid(cv),.ddr_rdata(DDRAM_DOUT),
@@ -176,8 +190,8 @@ pace_r4k #(.COUNT_NUM(27),.COUNT_DEN(100)) cpu(.clk_sys(clk_sys),.clk1x(clk_cpu1
  .dbg_exceptions(dbg_exceptions),.dbg_cause(dbg_cause),.dbg_epc(dbg_epc),.dbg_badvaddr(dbg_badvaddr),
  .trace_next(trace_next),.trace_page_data(trace_page_data),
  // the trace freezes on the firmware's TLB-refill panic path (rtl/pace_r4k.sv) and on any
- // model halt (diagnostics: the instructions that led to it)
- .trace_trigger(model_halt!=0),.trace_frozen(trace_frozen));
+ // model halt or CPU error (diagnostics: the instructions that led to it)
+ .trace_trigger(model_halt!=0 || cpu_errors!=0 || capture_error!=0),.trace_frozen(trace_frozen));
 // Telemetry: IR= the CPU's error flags, RAM= accesses outside the memory map, IRQ= exception
 // entries. (CPU error flags are not shown as a halt: halt_code switches the screen to
 // diagnostics.) PROF lines carry the panic trace (rtl/pace_r4k.sv) once it has frozen.
@@ -185,16 +199,18 @@ assign cpu_halt=8'd0;assign inst={26'd0,cpu_errors};assign ram_writes=cpu_unmapp
 
 assign guessed_reads=0;assign interrupt_count=dbg_exceptions;assign mips16=pc[0];
 wire lsi_bus;   // diagnostics (UART trace)
-pace_guide_peripherals devices(.clk(clk_sys),.reset(soc_reset),.hold(holding),.retired(retired),
- .io_req(device_req && !demux_selected),.io_we(iw),.io_addr(ia),.io_wdata(id),.io_size(iz),.io_rdata(pir),.io_ready(prdy),.io_irq(irq),
+wire [31:0] fp_debug;
+pace_guide_peripherals #(.CAPTURE_DMA(1)) devices(.clk(clk_sys),.reset(soc_reset),.hold(holding),.retired(retired),
+ .io_req(device_req && !demux_selected && !image_hit),.io_we(iw),.io_addr(ia),.io_wdata(id),.io_size(iz),.io_rdata(pir),.io_ready(prdy),.io_irq(irq),
  .key_valid(key_valid),.key_pressed(key_pressed),.key_code(key_code),.gpu_start(gpu_start),
  .gpu_descriptor(gpu_descriptor),.osd_root(osd_root),.gpu_done(gpu_done),.transport_irq(demux_irq),.mpeg_irq(mpeg_irq),
  // tuner lock: a transport is arriving (loaded file, or a streamed/live image)
  .transport_lock((loaded_stream || streaming) && ts_packets>=3 && !status[4]),.model_halt(model_halt),
  .serial_frames(serial_frames),.key_frames(key_frames),.timer_acks(timer_acks),.gpu_acks(gpu_acks),.last_key(last_key),
  .ee_b_addr(ee_b_addr),.ee_b_we(ee_b_we),.ee_b_wdata(ee_b_wdata),.ee_b_q(ee_b_q),.ee_a_we(ee_a_we),.ee_a_addr(ee_a_addr),
- .cold(cold_boot),.fp_reset_request(fp_reset_request),.lsi_bus(lsi_bus),
- .dma5_start(dma5_start),.dma5_stop(dma5_stop),.dma5_descriptor(dma5_descriptor),.dma5_done(dma5_done));
+ .cold(cold_boot),.fp_reset_request(fp_reset_request),.lsi_bus(lsi_bus),.fp_debug(fp_debug),
+ .dma5_start(dma5_start),.dma5_stop(dma5_stop),.dma5_descriptor(dma5_descriptor),.dma5_done(dma5_done),
+ .dma7_start(dma7_start),.dma7_stop(dma7_stop),.dma7_descriptor(dma7_descriptor),.dma7_done(dma7_done));
 // EMMA memory-to-transport DMA (channel 5): the loader's demux self-test copies transport
 // packets from flash into the demux through it; the application feeds the Guide backdrop's
 // MPEG video ES to the decoder through it (dma_video_es, rtl/pace_section_demux.sv).
@@ -205,6 +221,20 @@ pace_transport_dma transport_dma(.clk(clk_sys),.reset(soc_reset),.hold(holding),
  .start(dma5_start),.stop(dma5_stop),.descriptor(dma5_descriptor),.done(dma5_done),.busy(dma5_busy),
  .mem_req(xq),.mem_addr(xad),.mem_accept(xa),.mem_rvalid(xv),.mem_rdata(DDRAM_DOUT),
  .out_valid(dma5_valid),.out_ready(dma5_ready),.out_data(dma5_data));
+// DMA7 copies the decoder's completed PAL picture into the firmware's own
+// still-image buffers. All completion IRQs originate from accepted pixel writes.
+wire dma7_start,dma7_stop,dma7_done,capture_busy,capture_valid;
+wire [31:0] dma7_descriptor;wire [7:0] capture_error,capture_mb_width;
+wire [1:0] capture_frame;
+wire hq,hw,ha,hv;wire [28:0] had;wire [63:0] hwd;wire [7:0] hbe;
+pace_video_capture_dma capture_dma(.clk(clk_sys),.reset(soc_reset),.hold(holding),
+ .start(dma7_start),.stop(dma7_stop),.descriptor(dma7_descriptor),
+ .io_write(device_req && device_ready && iw && !holding && !demux_selected),.io_addr(ia),.io_wdata(id),
+ .field_tick(dec_field_evt),.frame_valid(capture_valid),.frame_id(capture_frame),
+ .frame_mb_width(capture_mb_width),.frame_width(dec_seq_h),.frame_height(dec_seq_v),
+ .busy(capture_busy),.done(dma7_done),.error(capture_error),
+ .mem_req(hq),.mem_write(hw),.mem_addr(had),.mem_wdata(hwd),.mem_be(hbe),
+ .mem_accept(ha),.mem_rvalid(hv),.mem_rdata(DDRAM_DOUT));
 // The EEPROM survives a power cycle: kept in the slot-1 save file. Reset only by the PLL, so
 // a core reset (checkpoint reload) keeps the mount.
 pace_eeprom_save eeprom_save(.clk(clk_sys),.reset(!pll_locked),
@@ -282,12 +312,22 @@ wire still_enable=epg_mode && !holding && !cold_boot;
 wire es_dma=dma_video_es && !holding;
 wire es_memory=still_enable || es_dma;   // decoder fed from memory instead of the broadcast
 reg es_memory_q=0;
+reg guide_picture_held=0;
 reg [7:0] flush_count=0;
-wire decoder_flush=es_memory!=es_memory_q || flush_count!=0;
+wire live_video_requested=video_on && av_video[12:0]!=13'h1fff;
+wire decoder_handover=es_memory!=es_memory_q || (guide_picture_held && live_video_requested);
+wire decoder_flush=decoder_handover || flush_count!=0;
+always @(posedge clk_sys)begin
+ // A successful native DMA7 proves this is the firmware's decoded picture.
+ // Its display survives closing the memory input; a real TV video route or
+ // a new memory picture releases it. No host backdrop is used in cold mode.
+ if(soc_reset || (es_memory && !es_memory_q) || live_video_requested)guide_picture_held<=0;
+ else if(dma7_done && es_dma)guide_picture_held<=1;
+end
 always @(posedge clk_sys)begin
  es_memory_q<=es_memory;
  if(core_reset)flush_count<=0;
- else if(es_memory!=es_memory_q)flush_count<=8'd255;
+ else if(decoder_handover)flush_count<=8'd255;
  else if(flush_count!=0)flush_count<=flush_count-1'b1;
 end
 // (Checkpoint boot: the host-injected backdrop owns the decoder, so a firmware ES transfer is
@@ -305,8 +345,11 @@ pace_av_pes #(.FIFO_BITS(10)) av_pes(.clk(clk_sys),.reset(soc_reset || stream_lo
  .video_bytes(ves_bytes),.audio_bytes(aes_bytes),.video_dropped(ves_dropped),.audio_dropped(aes_dropped));
 wire [7:0] dec_r,dec_g,dec_b;wire dec_en,dec_hs,dec_vs;wire [11:0] dec_h,dec_v;
 wire dec_live,dec_busy;wire [15:0] dec_pictures,dec_pickups,dec_late;wire [7:0] dec_vbuf;wire [13:0] dec_hsize,dec_vsize;
+wire [31:0] decoder_memory_debug;
 pace_mpeg_video mpeg_video(.clk_sys(clk_sys),.clk_dec(clk_dec),.clk_mem(clk_mem),.clk_dot(clk_dot),
  .reset(!pll_locked || RESET),.flush(decoder_flush),.enable(video_on || es_memory),.still(es_memory),
+ .capture_hold(capture_busy),.capture_valid(capture_valid),.capture_frame(capture_frame),.capture_mb_width(capture_mb_width),
+ .keep_picture(guide_picture_held),.memory_debug(decoder_memory_debug),
  .es_data(still_enable ? still_data : es_dma ? dma5_data : ves_data),
  .es_valid(!decoder_flush && (still_enable ? still_valid : es_dma ? dma5_valid : ves_valid)),.es_ready(decoder_ready),
  .ddr_addr(DDRAM2_ADDR),.ddr_burstcnt(DDRAM2_BURSTCNT),.ddr_read(DDRAM2_RD),.ddr_write(DDRAM2_WE),
@@ -358,26 +401,37 @@ pace_guide_video601 scanout(.clk(clk_sys),.reset(soc_reset),.hold(holding),.osd_
 // Decoded video under the OSD. While the firmware has video routed, the OSD
 // raster follows the decoder's raster (same 625-line timing).
 wire osd_key,osd_background;wire [23:0] mixed_rgb;
+wire image_req,image_accept,image_rvalid,image_valid;
+wire [28:0] image_addr;wire [7:0] image_burst;
+wire [23:0] image_rgb;wire [31:0] image_underruns;
+pace_video_image_plane image_plane(.clk(clk_sys),.reset(soc_reset),.bus_reset(core_reset),
+ .hold(holding),.enable(cold_boot && !holding),
+ .access(device_req && device_ready && !holding && !demux_selected),.we(iw),.io_addr(ia),.io_wdata(id),
+ .hit(image_hit),.io_rdata(image_rdata),.mem_req(image_req),.mem_addr(image_addr),.mem_burst(image_burst),
+ .mem_accept(image_accept),.mem_rvalid(image_rvalid),.mem_rdata(DDRAM_DOUT),
+ .vclk(clk_video),.ce(ce),.visible(shown),.field(field),.x(x),.y(y),
+ .rgb(image_rgb),.valid(image_valid),.underruns(image_underruns));
 reg [2:0] video_on_s=0,still_on_s=0,live_s=0;
 always @(posedge clk_video)begin
  video_on_s<={video_on_s[1:0],video_on};
- still_on_s<={still_on_s[1:0],(still_enable && still_present) || es_dma};
+ still_on_s<={still_on_s[1:0],(still_enable && still_present) || es_dma || guide_picture_held};
  live_s<={live_s[1:0],dec_live};
 end
 wire show_still=still_on_s[2] && live_s[2];
 wire video_on_v=video_on_s[2] || show_still;
 pace_video_mix mixer(.clk_video(clk_video),.dec_r(dec_r),.dec_g(dec_g),.dec_b(dec_b),.dec_en(dec_en),.dec_vs(dec_vs),.dec_v(dec_v),
  .show_video(video_on_v && live_s[2]),.sync(raster_sync),.sync_field(raster_sync_field),
- .osd_rgb(frame_rgb),.osd_key(osd_key || (show_still && osd_background)),.osd_de(video_de),.rgb(mixed_rgb),.dbg_en(),.dbg_rgb());
+ .osd_rgb(image_valid && (osd_key || osd_background) ? image_rgb:frame_rgb),
+ .osd_key(!image_valid && (osd_key || (show_still && osd_background))),.osd_de(video_de),.rgb(mixed_rgb),.dbg_en(),.dbg_rgb());
 
 // One outstanding read; it stays owned until its last beat. Only the blitter
 // issues multi-beat bursts (source rows), every other master reads 1 beat.
 reg [7:0] read_beats=0;
 // Video, graphics, section writes, replay reads, CPU. Transport is rate limited.
-reg read_pending=0;reg [2:0] read_owner=0;
-wire [2:0] owner=vq?3'd2:gq?3'd1:dq?3'd4:tq?3'd3:sq?3'd5:still_q?3'd6:xq?3'd7:3'd0;
-wire request=vq || gq || dq || tq || sq || still_q || xq || cq;
-wire write_request=owner==4 || owner==5 || (owner==1 && gw) || (owner==0 && cw);
+reg read_pending=0;reg [3:0] read_owner=0;
+wire [3:0] owner=vq?4'd2:image_req?4'd9:gq?4'd1:dq?4'd4:tq?4'd3:sq?4'd5:still_q?4'd6:xq?4'd7:hq?4'd8:4'd0;
+wire request=vq || image_req || gq || dq || tq || sq || still_q || xq || hq || cq;
+wire write_request=owner==4 || owner==5 || (owner==1 && gw) || (owner==0 && cw) || (owner==8 && hw);
 wire accepted=request && !holding && !read_pending && !DDRAM_BUSY;
 wire load_memory=ioctl_download && (ioctl_index<2 || ioctl_index==3);
 wire download_store=load_memory && ioctl_wr && !DDRAM_BUSY && !read_pending && !clear_store && (ioctl_index!=3 || ioctl_addr<27'd67108864);
@@ -392,11 +446,15 @@ assign still_a=accepted && owner==6;
 assign still_v=DDRAM_DOUT_READY && read_pending && read_owner==6;
 assign xa=accepted && owner==7;
 assign xv=DDRAM_DOUT_READY && read_pending && read_owner==7;
+assign ha=accepted && owner==8;
+assign hv=DDRAM_DOUT_READY && read_pending && read_owner==8;
+assign image_accept=accepted && owner==9;
+assign image_rvalid=DDRAM_DOUT_READY && read_pending && read_owner==9;
 always @(posedge clk_sys)begin
  if(core_reset)read_pending<=0;
  else begin
   if(DDRAM_DOUT_READY && read_pending)begin if(read_beats<=8'd1)read_pending<=0;else read_beats<=read_beats-8'd1;end
-  if(accepted && !write_request)begin read_pending<=1;read_owner<=owner;read_beats<=owner==1 ? gburst : owner==0 ? cburst : 8'd1;end
+  if(accepted && !write_request)begin read_pending<=1;read_owner<=owner;read_beats<=owner==1 ? gburst : owner==0 ? cburst : owner==9 ? image_burst:8'd1;end
  end
 end
 // Guest RAM clear (cold boot). Each write is an Avalon-MM write held - address, data and write
@@ -418,13 +476,14 @@ always @(posedge clk_sys)
  end
 assign DDRAM_ADDR=clear_store ? 29'h06000000+{8'd0,clear_index} : download_store ?
  (ioctl_index==0 ? 29'h06400000+{8'd0,ioctl_addr[20:3]} : ioctl_index==3?29'h06600000+{5'd0,ioctl_addr[26:3]}:29'h06000000+{5'd0,ioctl_addr[23:3]}) :
- owner==2?vad:owner==1?gad:owner==4?dad:owner==3?tad:owner==5?sad:owner==6?still_addr:owner==7?xad:cad;
-assign DDRAM_DIN=clear_store ? 64'd0 : download_store ? ({48'd0,ioctl_dout}<<(ioctl_addr[2:0]*8)) : owner==4?dwd:owner==5?swd:owner==1?gwd:cwd;
-assign DDRAM_BE=clear_store ? 8'hff : download_store ? (8'h03<<ioctl_addr[2:0]) : owner==4?dbe:owner==5?sbe:owner==0?cbe:owner==1?gbe:8'hff;
+ owner==2?vad:owner==9?image_addr:owner==1?gad:owner==4?dad:owner==3?tad:owner==5?sad:owner==6?still_addr:owner==7?xad:owner==8?had:cad;
+assign DDRAM_DIN=clear_store ? 64'd0 : download_store ? ({48'd0,ioctl_dout}<<(ioctl_addr[2:0]*8)) : owner==4?dwd:owner==5?swd:owner==1?gwd:owner==8?hwd:cwd;
+assign DDRAM_BE=clear_store ? 8'hff : download_store ? (8'h03<<ioctl_addr[2:0]) : owner==4?dbe:owner==5?sbe:owner==0?cbe:owner==1?gbe:owner==8?hbe:8'hff;
 assign DDRAM_WE=clear_store || download_store || (accepted && write_request);
 assign DDRAM_BURSTCNT=(clear_store || download_store) ? 8'd1 :
                       (owner==1 && !write_request) ? gburst :
-                      (!download_store && owner==0 && !write_request) ? cburst : 8'd1;
+                      (!download_store && owner==0 && !write_request) ? cburst :
+                      (owner==9 && !write_request) ? image_burst:8'd1;
 assign DDRAM_RD=accepted && !write_request;
 // Start-up diagnostics on the boot monitor (shown while the core is held), display only:
 //  LAST RAM STORE ADDRESS  = {cold,clearing,cleared,flash | ram,state,ee_loading,download |
@@ -465,14 +524,18 @@ assign LED_USER=halt_code!=0?field:retired[21];
 // (B0002xxx, B0008xxx) and demux writes outside the busy section-ring set.
 wire trace_demux=demux_selected && iw && ia[11:0]!=12'h0b8 && ia[11:0]!=12'h124 && ia[11:0]!=12'h128 &&
                  ia[11:0]!=12'h144 && ia[11:0]!=12'h148 && ia[11:4]!=8'h0d;
-wire trace_serial=ia[31:12]==20'hb2009 || (iw && ia==32'hb200a000);
+// Include handshake/clock edges for the first byte and startup status command 52.
+// Keeping this window narrow avoids hiding frame bytes in UART overflow.
+wire trace_serial_window=serial_frames==0 || serial_frames==2 || serial_frames==3 || serial_frames==8 || serial_frames==9;
+wire trace_serial=ia==32'hb2009010 || (trace_serial_window && (ia==32'hb2009020 || ia==32'hb200a000));
 // Demodulator (I2C 18/19) register traffic, and DMA controller set-up/status (B0009xxx).
 wire trace_lsi=(ia[31:12]==20'hb2006 && (lsi_bus || (iw && ia==32'hb2006040))) || ia[31:12]==20'hb0009;
 // The decoder ISR's per-field status reads and acknowledges (B0002480-8C) are left out: at
 // 50 fields/s they filled the trace FIFO and other events were dropped.
 wire trace_status=ia[31:4]==28'hb000248;
-wire trace_event=device_req && device_ready && !holding && !trace_status &&
-                 (ia[31:12]==20'hb0002 || ia[31:12]==20'hb0008 || trace_demux || trace_serial || trace_lsi);
+wire trace_boot_fifo=ia==32'hb00020b0 || ia==32'hb00020b8;
+wire trace_event=device_req && device_ready && !holding && !trace_status && !trace_boot_fifo &&
+                 (ia[31:12]==20'hb0002 || ia[31:12]==20'hb0004 || (iw && ia[31:12]==20'hb0006) || ia[31:12]==20'hb0008 || trace_demux || trace_serial || trace_lsi);
 // Diagnostics: decoder sequence-end events (raw, and as gated to the EMMA status block),
 // sequence headers, and the memory-ES routing state, in the telemetry WD word.
 reg [7:0] diag_end_raw=0,diag_end_gated=0,diag_seq_raw=0;
@@ -482,7 +545,17 @@ always @(posedge clk_sys)begin
  if(dec_seq_evt)diag_seq_raw<=diag_seq_raw+1'b1;
 end
 wire [7:0] diag_flags={es_dma,dma_video_es,video_on,es_memory,decoder_flush,still_enable,dec_live,decoder_ready};
-pace_debug_uart telemetry(.clk(clk_sys),.reset(!pll_locked),.tx(UART_TXD),
+pace_debug_uart #(.EXTRA_FP(1),.EXTRA_VIDEO(1)
+`ifdef PACE_TELETEXT_TEST
+ ,.EXTRA_TTX(1)
+`endif
+) telemetry(.clk(clk_sys),.reset(!pll_locked),.tx(UART_TXD),
+`ifdef PACE_TELETEXT_TEST
+ .ttx_state(ttx_status),
+`else
+ .ttx_state(32'd0),
+`endif
+ .fp_state(fp_debug),.video_state(decoder_memory_debug),
  .pc(pc),.instruction(inst),.retired(retired),.ram_writes(ram_writes),
  .mmio_address({gpu_count[15:0],ts_sections[15:0]}),.mmio_value({diag_end_raw,diag_end_gated,diag_seq_raw,diag_flags}),
  .mmio_read({dec_pictures[7:0],dec_vbuf,video_on,audio_on,dec_live,mp2_synced,mp2_err,dec_busy,2'd0,ves_dropped[7:0]}),.interrupt_count(interrupt_count),

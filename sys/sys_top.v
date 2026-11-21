@@ -1558,7 +1558,21 @@ reg  [39:0] PhaseInc;
 	wire de1 = vgas_en ? vgas_de : vga_de;
 
 	assign VGA_VS = av_dis ? 1'bZ      :(((vgas_en ? (~vgas_vs ^ VS[12])                         : VGA_DISABLE ? 1'd1 : ~vga_vs) | csync_en) & subcarrier_out);
+`ifdef PACE_TELETEXT_TEST
+	wire normal_hs=(vgas_en ? ((csync_en ? ~vgas_cs : ~vgas_hs) ^ HS[12]) : VGA_DISABLE ? 1'd1 : (csync_en ? ~vga_cs : ~vga_hs));
+	wire ttx_hs;
+	wire ttx_allowed=csync_en && !ypbpr_en && !vgas_en && !VGA_DISABLE && !forced_scandoubler && !av_dis
+`ifndef MISTER_DISABLE_YC
+	 && !yc_en
+`endif
+	;
+	pace_teletext_test ttx100(.clk(clk_vid),.reset(reset),.allowed(ttx_allowed),
+	 .trigger_toggle(pace_ttx_trigger),.hsync(vga_hs),.vsync(vga_vs),
+	 .sync_n(normal_hs),.hs_out(ttx_hs),.debug_state(pace_ttx_status));
+	assign VGA_HS=av_dis ? 1'bZ : ttx_hs;
+`else
 	assign VGA_HS = av_dis ? 1'bZ      :  (vgas_en ? ((csync_en ? ~vgas_cs : ~vgas_hs) ^ HS[12]) : VGA_DISABLE ? 1'd1 : (csync_en ? ~vga_cs : ~vga_hs));
+`endif
 	assign VGA_R  = av_dis ? 6'bZZZZZZ :   vgas_en ? vgas_o[23:18]                               : VGA_DISABLE ? 6'd0 : vga_o[23:18];
 	assign VGA_G  = av_dis ? 6'bZZZZZZ :   vgas_en ? vgas_o[15:10]                               : VGA_DISABLE ? 6'd0 : vga_o[15:10];
 	assign VGA_B  = av_dis ? 6'bZZZZZZ :   vgas_en ? vgas_o[7:2]                                 : VGA_DISABLE ? 6'd0 : vga_o[7:2]  ;
@@ -1801,8 +1815,16 @@ wire [13:0] fb_stride;
 	assign fb_stride = 0;
 `endif
 
+`ifdef PACE_TELETEXT_TEST
+wire pace_ttx_trigger;
+wire [31:0] pace_ttx_status;
+`endif
 emu emu
 (
+`ifdef PACE_TELETEXT_TEST
+	.PACE_TTX_TRIGGER(pace_ttx_trigger),
+	.PACE_TTX_STATUS(pace_ttx_status),
+`endif
 	.CLK_50M(FPGA_CLK2_50),
 	.RESET(reset),
 	.HPS_BUS({f1, HDMI_TX_VS, 

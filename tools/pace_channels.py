@@ -128,7 +128,7 @@ def load_settings(log=print):
         s.setdefault('data_root', str(ROOT))
         if (ROOT / 'lineup.json').is_file():
             s.setdefault('last_lineup', str(ROOT / 'lineup.json'))
-        s.setdefault('huffman_ram', str(ROOT / 'firmware' / 'RAM.bin'))
+        s.setdefault('huffman_ram', str(ROOT / 'firmware' / 'FLASH_U202.bin'))
         for key in PORTABLE_PATHS:
             if s.get(key) and not Path(s[key]).is_absolute():
                 s[key] = str(APP_DIR / s[key])
@@ -137,7 +137,7 @@ def load_settings(log=print):
     if FROZEN and bundled('ffmpeg.exe') and not Path(s.get('ffmpeg') or 'ffmpeg').is_file():
         s['ffmpeg'] = bundled('ffmpeg.exe')
     s.setdefault('ffmpeg', default_ffmpeg())
-    s.setdefault('huffman_ram', str(ROOT / 're' / 'fpga_guide_checkpoint' / 'RAM.bin'))
+    s.setdefault('huffman_ram', str(ROOT / 'firmware' / 'FLASH_U202.bin'))
     s.setdefault('library_cache', str(ROOT / 'roms' / 'library_cache.json'))
     return s
 

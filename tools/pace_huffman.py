@@ -1,8 +1,7 @@
-"""Encode against this firmware's own initialized Huffman tree, not a web dict.
+"""Encode guide text with the operator's original U202 firmware dictionary.
 
-Addresses are decoded from the literal pool of original function 800BECF0.
-No extracted dictionary is bundled. Supply the operator's initialized RAM dump.
-Only dictionary selector zero is currently initialized by this firmware.
+The legacy initialized RAM image is also accepted. Dictionary selector zero
+is the dictionary initialized by this firmware.
 """
 from pathlib import Path
 
@@ -25,15 +24,33 @@ class FirmwareHuffman:
         phrases = word(word(0x800bee00))
         if count != 511:
             raise ValueError('Unsupported native Huffman tree shape')
-        self.edges = (zero, one)
+        edges = tuple([word(base + 2 * node, 2) for node in range(count)]
+                      for base in (zero, one))
+        phrase_count = max((~value) & 0xffff for edge in edges for value in edge if value & 0x8000) - 255
+        texts = []
+        for index in range(phrase_count):
+            address = word(phrases + 4 * index) & 0x1fffffff
+            if address >= len(ram):
+                raise ValueError('Phrase outside RAM')
+            end = ram.find(b'\x00', address, address + 4096)
+            if end < 0:
+                raise ValueError('Unterminated Huffman phrase')
+            texts.append(ram[address:end])
+        self._load_tree(edges, texts)
+
+    def _load_tree(self, edges, phrases):
+        count = len(edges[0])
+        if count != 511:
+            raise ValueError('Unsupported native Huffman tree shape')
+        self.edges = edges
         self.symbols = {}
         self.codes = {}
 
         def visit(node, bits, ancestors):
             if node >= count or node in ancestors or len(bits) > 32:
                 raise ValueError('Invalid native Huffman tree')
-            for bit, base in enumerate(self.edges):
-                value = word(base + 2 * node, 2)
+            for bit, edge in enumerate(self.edges):
+                value = edge[node]
                 path = bits + str(bit)
                 if not value & 0x8000:
                     visit(value, path, ancestors | {node})
@@ -42,13 +59,9 @@ class FirmwareHuffman:
                 if symbol < 256:
                     text = bytes((symbol,))
                 else:
-                    address = word(phrases + 4 * (symbol - 256)) & 0x1fffffff
-                    if address >= len(ram):
-                        raise ValueError('Phrase outside RAM')
-                    end = ram.find(b'\x00', address, address + 4096)
-                    if end < 0:
-                        raise ValueError('Unterminated Huffman phrase')
-                    text = ram[address:end]
+                    if symbol - 256 >= len(phrases):
+                        raise ValueError('Huffman phrase index outside dictionary')
+                    text = phrases[symbol - 256]
                 self.symbols[path] = text
                 if text and len(path) < len(self.codes.get(text, 'x' * 100)):
                     self.codes[text] = path
@@ -70,7 +83,47 @@ class FirmwareHuffman:
 
     @classmethod
     def from_file(cls, path):
-        return cls(Path(path).read_bytes())
+        data = Path(path).read_bytes()
+        return cls.from_flash(data) if len(data) == 2 * 1024 * 1024 else cls(data)
+
+    @classmethod
+    def from_flash(cls, flash):
+        """Read the resident dictionary through U202's original copy table.
+
+        This extracts initialized application data for the PC encoder. The
+        core receives the original flash image and executes its own loader.
+        """
+        from extract_application_ram import extract
+
+        if len(flash) != 2 * 1024 * 1024:
+            raise ValueError('Expected the 2 MiB FLASH_U202.bin firmware image')
+        try:
+            image, _ = extract(flash)
+        except (AssertionError, IndexError) as error:
+            raise ValueError('Unsupported U202 application copy table') from error
+
+        # The resident resource at 800FD798 is read by the firmware's
+        # dictionary initializer. It holds a header, two 511-node edge
+        # tables and the length-delimited block of 256 NUL-ended phrases.
+        start = 0xfd798
+        if image[start:start + 6] != bytes.fromhex('0400000001ff'):
+            raise ValueError('Unsupported U202 resident Huffman dictionary')
+        count = 511
+        edges = tuple([int.from_bytes(image[offset:offset + 2], 'big')
+                       for offset in range(base, base + 2 * count, 2)]
+                      for base in (start + 6, start + 6 + 2 * count))
+        header = start + 6 + 4 * count
+        if image[header:header + 4] != bytes.fromhex('00000100'):
+            raise ValueError('Unsupported U202 Huffman phrase table')
+        length = int.from_bytes(image[header + 4:header + 6], 'big')
+        blob = image[header + 6:header + 6 + length]
+        phrases = blob.split(b'\x00')
+        if len(blob) != length or len(phrases) != 257 or phrases[-1] != b'':
+            raise ValueError('Invalid U202 Huffman phrase block')
+        codec = cls.__new__(cls)
+        codec.ram = None
+        codec._load_tree(edges, phrases[:-1])
+        return codec
 
     def encode(self, text):
         source = text.encode('ascii') if isinstance(text, str) else bytes(text)

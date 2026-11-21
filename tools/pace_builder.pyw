@@ -318,7 +318,7 @@ class App(tk.Tk):
             messagebox.showinfo(APP, 'Create or open a line-up on the Channels tab first.')
             return
         if not Path(self.settings.get('huffman_ram', '')).is_file():
-            messagebox.showerror(APP, 'The firmware RAM image (for guide text) is not set or missing - see Settings.')
+            messagebox.showerror(APP, 'Select FLASH_U202.bin under Firmware image in Settings to encode guide text.')
             return
         path, settings = self.lineup_path, dict(self.settings)
         stop = self.server_stop = threading.Event()
@@ -1066,7 +1066,7 @@ class App(tk.Tk):
         ttk.Separator(f).grid(row=4, column=0, columnspan=3, sticky='we', pady=12)
         ttk.Label(f, text='Folders and tools', style='Head.TLabel').grid(row=5, column=0, sticky='w')
         self.v_paths = {}
-        fields = (('data_root', 'Data folder (line-ups, roms\\)', 'dir'), ('huffman_ram', 'Firmware RAM image (guide text)', 'file'),
+        fields = (('data_root', 'Data folder (line-ups, roms\\)', 'dir'), ('huffman_ram', 'Firmware image (guide text)', 'file'),
                   ('ffmpeg', 'ffmpeg.exe', 'file'), ('port', 'Playout port', None), ('days', 'Days of listings', None))
         for i, (key, label, kind) in enumerate(fields):
             ttk.Label(f, text=label).grid(row=6 + i, column=0, sticky='w', pady=2)

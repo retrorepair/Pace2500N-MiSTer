@@ -19,6 +19,11 @@ module pace_mpeg_video(
  input wire flush,                 // clk_sys level, held for the source handover
  input wire enable,                // clk_sys level: decode and show video
  input wire still,
+ input wire keep_picture,          // clk_sys: retain a captured still after input stops
+ output reg [31:0] memory_debug=0,  // read-only, two-stage sample of the decoder DDR interface
+ input wire capture_hold,          // clk_sys: reserve displayed bank during DMA7
+ output wire capture_valid,output wire [1:0] capture_frame,
+ output wire [7:0] capture_mb_width,
  // elementary stream, clk_sys
  input wire [7:0] es_data,input wire es_valid,output wire es_ready,
  // DDR3 (Avalon-MM, clk_mem)
@@ -77,7 +82,30 @@ module pace_mpeg_video(
  wire stc_tick=stc_t2^stc_t3;
  // ---- enable -> decoder flush (held while video is off), clk_dec
  reg en1=0,en2=0,still1=0,still2=0;
- always @(posedge clk_dec)begin en1<=enable && !flush;en2<=en1;still1<=still;still2<=still1;end
+ // Input handover can stop decoding after the firmware has captured a still.
+ // The output frame must survive that stop; input FIFO flush is independent.
+ always @(posedge clk_dec)begin
+  en1<=(enable && !flush) || keep_picture;en2<=en1;
+  still1<=still || keep_picture;still2<=still1;
+ end
+ // Bank metadata is latched on an actual display pickup in clk_dec. Valid is
+ // synchronised alongside the bundled data; the latter stays stable until
+ // another field's pickup. Freeze pickups while capturing (after the first
+ // valid frame, so cold bootstrap can still acquire its initial picture).
+ wire frame_valid_d;wire [1:0] frame_d;wire [7:0] mb_width_d;
+ reg cap_h1=0,cap_h2=0,cap_v1=0,cap_v2=0;
+ reg [1:0] cap_f1=0,cap_f2=0;reg [7:0] cap_m1=0,cap_m2=0;
+ always @(posedge clk_dec)begin
+  cap_h1<=capture_hold;cap_h2<=cap_h1;
+ end
+ always @(posedge clk_sys)begin
+  cap_v1<=frame_valid_d;cap_v2<=cap_v1;
+  cap_f1<=frame_d;cap_f2<=cap_f1;cap_m1<=mb_width_d;cap_m2<=cap_m1;
+  if(reset || ((flush || !enable) && !keep_picture))begin cap_v1<=0;cap_v2<=0;end
+ end
+ assign capture_valid=cap_v2;
+ assign capture_frame=cap_f2;
+ assign capture_mb_width=cap_m2;
  // ---- raster programming walk (PAL 576i), after the decoder's own reset.
  localparam [3:0] REG_WR_HOR=4'h1,REG_WR_HOR_SYNC=4'h2,REG_WR_VER=4'h3,REG_WR_VER_SYNC=4'h4,
                   REG_WR_VID_MODE=4'h5,REG_WR_TRICK=4'hb;
@@ -119,13 +147,19 @@ module pace_mpeg_video(
   .dbg_fb_heals(),.dbg_strict_waits(),.cc_pair_valid(),.cc_pair(),.cc_pair_field(),
   .vertical_size_out(vertical_size),.horizontal_size_out(horizontal_size),.aspect_ratio_out(d_ar),
   .pace_seq_evt(d_seq),.pace_gop_evt(d_gop),.pace_pic_evt(d_pic),.pace_end_evt(d_end),.pace_time_code(d_tc),.pace_picture_structure(d_ps),
+  .pace_frame_valid(frame_valid_d),.pace_frame_id(frame_d),.pace_frame_mb_width(mb_width_d),
   .ref_prefetch_en(1'b1),.frame_drop_en(1'b1),
   .dbg_frames_late(frames_late),.dbg_frames_dropped(),.dbg_pickups(pickups),.dbg_drop_costs(),.dbg_vbuf_fill(vbuf_fill),
-  .video_live(video_live),.pickup_hold(1'b0),.pause(1'b0),.step_req(1'b0),.freeze_wd(still2),
+  .video_live(video_live),.pickup_hold(1'b0),.pause(cap_h2 && frame_valid_d),.step_req(1'b0),.freeze_wd(still2),
   .vbuf_flush(!en2),.soft_flush(!en2),
   .disp_vscale_mode(2'd0),.disp_vscale_en(1'b0),.disp_hcrop_en(1'b0),.disp_hfill_en(1'b0),
   .film24(1'b0),.film_det_ntsc(),.film_det_pal(),.blend_en(1'b0),.blend_act(),.bob_en(1'b0),.bob_act());
  // ---- frame/bitstream memory
+ wire [3:0] memory_state;wire [15:0] memory_reads,memory_writes;
+ wire [31:0] memory_state_word={ddr_waitrequest,ddr_read,ddr_write,mem_en,mem_valid,
+  res_en,res_almost_full,sync_rst,en2,busy,2'd0,memory_state,memory_writes[7:0],memory_reads[7:0]};
+ reg [31:0] memory_debug_1=0;
+ always @(posedge clk_sys)begin memory_debug_1<=memory_state_word;memory_debug<=memory_debug_1;end
  mem_shim_burst #(.NSETS(64)) memory(
   .clk(clk_mem),.rst_n(reset_n),.hard_rst_n(reset_n),.cwf_en(1'b1),.dual_en(1'b1),
   .mem_req_rd_cmd(mem_cmd),.mem_req_rd_addr(mem_addr),.mem_req_rd_dta(mem_dta),.mem_req_rd_en(mem_en),.mem_req_rd_valid(mem_valid),
@@ -133,6 +167,6 @@ module pace_mpeg_video(
   .ddr3_addr(ddr_addr),.ddr3_burstcnt(ddr_burstcnt),.ddr3_read(ddr_read),.ddr3_write(ddr_write),
   .ddr3_writedata(ddr_wdata),.ddr3_byteenable(ddr_be),
   .ddr3_readdata(ddr_rdata),.ddr3_readdatavalid(ddr_rvalid),.ddr3_waitrequest(ddr_waitrequest),
-  .debug_state(),.debug_saved_cmd(),.debug_sdram_busy(),.debug_sdram_ack(),
-  .debug_rd_count(),.debug_wr_count(),.debug_rsp_count(),.debug_read_pend_cycles(),.debug_cache_missrate());
+  .debug_state(memory_state),.debug_saved_cmd(),.debug_sdram_busy(),.debug_sdram_ack(),
+  .debug_rd_count(memory_reads),.debug_wr_count(memory_writes),.debug_rsp_count(),.debug_read_pend_cycles(),.debug_cache_missrate());
 endmodule

@@ -661,6 +661,12 @@ begin
             cop0Written6                    <= 0;
             cop0Written9                    <= 0;
             
+            -- An exception can be pending when the front-panel controller
+            -- resets the CPU. Its fetch redirect must not survive reset:
+            -- otherwise the first post-reset fetch enters the exception
+            -- vector before firmware has initialized the stack pointer.
+            exception                       <= '0';
+            exceptionStage1                 <= '0';
             TLBState                        <= TLBIDLE;
             TLBDone                         <= '0';
             TLB_Instr_fetchReq_saved        <= '0';

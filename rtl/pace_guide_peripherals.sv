@@ -6,9 +6,12 @@ module pace_guide_peripherals #(
  // WALL_TIMER=1: the EMMA timer counts at its real 81 MHz in wall time
  // (exactly 81 counts per 50 core clocks). Guest timers, the firmware clock,
  // key repeat and menu timeouts then run in real time; only the CPU itself is
- // slower than the NEC part (a platform limit). WALL_TIMER=0 keeps the
+ // slower than the NEC part (a platform limit). Serial and I2C transfer
+ // delays also use clk wall time; the CPU retire counter crosses from another
+ // clock domain and must not control physical device completion. WALL_TIMER=0 keeps the
  // instruction-domain timebase (TIMER_COUNTS_PER_INSTRUCTION per retire).
- parameter WALL_TIMER=1
+ parameter WALL_TIMER=1,
+ parameter CAPTURE_DMA=0 // enabled only when the DMA7 pixel-copy engine is connected
 ) (
  input wire clk,reset,hold,
  input wire [31:0] retired,
@@ -39,6 +42,7 @@ module pace_guide_peripherals #(
  input wire cold,
  output reg fp_reset_request=0,
  output wire lsi_bus,               // diagnostics: the I2C transaction in progress is to the demodulator (18/19)
+ output wire [31:0] fp_debug,       // clk-local, read-only controller state for low-rate UART snapshots
  // EMMA memory-to-transport DMA, channel 5 (rtl/pace_transport_dma.sv): B0009090 = descriptor
  // address, B0009010 bit 5 = start, B0009120 bit 5 = transfer complete (pending until acknowledged
  // through B0009130 bit 5; it raises the DMA interrupt like the graphics channel, bit 12).
@@ -49,7 +53,10 @@ module pace_guide_peripherals #(
  // reports no completion.
  output reg dma5_stop=0,
  output reg [31:0] dma5_descriptor=0,
- input wire dma5_done
+ input wire dma5_done,
+ output reg dma7_start=0,dma7_stop=0,
+ output reg [31:0] dma7_descriptor=0,
+ input wire dma7_done
 );
  `include "rtl/pace_checkpoint_csr.vh"
  reg [31:0] seed[0:127],csr[0:127];
@@ -77,12 +84,13 @@ module pace_guide_peripherals #(
  function automatic [31:0] regval(input[31:0] a);regval=csr[csr_index(a)];endfunction
  reg [31:0] last_retired=0;
  wire tick=retired!=last_retired;
+ wire device_tick=WALL_TIMER ? 1'b1 : tick;
  reg [31:0] timer_remaining=740656;
  reg [7:0] wall_acc=0;
  wire [7:0] wall_sum=wall_acc+8'd81;
  wire [1:0] wall_step=wall_sum>=8'd100 ? 2'd2 : 2'd1;
  wire [31:0] timer_step=WALL_TIMER ? {30'd0,wall_step} : (tick ? TIMER_COUNTS_PER_INSTRUCTION : 32'd0);
- reg timer_pending=0,gpu_pending=0,dma5_pending=0;
+ reg timer_pending=0,gpu_pending=0,dma5_pending=0,dma7_pending=0;
  reg [13:0] clock_delay=0;
  reg clock_waiting=0;
  // Front-panel link: each byte the box writes to B2009010 is sent once. A transfer (started by the
@@ -97,11 +105,11 @@ module pace_guide_peripherals #(
  reg [7:0] tx_shift=0;reg tx_full=0,tx_valid=0;
  reg [7:0] serial_rx=0;
  reg [7:0] tx_body[0:15];reg [4:0] tx_count=0;reg tx_escape=0;
- reg ack_pending=0;reg [47:0] ack_body=0;reg [2:0] ack_len=0;
+ reg ack_pending=0;reg [71:0] ack_body=0;reg [3:0] ack_len=0;
  reg [7:0] key_queue[0:15];reg [3:0] key_write=0,key_read=0;
- reg wire_active=0,wire_escape=0;reg [47:0] wire_body=0;
- reg [2:0] wire_len=0,wire_pos=0;
- wire [7:0] wire_raw=wire_body >> ((5-wire_pos)*8);
+ reg wire_active=0,wire_escape=0;reg [71:0] wire_body=0;
+ reg [3:0] wire_len=0,wire_pos=0;
+ wire [7:0] wire_raw=wire_body >> ((8-wire_pos)*8);
  wire [7:0] wire_byte=!wire_active?8'd0 : wire_pos==wire_len?8'd0 :
           (!wire_escape && (wire_raw==0 || wire_raw==8'h1b))?8'h1b:wire_raw;
  reg [7:0] i2c_address=0;
@@ -122,6 +130,10 @@ module pace_guide_peripherals #(
  // and the loader starts its second transport transfer by writing 0x20 again without clearing it.
  reg dma5_done_q=0;
  wire dma5_finished=dma5_done && !dma5_done_q;
+ wire dma7_finished=CAPTURE_DMA && dma7_done;
+ assign fp_debug={clock_waiting,tx_full,tx_valid,wire_active,ack_pending,wire_escape,tx_escape,
+                  (regval(32'hb2009020)&1)!=0,serial_rx,wire_pos,wire_len,tx_count,
+                  (regval(32'hb200a000)&1)!=0,(regval(32'hb2009000)&128)!=0,(regval(32'hb0000040)&32'h2000)!=0};
  // Boot data port at B00020B0 (the loader's first self-test, BFC0AEF4): B00020B4 = 1 selects
  // writing (entering it empties the port), 2 reading; words written are read back in order.
  // The test writes 60 words of each pattern, then reads and checks 60
@@ -138,7 +150,7 @@ module pace_guide_peripherals #(
        ((regval(32'hb2009020)&regval(32'hb2009030)&1)!=0?32'h2000:32'd0) |
        ((regval(32'hb2006050)&regval(32'hb2006060)&1)!=0?32'h200000:32'd0) |
        ((regval(32'hb2002060)&regval(32'hb2002070))!=0?32'h10000:32'd0) |
-       (gpu_pending || dma5_pending?32'd2:32'd0) | (transport_irq?32'h01000000:32'd0) | (mpeg_irq?32'h00000400:32'd0);
+       (gpu_pending || dma5_pending || dma7_pending?32'd2:32'd0) | (transport_irq?32'h01000000:32'd0) | (mpeg_irq?32'h00000400:32'd0);
  assign io_irq=(irq_status&regval(32'hb0000040))!=0;
  assign lsi_bus=i2c_address_valid && i2c_address[7:1]==7'h0c;
  assign io_ready=io_req && ee_commit_count==0 && model_halt==0;
@@ -203,7 +215,7 @@ module pace_guide_peripherals #(
     // clears that channel's B0009010 bit, calls the channel's completion callback (channel 5:
     // the Guide backdrop feed's semaphore, waited on by 0x8000F890) and writes the bits to
     // B0009130.
-    32'hb0009120,32'hb0009122:io_rdata=(gpu_pending?32'h1000:32'd0) | (dma5_pending?32'h20:32'd0);
+    32'hb0009120,32'hb0009122:io_rdata=(gpu_pending?32'h1000:32'd0) | (dma5_pending?32'h20:32'd0) | (dma7_pending?32'h80:32'd0);
     32'hb0009140,32'hb0009142:io_rdata=0;
     32'hb00020b0:io_rdata=boot_fifo_mode==2 && !boot_fifo_empty ? boot_fifo[boot_fifo_read[5:0]] : 32'd0;
     32'hb00020b8:io_rdata=0;
@@ -226,17 +238,17 @@ module pace_guide_peripherals #(
    else if(io_size==1)io_rdata=io_rdata&32'hffff;
  end
  always @(posedge clk)begin
-  gpu_start<=0;fp_reset_request<=0;dma5_start<=0;dma5_stop<=0;
+  gpu_start<=0;fp_reset_request<=0;dma5_start<=0;dma5_stop<=0;dma7_start<=0;dma7_stop<=0;
   if(reset)begin
    for(n=0;n<128;n=n+1)if(is_hot(n[6:0]))csr[n]<=cold ? 32'd0 : seed[n];
-   cold_written<=0;dma5_descriptor<=0;
+   cold_written<=0;dma5_descriptor<=0;dma7_descriptor<=0;dma7_pending<=0;dma5_done_q<=0;
    boot_fifo_write<=0;boot_fifo_read<=0;boot_fifo_mode<=0;
    for(n=0;n<8;n=n+1)uart[n]<=0;
    uart[3]<=3;
    last_retired<=retired;timer_remaining<=cold ? 32'd0 : 32'd740656;timer_pending<=0;gpu_pending<=0;dma5_pending<=0;wall_acc<=0;
    clock_waiting<=0;serial_rx<=0;clock_delay<=0;tx_count<=0;tx_escape<=0;tx_shift<=0;tx_full<=0;tx_valid<=0;
    ack_pending<=0;key_write<=0;key_read<=0;wire_active<=0;wire_escape<=0;
-   i2c_delay<=0;serial0_delay<=0;i2c_address_valid<=0;i2c_start<=0;
+   i2c_delay<=0;serial0_delay<=0;i2c_address_valid<=0;i2c_start<=0;i2c_receive<=0;
    lsi_group<=7;lsi_apr<=cold ? 13'd0 : 13'd29;ee_pointer<=cold ? 16'd0 : 16'd14090;ee_address_count<=0;
    ee_pending_count<=0;ee_commit_count<=0;ee_commit_index<=0;
    model_halt<=0;serial_frames<=0;key_frames<=0;timer_acks<=0;gpu_acks<=0;last_key<=0;
@@ -252,11 +264,14 @@ module pace_guide_peripherals #(
     if(ack_pending)begin
      wire_body<=ack_body;wire_len<=ack_len;ack_pending<=0;wire_pos<=0;wire_escape<=0;wire_active<=1;
     end else if(key_read!=key_write)begin
-     wire_body<={8'h05,8'h00,8'h02,8'h00,4'd0,key_queue[key_read][7:4],key_queue[key_read][3:0],4'd0};
+     wire_body<={8'h05,8'h00,8'h02,8'h00,4'd0,key_queue[key_read][7:4],key_queue[key_read][3:0],4'd0,24'd0};
      wire_len<=6;wire_pos<=0;wire_escape<=0;wire_active<=1;key_read<=key_read+1'b1;key_frames<=key_frames+1'b1;
     end
    end
-   if(!clock_waiting && wire_active && (regval(32'hb200a000)&1)!=0 && (regval(32'hb2009020)&1)==0)begin
+   // SMNTask writes the next transmit byte only after consuming the previous
+   // received byte. The ISR clears RX ready earlier, so that flag alone cannot
+   // release another controller byte into the firmware's one-byte mailbox.
+   if(!clock_waiting && tx_full && wire_active && (regval(32'hb200a000)&1)!=0 && (regval(32'hb2009020)&1)==0)begin
      clock_waiting<=1;clock_delay<=8192;
      tx_shift<=regval(32'hb2009010);tx_valid<=tx_full;tx_full<=0;
    end
@@ -277,7 +292,7 @@ module pace_guide_peripherals #(
       end else timer_remaining<=timer_remaining-timer_step;
     end
    end
-   if(tick)begin
+   if(device_tick)begin
     if(clock_waiting)begin
      if(clock_delay>1)clock_delay<=clock_delay-1'b1;
      else begin
@@ -304,8 +319,20 @@ module pace_guide_peripherals #(
        else begin
         ack_pending<=1;
         if(cold && tx_body[2]==8'h12)fp_reset_request<=1;   // front-panel controller: reset the CPU
-        if(tx_body[2]==8'h44)begin ack_body<={8'h04,tx_body[1],8'h44,8'hff,8'hff,8'd0};ack_len<=5;end
-        else begin ack_body<={8'h02,tx_body[1],(tx_body[2]==8'h52 ? 8'h52 : 8'h10),24'd0};ack_len<=3;end
+        // The response opcode selects the application's callback. A generic
+        // opcode-10 ACK made every command copy six absent identity bytes
+        // (80029788). Status 52 also requires its byte at frame[3] (8002A534).
+        // Identity is unmodelled, explicitly six zero bytes. Status 2 follows
+        // the software model's startup profile (8003A964). Other ACKs echo the command.
+        case(tx_body[2])
+         8'h10:begin ack_body<={8'h08,tx_body[1],8'h10,48'd0};ack_len<=9;end
+         8'h52:begin ack_body<={8'h03,tx_body[1],8'h52,8'h02,40'd0};ack_len<=4;end
+         8'h44:begin ack_body<={8'h04,tx_body[1],8'h44,8'hff,8'hff,32'd0};ack_len<=5;end
+         // Their callbacks (80029DF0/8002A740/8002A5FC) each consume
+         // frame[3]. Supply an explicit unknown-zero status, never stale data.
+         8'h21,8'h23,8'h28:begin ack_body<={8'h03,tx_body[1],tx_body[2],48'd0};ack_len<=4;end
+         default:begin ack_body<={8'h02,tx_body[1],tx_body[2],48'd0};ack_len<=3;end
+        endcase
        end
       end
      end
@@ -348,8 +375,9 @@ module pace_guide_peripherals #(
    dma5_done_q<=dma5_done;
    if(gpu_done)gpu_pending<=1;
    if(dma5_finished)dma5_pending<=1;
-   if(gpu_done || dma5_finished)
-    csr[csr_index(32'hb0009010)]<=regval(32'hb0009010)&~(gpu_done?32'h1000:32'd0)&~(dma5_finished?32'h20:32'd0);
+   if(dma7_finished)dma7_pending<=1;
+   if(gpu_done || dma5_finished || dma7_finished)
+    csr[csr_index(32'hb0009010)]<=regval(32'hb0009010)&~(gpu_done?32'h1000:32'd0)&~(dma5_finished?32'h20:32'd0)&~(dma7_finished?32'h80:32'd0);
    if(io_req && io_ready && !io_we && io_addr==32'hb00020b0 && boot_fifo_mode==2 && !boot_fifo_empty)
     boot_fifo_read<=boot_fifo_read+1'b1;
    if(io_req && io_ready && io_we)begin
@@ -372,15 +400,19 @@ module pace_guide_peripherals #(
       if(io_wdata[12] && (regval(32'hb0009010)&32'h1000)==0)gpu_start<=1;
       if(io_wdata[5] && (regval(32'hb0009010)&32'h20)==0)dma5_start<=1;
       if(!io_wdata[5] && (regval(32'hb0009010)&32'h20)!=0 && !dma5_finished)dma5_stop<=1;
+      if(CAPTURE_DMA && io_wdata[7] && (regval(32'hb0009010)&32'h80)==0)dma7_start<=1;
+      if(CAPTURE_DMA && !io_wdata[7] && (regval(32'hb0009010)&32'h80)!=0 && !dma7_finished)dma7_stop<=1;
       // Channel bits are not plain storage: set only by a start and cleared by completion; a
       // write that clears bit 5 also stops channel 5 (dma5_stop). Bit 12 is cleared only by
       // completion. (Stored as written, a read-modify-write in the clock a job completed put
       // bit 12 back and every later graphics start was ignored.)
-      csr[csr_index(32'hb0009010)]<=(io_wdata&~32'h1020) |
+      csr[csr_index(32'hb0009010)]<=(io_wdata&~(CAPTURE_DMA ? 32'h10a0:32'h1020)) |
        (((regval(32'hb0009010)&32'h1000)!=0 ? !gpu_done : io_wdata[12]) ? 32'h1000 : 32'd0) |
-       (io_wdata[5] && ((regval(32'hb0009010)&32'h20)==0 || !dma5_finished) ? 32'h20 : 32'd0);
+       (io_wdata[5] && ((regval(32'hb0009010)&32'h20)==0 || !dma5_finished) ? 32'h20 : 32'd0) |
+       (CAPTURE_DMA && io_wdata[7] && ((regval(32'hb0009010)&32'h80)==0 || !dma7_finished) ? 32'h80:32'd0);
      end
      32'hb0009090:dma5_descriptor<=io_wdata;
+     32'hb00090b0:if(CAPTURE_DMA)dma7_descriptor<=io_wdata;
      32'hb00020b4:begin
       boot_fifo_mode<=io_wdata[1:0];
       if(io_wdata==1 && boot_fifo_mode!=1)begin boot_fifo_write<=0;boot_fifo_read<=0;end
@@ -391,19 +423,28 @@ module pace_guide_peripherals #(
      32'hb0009130:begin
       if(io_wdata[12])begin gpu_pending<=0;gpu_acks<=gpu_acks+1'b1;end
       if(io_wdata[5] && !dma5_finished)dma5_pending<=0;
+      if(io_wdata[7] && !dma7_finished)dma7_pending<=0;
      end
-     32'hb200a000:if((regval(32'hb200a000)&1)!=0 && !io_wdata[0] && (regval(32'hb2009000)&128)!=0)begin
+     // A GPIO edge coincident with byte completion belongs to that byte.
+     // Restarting clock_waiting here would undo completion and deliver an
+     // unsolicited second byte before SMNTask consumes its one-byte mailbox.
+     32'hb200a000:if((regval(32'hb200a000)&1)!=0 && !io_wdata[0] && (regval(32'hb2009000)&128)!=0 &&
+                    (clock_waiting || tx_full) && !(device_tick && clock_waiting && clock_delay<=1))begin
       clock_waiting<=1;clock_delay<=64;
       // A box clock while the controller's transfer is under way is that same transfer.
       if(!clock_waiting)begin tx_shift<=regval(32'hb2009010);tx_valid<=tx_full;tx_full<=0;end
-      else if(tx_full)begin tx_shift<=regval(32'hb2009010);tx_valid<=1;tx_full<=0;end
+      // A late edge after completion has no new transfer to clock. A byte
+      // written during a transfer stays queued for the following transfer.
      end
      32'hb2009010:tx_full<=1;
      32'hb2002050:serial0_delay<=64;
      32'hb2006000:begin
-      if(io_wdata==32'h9a)begin i2c_start<=1;i2c_first_payload<=1;end
+      // START/STOP terminate any pending receive. The firmware can
+      // abort a read (80006F2E) and immediately start an EEPROM address
+      // phase; an old receive must not complete against that new address.
+      if(io_wdata==32'h9a)begin i2c_start<=1;i2c_first_payload<=1;i2c_receive<=0;i2c_delay<=0;end
       if(io_wdata==32'h99)begin
-       i2c_address_valid<=0;i2c_delay<=0;
+       i2c_address_valid<=0;i2c_delay<=0;i2c_receive<=0;
        if(ee_pending_count!=0)begin ee_commit_count<=ee_pending_count;ee_commit_index<=0;ee_pending_count<=0;end
       end
       if(io_wdata==32'ha8 || io_wdata==32'hac)begin i2c_receive<=1;i2c_delay<=64;end

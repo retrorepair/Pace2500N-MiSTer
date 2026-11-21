@@ -5,6 +5,11 @@ input         CLK_50M,
 //Can be used as initial reset.
 input         RESET,
 
+`ifdef PACE_TELETEXT_TEST
+output        PACE_TTX_TRIGGER,
+input  [31:0] PACE_TTX_STATUS,
+`endif
+
 //Must be passed to hps_io module
 inout  [45:0] HPS_BUS,
 

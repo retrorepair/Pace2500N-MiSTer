@@ -26,6 +26,17 @@ class NativeTreeTests(unittest.TestCase):
         for text in CASES:
             self.assertEqual(self.codec.decode(self.codec.encode(text)), text.encode('ascii'))
 
+    def test_flash_dictionary_matches_initialized_ram(self):
+        codec = FirmwareHuffman.from_file(ROOT / 'firmware/FLASH_U202.bin')
+        self.assertEqual(codec.codes, self.codec.codes)
+        self.assertEqual(codec.symbols, self.codec.symbols)
+        for text in CASES:
+            self.assertEqual(codec.encode(text), self.codec.encode(text))
+
+    def test_invalid_flash_is_rejected(self):
+        with self.assertRaises(ValueError):
+            FirmwareHuffman.from_flash(bytes(2 * 1024 * 1024))
+
 
 def vectors():
     codec = FirmwareHuffman.from_file(ROOT / 're/fpga_guide_checkpoint/RAM.bin')

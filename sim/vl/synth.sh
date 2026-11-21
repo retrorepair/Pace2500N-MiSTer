@@ -25,5 +25,5 @@ for f in functions export divider SyncFifoFallThroughMLAB cpu_cdc_fifo cpu_instr
   $GHDL -a $G --work=work rtl/r4k/$f.vhd
 done
 $GHDL -a $G --work=work $W/cpu.vhd rtl/r4k/pace_r4k_core.vhd
-$GHDL --synth $G --out=verilog -gCOUNT_NUM=${COUNT_NUM:-27} -gCOUNT_DEN=${COUNT_DEN:-100} pace_r4k_core > $W/pace_r4k_core.v
+$GHDL --synth $G --out=verilog -gCOUNT_NUM=${COUNT_NUM:-3} -gCOUNT_DEN=${COUNT_DEN:-10} pace_r4k_core > $W/pace_r4k_core.v
 ls -la $W/pace_r4k_core.v

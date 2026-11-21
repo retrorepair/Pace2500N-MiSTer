@@ -69,6 +69,7 @@ module mpeg2video(clk, mem_clk, dot_clk, dot_ce,
              horizontal_size_out,                                 // DVD-FORK (CRT anamorphic overlay align): sequence-header frame width
              aspect_ratio_out,                                    // DVD-FORK FIX (aspect ratio): sequence-header display-AR code
              pace_seq_evt, pace_gop_evt, pace_pic_evt, pace_end_evt, pace_time_code, pace_picture_structure, // PACE: EMMA decoder status model
+             pace_frame_valid, pace_frame_id, pace_frame_mb_width, // PACE: displayed picture for DMA7
              ref_prefetch_en,                                     // DVD-FORK (ref prefetch O[18]): 1=deep ref run-ahead, 0=baseline fill
              frame_drop_en,                                       // DVD-FORK (frame-drop O[12]): 1=drop B-frames when behind
              dbg_frames_late, dbg_frames_dropped,                 // DVD-FORK (frame-drop O[12]): overlay counters
@@ -188,6 +189,9 @@ module mpeg2video(clk, mem_clk, dot_clk, dot_ce,
   output           pace_seq_evt, pace_gop_evt, pace_pic_evt, pace_end_evt;
   output     [22:0]pace_time_code;
   output      [1:0]pace_picture_structure;
+  output reg       pace_frame_valid=0;
+  output reg  [1:0]pace_frame_id=0;
+  output reg  [7:0]pace_frame_mb_width=0;
   /* DVD-FORK (ref prefetch O[18], clk domain, 2-FF synced in emu): 1 = let the deepened
    * fwd/bwd reference data fifos buffer their full depth (~960 rows, deep run-ahead);
    * 0 = gate the data almost-full back to the upstream baseline fill (~192 rows) so a
@@ -661,6 +665,17 @@ module mpeg2video(clk, mem_clk, dot_clk, dot_ce,
   wire  [2:0]output_frame;                  /* frame to be displayed */
   wire       output_frame_valid;            /* asserted when output_frame valid */
   wire       output_frame_rd;               /* asserted to read next output_frame */
+  // output_frame_rd consumes a completed decoder picture. The frame remains
+  // reserved by the display until its next pickup; the Pace wrapper pauses
+  // further pickups during a DMA7 snapshot. Do not infer a bank from counters.
+  always @(posedge clk) begin
+    if (!sync_rst || soft_flush) pace_frame_valid <= 1'b0;
+    else if (output_frame_rd && output_frame_valid && !output_frame[2]) begin
+      pace_frame_valid <= 1'b1;
+      pace_frame_id <= output_frame[1:0];
+      pace_frame_mb_width <= mb_width;
+    end
+  end
   wire       output_progressive_sequence;
   wire       output_progressive_frame;
   wire       output_top_field_first;

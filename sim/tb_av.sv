@@ -39,7 +39,7 @@ module tb_av;
  reg [63:0] ddr_rdata=0;reg ddr_rvalid=0;wire ddr_waitrequest;
  wire [7:0] r,g,b;wire pixel_en,dhs,dvs;wire [11:0] h_pos,v_pos;
  wire video_live,busy;wire [15:0] pictures,pickups,frames_late;wire [7:0] vbuf_fill;wire [13:0] hsize,vsize;
- pace_mpeg_video video(.clk_sys(clk_sys),.clk_dec(clk_dec),.clk_mem(clk_mem),.clk_dot(clk_dot),.reset(reset),.enable(1'b1),.still(1'b0),.flush(1'b0),
+ pace_mpeg_video video(.clk_sys(clk_sys),.clk_dec(clk_dec),.clk_mem(clk_mem),.clk_dot(clk_dot),.reset(reset),.enable(1'b1),.still(1'b0),.flush(1'b0),.capture_hold(1'b0),.keep_picture(1'b0),
   .es_data(v_data),.es_valid(v_valid),.es_ready(v_ready),
   .ddr_addr(ddr_addr),.ddr_burstcnt(ddr_burstcnt),.ddr_read(ddr_read),.ddr_write(ddr_write),.ddr_wdata(ddr_wdata),.ddr_be(ddr_be),
   .ddr_rdata(ddr_rdata),.ddr_rvalid(ddr_rvalid),.ddr_waitrequest(ddr_waitrequest),

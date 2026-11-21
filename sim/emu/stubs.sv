@@ -24,6 +24,9 @@ endmodule
 
 module pace_mpeg_video(
     input wire clk_sys, clk_dec, clk_mem, clk_dot, reset, flush, enable, still,
+    input wire capture_hold,output wire capture_valid,output wire [1:0] capture_frame,
+    output wire [7:0] capture_mb_width,
+    input wire keep_picture,output wire [31:0] memory_debug,
     input wire [7:0] es_data, input wire es_valid, output wire es_ready,
     output wire [28:0] ddr_addr, output wire [7:0] ddr_burstcnt, output wire ddr_read, ddr_write,
     output wire [63:0] ddr_wdata, output wire [7:0] ddr_be,
@@ -36,6 +39,8 @@ module pace_mpeg_video(
     output reg [22:0] gop_time_code = 0, output reg [1:0] pic_structure = 0
 );
     assign es_ready = 1'b1;
+    assign capture_valid=0;assign capture_frame=0;assign capture_mb_width=0;
+    assign memory_debug=0;
     assign ddr_addr = 0; assign ddr_burstcnt = 1; assign ddr_read = 0; assign ddr_write = 0;
     assign ddr_wdata = 0; assign ddr_be = 0;
     assign {r, g, b} = 0; assign {pixel_en, hs, vs} = 0; assign h_pos = 0; assign v_pos = 0;

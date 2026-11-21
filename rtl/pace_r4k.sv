@@ -22,6 +22,8 @@
 module pace_r4k #(
     parameter integer COUNT_NUM = 27,   // Count = 20.25 MHz at a 75 MHz clk2x
     parameter integer COUNT_DEN = 100,
+    parameter [31:0] TRACE_PC = 32'd0,
+    parameter TRACE_STACKFAULT = 0,
     // NOR flash identify codes (manufacturer, device) returned in autoselect mode. The loader's
     // supported-device table (U202 1ADC8 / 1AE10) lists Fujitsu MBM29LV160B (0004/2249) and
     // Atmel AT49LV1614 (001F/00C0); the 2500N board drawing (colibri.bplaced.net, see
@@ -31,6 +33,7 @@ module pace_r4k #(
 )(
     input  wire        clk_sys, clk1x, clk2x,
     input  wire        reset_sys,       // core reset (clk_sys)
+    input  wire        trace_reset,     // full core reset; keep diagnostics across a board warm reset
     input  wire        hold_sys,        // downloads in progress / images not loaded (clk_sys)
     input  wire        ckpt_loaded,     // STATE.bin has been loaded (clk_sys)
     input  wire        state_wr,        // STATE.bin download word (clk_sys)
@@ -142,17 +145,25 @@ module pace_r4k #(
     reg         frozen = 1'b0;
     reg         trig_req = 1'b0;           // clk_sys: trace_trigger seen
     reg   [1:0] trig_s = 2'b00;
-    always @(posedge clk_sys) if (reset_sys) trig_req <= 1'b0; else if (trace_trigger) trig_req <= 1'b1;
+    reg [1:0] trace_rst_s = 2'b11;
+    always @(posedge clk_sys) if (trace_reset) trig_req <= 1'b0; else if (trace_trigger) trig_req <= 1'b1;
     always @(posedge clk2x) begin
+        trace_rst_s <= {trace_rst_s[0], trace_reset};
         trig_s <= {trig_s[0], trig_req};
-        if (rst2x) begin
+        if (trace_rst_s[1]) begin
             frozen <= 1'b0;
         end else if (!frozen) begin
             if (wb_valid) begin
                 ring[wptr] <= {wb_rd, wb_pc, wb_data};
                 wptr <= wptr + 10'd1;
             end
-            if ((wb_valid && wb_pc == 32'h80000048) || trig_s[1]) frozen <= 1'b1;
+            if ((wb_valid && (wb_pc == 32'h80000048 ||
+                 (TRACE_PC != 0 && wb_pc[31:1] == TRACE_PC[31:1]) ||
+                 // Loader exception entry: SP must address the 16 MiB RAM.
+                 // Capture its FIRST invalid decrement, before recursive
+                 // exceptions replace the useful instruction history.
+                 (TRACE_STACKFAULT && wb_pc[28:1] == 28'hfe07726 &&
+                  wb_rd == 6'h3d && wb_data[31:24] != 8'h80 && wb_data[31:24] != 8'ha0))) || trig_s[1]) frozen <= 1'b1;
         end
     end
     reg  [1:0] frozen_s = 2'b00;
@@ -224,7 +235,7 @@ module pace_r4k #(
         ack1_s <= {ack1_s[1:0], ack_tog};
         mem_done <= 1'b0; grant <= 1'b0; dout_ready <= 1'b0;
         if (rst1x) begin
-            cstate <= C_IDLE;
+            cstate <= C_IDLE; req_tog <= 1'b0; ack1_s <= 3'b000;
         end else case (cstate)
             C_IDLE: if (mem_request) begin
                 p_rnw <= mem_rnw; p_addr <= mem_address; p_req64 <= mem_req64;
@@ -249,7 +260,9 @@ module pace_r4k #(
 
     // ---------------------------------------------------------------- clk_sys side
     reg [2:0] req_s = 3'b000;
-    always @(posedge clk_sys) req_s <= {req_s[1:0], req_tog};
+    always @(posedge clk_sys)
+        if (reset_sys || hold_sys) req_s <= 3'b000;
+        else req_s <= {req_s[1:0], req_tog};
     wire pending = req_s[2] != ack_tog;
 
     wire [28:0] phys = p_addr[28:0];
@@ -302,7 +315,7 @@ module pace_r4k #(
     reg         ack_q = 1'b0;
     always @(posedge clk_sys) begin
         ack_q <= ack_tog;
-        if (ack_tog != ack_q && !frozen_s[1]) begin
+        if (!(reset_sys || hold_sys) && ack_tog != ack_q && !frozen_s[1]) begin
             bring[bptr] <= {p_addr,
                             {20'd0, p_mask, p_rnw, p_line, p_lw, is_io},
                             p_line ? r_line[0][31:0] : p_rnw ? r_data[31:0] : p_lw ? p_ldata[31:0]   : p_wdata[31:0],
@@ -317,8 +330,12 @@ module pace_r4k #(
     reg [1:0] q = 2'd0;
     reg [2:0] got = 3'd0;
     always @(posedge clk_sys) begin
-        if (reset_sys) begin
+        // The CPU also resets on hold_sys. Cancel both halves of its toggle
+        // handshake together: leaving an old request pending reissued its
+        // peripheral side effects after the loader's warm-reset handoff.
+        if (reset_sys || hold_sys) begin
             sstate <= S_IDLE; ddr_req <= 1'b0; io_req <= 1'b0;
+            ack_tog <= 1'b0;
             nor_unlock <= 2'd0; nor_identify <= 2'd0;
         end else case (sstate)
             S_IDLE: if (pending) begin

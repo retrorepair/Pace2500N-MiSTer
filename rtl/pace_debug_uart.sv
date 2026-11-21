@@ -4,12 +4,18 @@
 module pace_debug_uart #(
     parameter integer CLOCK_HZ=50000000,
     parameter integer BAUD=115200,
-    parameter integer PERIOD=CLOCK_HZ
+    parameter integer PERIOD=CLOCK_HZ,
+    parameter integer EXTRA_FP=0,
+    parameter integer EXTRA_VIDEO=0,
+    parameter integer EXTRA_TTX=0
 )(
     input wire clk, reset,
     input wire [31:0] pc, instruction, retired, ram_writes,
     input wire [31:0] mmio_address, mmio_value, mmio_read,
     input wire [31:0] interrupt_count, guessed_reads,
+    input wire [31:0] fp_state,
+    input wire [31:0] video_state,
+    input wire [31:0] ttx_state,
     input wire [1:0] mmio_policy,
     input wire [7:0] halt_code,
     input wire mips16, full_flash_loaded,
@@ -46,7 +52,7 @@ module pace_debug_uart #(
         end
     endfunction
     // Fixed length frame simplifies framing and bounds all indexing.
-    localparam integer BYTES=175;
+    localparam integer BYTES=175+(EXTRA_FP ? 12:0)+(EXTRA_VIDEO ? 12:0)+(EXTRA_TTX ? 12:0);
     localparam integer DIVISOR=CLOCK_HZ/BAUD;
     reg [BYTES*8-1:0] message;
     reg [31:0] period_count=0;
@@ -55,18 +61,26 @@ module pace_debug_uart #(
     reg [3:0] bit_index=0;
     reg [9:0] frame=10'h3ff;
     reg sending=0, byte_active=0, prof_due=0;
+    reg telemetry_due=0;
     wire [7:0] next_byte=message[(BYTES-1-index)*8 +:8];
+    wire [173*8-1:0] telemetry_fields={"PACE PC=",hex32(pc)," IR=",hex32(instruction),
+        " RET=",hex32(retired)," RAM=",hex32(ram_writes),
+        " WA=",hex32(mmio_address)," WD=",hex32(mmio_value),
+        " RD=",hex32(mmio_read)," HALT=",hex32({24'd0,halt_code}),
+        " M16=",hex32({31'd0,mips16})," FLASH=",hex32({31'd0,full_flash_loaded}),
+        " IRQ=",hex32(interrupt_count)," GUESS=",hex32(guessed_reads),
+        " POL=",hex32({30'd0,mmio_policy})};
     always @(posedge clk) begin
         if(reset) begin
             tx<=1; period_count<=0; baud_count<=0;
             index<=0; bit_index<=0; sending<=0; byte_active<=0;
-            ev_wr<=0; ev_rd<=0; ev_settle<=0; prof_due<=0;
+            ev_wr<=0; ev_rd<=0; ev_settle<=0; prof_due<=0; telemetry_due<=0;
         end else begin
             if(ev_valid && !ev_full) ev_wr<=ev_wr+9'd1;
             ev_settle<={ev_settle[0],!ev_empty};
             // One queued MMIO event per line while no telemetry frame is going out.
             prof_sent<=0;
-            if(!sending && (prof_due || prof_fast) && period_count!=PERIOD-1) begin
+            if(!sending && (prof_due || prof_fast) && !telemetry_due) begin
                 prof_sent<=1;
                 message<={"PROF"," ",hex32(prof[0+:32])," ",hex32(prof[32+:32])," ",hex32(prof[64+:32]),
                     " ",hex32(prof[96+:32])," ",hex32(prof[128+:32])," ",hex32(prof[160+:32]),
@@ -75,25 +89,29 @@ module pace_debug_uart #(
                     " ",hex32(prof[384+:32])," ",hex32(prof[416+:32])," ",hex32(prof[448+:32]),
                     " ",hex32(prof[480+:32]),8'h0d,8'h0a,{(BYTES-150){8'h20}}};
                 sending<=1; index<=0; last<=8'd149; prof_due<=0;
-            end else if(!sending && period_count!=PERIOD-1 && !ev_empty && ev_settle==2'b11) begin
+            end else if(!sending && !telemetry_due && !ev_empty && ev_settle==2'b11) begin
                 message<={"T",(ev_q[64] ? "1" : "0")," ",hex32(ev_q[63:32])," ",hex32(ev_q[31:0]),8'h0d,8'h0a,{(BYTES-22){8'h20}}};
                 sending<=1; index<=0; last<=8'd21;
                 ev_rd<=ev_rd+9'd1; ev_settle<=0;
             end
             if(period_count==PERIOD-1) begin
                 period_count<=0;
-                if(!sending) begin
-                    message<={"PACE PC=",hex32(pc)," IR=",hex32(instruction),
-                        " RET=",hex32(retired)," RAM=",hex32(ram_writes),
-                        " WA=",hex32(mmio_address)," WD=",hex32(mmio_value),
-                        " RD=",hex32(mmio_read)," HALT=",hex32({24'd0,halt_code}),
-                        " M16=",hex32({31'd0,mips16})," FLASH=",hex32({31'd0,full_flash_loaded}),
-                        " IRQ=",hex32(interrupt_count)," GUESS=",hex32(guessed_reads),
-                        " POL=",hex32({30'd0,mmio_policy}),
-                        8'h0d,8'h0a};
-                    sending<=1; index<=0; last<=BYTES-1; prof_due<=1;
-                end
+                telemetry_due<=1;
             end else period_count<=period_count+1;
+            // Keep a pending snapshot until the UART is free. Continuous MMIO
+            // or frozen trace pages must not hide the PC and halt reason.
+            if(telemetry_due && !sending) begin
+                    if(EXTRA_TTX)begin
+                        if(EXTRA_FP && EXTRA_VIDEO)message<={telemetry_fields," FP=",hex32(fp_state)," MV=",hex32(video_state)," TT=",hex32(ttx_state),8'h0d,8'h0a};
+                        else if(EXTRA_VIDEO)message<={telemetry_fields," MV=",hex32(video_state)," TT=",hex32(ttx_state),8'h0d,8'h0a};
+                        else if(EXTRA_FP)message<={telemetry_fields," FP=",hex32(fp_state)," TT=",hex32(ttx_state),8'h0d,8'h0a};
+                        else message<={telemetry_fields," TT=",hex32(ttx_state),8'h0d,8'h0a};
+                    end else if(EXTRA_FP && EXTRA_VIDEO)message<={telemetry_fields," FP=",hex32(fp_state)," MV=",hex32(video_state),8'h0d,8'h0a};
+                    else if(EXTRA_VIDEO)message<={telemetry_fields," MV=",hex32(video_state),8'h0d,8'h0a};
+                    else if(EXTRA_FP)message<={telemetry_fields," FP=",hex32(fp_state),8'h0d,8'h0a};
+                    else message<={telemetry_fields,8'h0d,8'h0a};
+                    sending<=1; index<=0; last<=BYTES-1; prof_due<=1; telemetry_due<=0;
+            end
             if(sending) begin
                 if(!byte_active) begin
                     frame<={1'b1,next_byte,1'b0}; tx<=0;

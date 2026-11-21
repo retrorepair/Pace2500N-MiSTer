@@ -6,7 +6,7 @@ cd "$(dirname "$0")/../.."
 W=${W:-/tmp/vl_work}; OBJ=${OBJ:-/tmp/vl_obj}
 [ "$1" = nosynth ] || W=$W bash sim/vl/synth.sh
 # ghdl --synth fixes the generics at elaboration; the wrapper still passes them.
-sed 's/^module pace_r4k_core$/module pace_r4k_core #(parameter COUNT_NUM = 27, parameter COUNT_DEN = 100)/' \
+sed 's/^module pace_r4k_core$/module pace_r4k_core #(parameter COUNT_NUM = 3, parameter COUNT_DEN = 10)/' \
     $W/pace_r4k_core.v > $W/pace_r4k_core_p.v
 python3 sim/vl/vl_patch.py $W
 verilator --binary --timing --top-module tb_sys -Mdir $OBJ -j 12 --build-jobs 12 \

@@ -30,6 +30,8 @@ set_global_assignment -name SYSTEMVERILOG_FILE rtl/Pace2500N_Transport.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_ts_replay.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_section_demux.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_transport_dma.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_video_capture_dma.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_video_image_plane.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_mmio_response.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_ts_load_tracker.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_tot_clock.sv
@@ -100,3 +102,4 @@ set_global_assignment -name SEARCH_PATH rtl/mpeg2/dvd
 set_global_assignment -name SEARCH_PATH rtl/mpeg2/mp2
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_ts_stream.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_eeprom_save.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_teletext_test.sv

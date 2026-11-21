@@ -12,13 +12,17 @@ module tb_mpeg_video;
  string es_file="sim/video_es.hex",out_prefix="sim/mpeg_field";
  reg [7:0] es[0:16*1024*1024-1];
  integer position=0;
- wire es_ready;wire es_valid=!reset && position<es_bytes;
+ reg stream_enable=1,enable_in=1,flush_in=0;
+ wire es_ready;wire es_valid=!reset && stream_enable && position<es_bytes;
  wire [28:0] ddr_addr;wire [7:0] ddr_burstcnt,ddr_be;wire ddr_read,ddr_write;wire [63:0] ddr_wdata;
  reg [63:0] ddr_rdata=0;reg ddr_rvalid=0;wire ddr_waitrequest;
  reg still_in=0;   // +STILL: memory-fed still, as the firmware's DMA-fed Guide backdrop
  wire [7:0] r,g,b;wire pixel_en,hs,vs;wire [11:0] h_pos,v_pos;
  wire video_live,busy;wire [15:0] pictures,pickups,frames_late;wire [7:0] vbuf_fill;wire [13:0] hsize,vsize;
- pace_mpeg_video dut(.clk_sys(clk_sys),.clk_dec(clk_dec),.clk_mem(clk_mem),.clk_dot(clk_dot),.reset(reset),.enable(1'b1),.still(still_in),.flush(1'b0),
+ reg capture_hold=0,keep_picture_in=0;wire capture_valid;wire [1:0] capture_frame;wire [7:0] capture_mb_width;
+ pace_mpeg_video dut(.clk_sys(clk_sys),.clk_dec(clk_dec),.clk_mem(clk_mem),.clk_dot(clk_dot),.reset(reset),.enable(enable_in),.still(still_in),.flush(flush_in),
+  .capture_hold(capture_hold),.capture_valid(capture_valid),.capture_frame(capture_frame),.capture_mb_width(capture_mb_width),
+  .keep_picture(keep_picture_in),
   .es_data(es[position]),.es_valid(es_valid),.es_ready(es_ready),
   .ddr_addr(ddr_addr),.ddr_burstcnt(ddr_burstcnt),.ddr_read(ddr_read),.ddr_write(ddr_write),.ddr_wdata(ddr_wdata),.ddr_be(ddr_be),
   .ddr_rdata(ddr_rdata),.ddr_rvalid(ddr_rvalid),.ddr_waitrequest(ddr_waitrequest),
@@ -64,7 +68,8 @@ module tb_mpeg_video;
  final $display("STATUS: irqs %0d, sequence headers %0d, GOPs %0d, pictures %0d, fields %0d, sequence ends %0d",irqs,n_seq,n_gop,n_pic,n_field,n_end);
  // ---- DDR3 model: 32 MB window at word address 0x07000000, burst reads, 6-cycle latency.
  reg [63:0] mem[0:4*1024*1024-1];
- reg [21:0] rd_word=0;reg [8:0] rd_left=0;reg [3:0] rd_wait=0;
+ reg [21:0] rd_word=0;reg [8:0] rd_left=0;reg [15:0] rd_wait=0;
+ integer memory_latency=6;
  integer ddr_reads=0,ddr_writes=0,bad_addr=0,lane;
  assign ddr_waitrequest=rd_left!=0;
  always @(posedge clk_mem)begin
@@ -76,7 +81,7 @@ module tb_mpeg_video;
   end
   if(ddr_read && !ddr_waitrequest)begin
    if(ddr_addr[28:22]!=7'b0011100)bad_addr<=bad_addr+1;
-   rd_word<=ddr_addr[21:0];rd_left<={1'b0,ddr_burstcnt};rd_wait<=6;ddr_reads<=ddr_reads+1;
+   rd_word<=ddr_addr[21:0];rd_left<={1'b0,ddr_burstcnt};rd_wait<=memory_latency;ddr_reads<=ddr_reads+1;
   end else if(rd_left!=0)begin
    if(rd_wait!=0)rd_wait<=rd_wait-1;
    else begin ddr_rdata<=mem[rd_word];ddr_rvalid<=1;rd_word<=rd_word+1;rd_left<=rd_left-1;end
@@ -115,7 +120,9 @@ module tb_mpeg_video;
   if($value$plusargs("ES=%s",es_file))begin end
   if($value$plusargs("OUT=%s",out_prefix))begin end
   if($value$plusargs("FIELDS=%d",max_fields))begin end
+  if($value$plusargs("MEM_LAT=%d",memory_latency))begin end
   if($test$plusargs("STILL"))still_in=1;
+  if($test$plusargs("CONTROLLED"))begin stream_enable=0;enable_in=0;end
   if(!$value$plusargs("BYTES=%d",es_bytes))es_bytes=4*1024*1024;
   $readmemh(es_file,es);
   repeat(40)@(posedge clk_sys);reset=0;

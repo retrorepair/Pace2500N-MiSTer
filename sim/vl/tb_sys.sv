@@ -16,13 +16,13 @@
 //           +status=N (print a status line every N clk_sys cycles) +lat=N (DDR read latency)
 `timescale 1ps/1ps
 module tb_sys;
-    // 75 MHz core clock, 37.5 MHz memory-side clock (rising edges aligned), 50 MHz clk_sys.
+    // 67.5 MHz core clock, 33.75 MHz memory-side clock (rising edges aligned), 50 MHz clk_sys.
     reg clk2x = 0, clk1x = 0, clk_sys = 0;
-    initial forever begin   // 13.333 ns per clk2x cycle
-        #6667 clk2x = 1; clk1x = 1;
-        #6666 clk2x = 0;
-        #6667 clk2x = 1; clk1x = 0;
-        #6666 clk2x = 0;
+    initial forever begin   // 14.815 ns per clk2x cycle
+        #7408 clk2x = 1; clk1x = 1;
+        #7407 clk2x = 0;
+        #7407 clk2x = 1; clk1x = 0;
+        #7408 clk2x = 0;
     end
     initial begin #1700; forever #10000 clk_sys = ~clk_sys; end
 
@@ -62,8 +62,8 @@ module tb_sys;
     reg ts_valid = 0; reg [7:0] ts_byte = 0; wire ts_ready; wire [31:0] ts_packets;
     integer tsfd = 0, tsgap = 50, tswait = 0, tsc;
 
-    pace_r4k #(.COUNT_NUM(27), .COUNT_DEN(100)) cpu (.clk_sys(clk_sys), .clk1x(clk1x), .clk2x(clk2x),
-        .reset_sys(soc_reset), .hold_sys(holding), .ckpt_loaded(loaded_state),
+    pace_r4k #(.COUNT_NUM(3), .COUNT_DEN(10)) cpu (.clk_sys(clk_sys), .clk1x(clk1x), .clk2x(clk2x),
+        .reset_sys(soc_reset), .trace_reset(core_reset), .hold_sys(holding), .ckpt_loaded(loaded_state),
         .state_wr(state_write), .state_index(state_index), .state_data(state_data), .io_irq(irq),
         .ddr_req(cq), .ddr_we(cw), .ddr_addr(cad), .ddr_wdata(cwd), .ddr_be(cbe), .ddr_burst(cburst),
         .ddr_accept(ca), .ddr_rvalid(cv), .ddr_rdata(DDRAM_DOUT),
@@ -121,8 +121,21 @@ module tb_sys;
     pace_mpeg_status mpeg_status (.clk(clk_sys), .reset(soc_reset),
         .access(device_req && device_ready && !holding && !demux_selected), .we(iw), .addr(ia), .wdata(id),
         .hit(mpeg_hit), .rdata(mpeg_rdata), .irq(mpeg_irq),
-        .seq_evt(1'b0), .gop_evt(1'b0), .pic_evt(1'b0), .field_evt(1'b0), .end_evt(es_end),
+        .seq_evt(1'b0), .gop_evt(1'b0), .pic_evt(1'b0), .field_evt(field_tick), .end_evt(es_end),
         .seq_hsize(12'd0), .seq_vsize(12'd0), .seq_aspect(4'd0), .gop_time_code(23'd0), .pic_structure(2'd0));
+
+    // The PAL display produces a field interrupt every 20 ms, even while the
+    // picture is black. The application needs these ticks during start-up.
+    reg [19:0] field_count = 0;
+    reg field_tick = 0;
+    always @(posedge clk_sys) begin
+        field_tick <= 0;
+        if (soc_reset || holding) field_count <= 0;
+        else if (field_count == 20'd999999) begin
+            field_count <= 0;
+            field_tick <= !$test$plusargs("nofields");
+        end else field_count <= field_count + 1'b1;
+    end
 
     // ------------------------------------------- DDR arbiter (as the top level) and model
     integer lat = 6, latrand = 0, busypct = 0;   // +latrand=N: 0..N extra cycles per read; +busy=P: DDR busy P% of cycles
@@ -196,13 +209,14 @@ module tb_sys;
     reg [31:0] watchaddr = 0; longint watchafter = 0;
     // +natives: every o-code native call (dispatcher 8006E6A8: a0 module, a1 function), with
     // a2/a3 and ra, from a shadow register file kept from the retire stream (sim diagnostic).
-    reg [31:0] sreg [0:31]; reg natives = 0;
+    reg [31:0] sreg [0:31]; reg natives = 0, vmtrace = 0;
+    integer vm_abort_count = 0;
     always @(posedge clk2x) if (cpu.wb_valid) begin
         if (cpu.wb_rd[5] && cpu.wb_rd[4:0] != 0) sreg[cpu.wb_rd[4:0]] <= cpu.wb_data;
         if (natives && cpu.wb_pc[31:1] == 31'h4003_7354)
             $display("%0d us: NATIVE (%0d,0x%h) a2 %h a3 %h ra %h", cycles / 50, sreg[4], sreg[5][7:0], sreg[6], sreg[7], sreg[31]);
     end
-    always @(posedge clk2x) if (cpu.wb_valid && (watchval != 0 || watchaddr != 0)) begin
+    always @(posedge clk2x) if (cpu.wb_valid && (watchval != 0 || watchaddr != 0 || vmtrace)) begin
         wring[wptr] <= {cpu.wb_rd, cpu.wb_pc, cpu.wb_data}; wptr <= wptr + 1;
         if (watchval != 0 && cpu.wb_rd[5] && cpu.wb_data == watchval && watchn < watchmax) begin
             watchn = watchn + 1;
@@ -214,6 +228,24 @@ module tb_sys;
             $display("  %h r%0d %h  <- here", cpu.wb_pc, cpu.wb_rd[4:0], cpu.wb_data);
             $fflush;
         end
+    end
+    // Observe the interpreter's exit and the A/V native without changing guest
+    // state. The abort callback is registered by 8006E1E8 before entering o-code.
+    always @(posedge clk2x) if (vmtrace && cpu.wb_valid) begin
+        case (cpu.wb_pc & 32'hfffffffe)
+            32'h80054df2: $display("%0d us: AV_SELECTION result %h caller %h", cycles / 50, sreg[2], sreg[31]);
+            32'h800519aa: $display("%0d us: VM_EXIT status %h sp %h", cycles / 50, sreg[2], sreg[29]);
+            32'h8006e0fc, 32'h8006e318: begin
+                $display("%0d us: VM_NONLOCAL_EXIT entry %h args %h %h %h %h ra %h sp %h s0..3 %h %h %h %h", cycles / 50,
+                    cpu.wb_pc,
+                    sreg[4], sreg[5], sreg[6], sreg[7], sreg[31], sreg[29], sreg[16], sreg[17], sreg[18], sreg[19]);
+                if (vm_abort_count < 2)
+                    for (wi = 3897; wi <= 4096; wi = wi + 1)
+                        $display("  %h %h %h", wring[(wptr - 4096 + wi - 1) & 12'hfff][63:32],
+                            wring[(wptr - 4096 + wi - 1) & 12'hfff][69:64], wring[(wptr - 4096 + wi - 1) & 12'hfff][31:0]);
+                vm_abort_count = vm_abort_count + 1;
+            end
+        endcase
     end
     // +printf: the application's own diagnostic printf (0x8007D06C, MIPS16, 373 call sites; o32 varargs:
     // format in a0, arguments a1..a3, t0..t3 - re/reference_goretrotv digibox-emulation.md).
@@ -318,6 +350,21 @@ module tb_sys;
     end
     always @(posedge clk_sys) if (fp_reset_request && cold)
         $display("%0d ms: FRONT-PANEL RESET (command 0x12) at pc %h after %0d instructions", cycles / 50000, pc, n_ret);
+    // Complete front-panel frames avoid the loss and ambiguity of a flooded
+    // MMIO trace. Include both received bytes and the box's decoded commands.
+    reg fptrace = 0;
+    integer fp_byte;
+    always @(posedge clk_sys) if (fptrace && !soc_reset && !holding) begin
+        if (devices.device_tick && devices.clock_waiting && devices.clock_delay <= 1 &&
+            devices.tx_valid && !devices.tx_escape && devices.tx_shift == 0 && devices.tx_count != 0) begin
+            $write("%0d us: FP request", cycles / 50);
+            for (fp_byte = 0; fp_byte < devices.tx_count; fp_byte = fp_byte + 1)
+                $write(" %02h", devices.tx_body[fp_byte]);
+            $display(" at pc %h ra %h", pc, sreg[31]);
+        end
+        if (device_req && device_ready && !iw && ia == 32'hb2009010)
+            $display("%0d us: FP RX %02h at pc %h", cycles / 50, pir[7:0], pc);
+    end
     always @(posedge clk_sys) if (iq && irdy && logfd != 0)
         $fdisplay(logfd, "M %0d %h %0d %h", iw, ia, iz, iw ? id : ir);
     // +watchaddr=HEX (physical): every cached load/store of that 32-bit word is printed; the
@@ -414,6 +461,7 @@ module tb_sys;
         end
     end
     initial begin
+        vmtrace = $test$plusargs("vmtrace");
         if (!$value$plusargs("ram=%s", ram_file)) ram_file = "/tmp/ram_guide.hex";
         if (!$value$plusargs("state=%s", state_file)) state_file = "/tmp/state_guide.hex";
         if (!$value$plusargs("flash=%s", flash_file)) flash_file = "sim/fullflash_ddr.hex";
@@ -431,6 +479,7 @@ module tb_sys;
         printf_on = $test$plusargs("printf");
         dmatrace = $test$plusargs("dmatrace");
         exctrace = $test$plusargs("exctrace");
+        fptrace = $test$plusargs("fptrace");
         if ($value$plusargs("keys=%s", keystr)) begin
             for (i = 0; i + 1 < keystr.len() && nkeys < 16; i = i + 3) begin
                 keylist[nkeys] = keystr.substr(i, i + 1).atohex(); nkeys = nkeys + 1;

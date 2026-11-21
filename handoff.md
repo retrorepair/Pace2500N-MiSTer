@@ -1,8 +1,969 @@
-# Pace 2500N / Sky Digital MiSTer FPGA — Project Handoff
+# Pace 2500N / Sky Digital MiSTer FPGA â€” Project Handoff
 
 **Continuation:** Read `CURRENT_STATUS.md` first for later fixes, measured
 Quartus results and HDL regressions. The latest session is directly below; the original
 7 Nov snapshot further down is retained for history only (it predates everything that works).
+
+## 21 Nov 2026 - V080A fixed page 100 prepared for quiet build/watch/deploy/test
+
+- User requires build time be QUIET: finish code/tests/scripts/docs first, start
+  one frozen build with automatic deploy/test watcher, then wait without other
+  work. Tell user when starting. One agent, one fitter; no public release.
+- Implemented optional PACE_TELETEXT_TEST module/sys hook: RGB/VS/audio/drive
+  unchanged, F11 temporary30s HSync PDM experiment, immediate F11 cancel,
+  default normal CSync. Only native54MHz625-line RGB+CSync; mode/rate/missing-HS
+  guards. Peak voltage/attenuation unchanged. Physical TV decoding unproven.
+- Built-in labelled PAGE100 fixture (25x45bytes), SystemB6.9375Mbit/s via37/288
+  NCO; packet starts555clocks after HS on a VBI line, LSB-first55/55/27 prefix,
+  Hamming8/4 headers and odd-parity text. No transport/backend/network needed.
+- Simulation PASS55 serialized physical-output packets, both fields, PDM density,
+  start/cancel/scaled timeout, bad/missing HS and bit-identical inactive CSync.
+  Independent unmodified Ubuntu libzvbi0.2.42 decodes page100/text correctly.
+  UART all8 optional-field combinations PASS; full core optional-port lint PASS.
+- TELETEXT_TEST.md contains user controls and limits. Lab watcher/scripts in
+  re/deployment/coldboot_20261121; frozen source snapshot created at
+  %TEMP%/Pace2500N_cold_ttx100_20261121, seed6, Z CPU/PLL unchanged. VersionV080A.
+  Watcher must hash upload, check flash/IR/HALT/retirement/PAL lock/packet rate,
+  auto timeout/manual cancel, leave test OFF on success or restoreZ on failure.
+- V080A build/watcher STARTED; no further feature edits during compilation.
+  User subsequently requested pushing current source/handoff to GitHub while
+  waiting. Backup goes to existing cold-boot branch, including prior uncommitted
+  cold-boot/image-plane fixes and tests; ROMs, RAM/STATE, large traces and private
+  captures remain local. Four Huffman flash/legacy-RAM compatibility tests PASS.
+- Build/hardware outcomes pending below; do not call TV decoding proven from
+  FPGA screenshots. Z remains working fallback; startup speed still unfixed.
+
+## 21 Nov 2026 - VBI electrical feasibility follow-up
+
+- User asks electrical changes and whether to try as-is; hardware now identified
+  as MiSTer Pi analogueI/O with standardSCART wiring. ReferenceAV1.2+IO9.2
+  schematics downloaded to %TEMP%/pace_vbi_electrical, rendered/inspected(page1
+  is schematic;pages2/3 arePCB). HS/VS each100ohms in reference, RGB hasADV7125;
+  HS is not DAC output. Exact RetroRemake revision/cable resistor not verified.
+- SystemB data-one66% of black-to-white excursion (ITU BT653), giving nominal
+  sync/black/Teletext-one0/0.3/0.762V. EXAMPLE3.3V+100board+470cable into75ohms
+  gives high0.384V. Raw HS bits cannot supply all3 nominal levels.
+- Optional unchanged-wiring PWM/pulse-density test could generate intermediate
+  pedestal at lower overall amplitude (example0/.151/.384), relying on TV gain/
+  filtering. Preserve drive/peak levels; separate fixed-page100 fixture first,
+  normal CSync default/return. Not implemented/deployed, no compatibility claim.
+- Conventional fallback: weighted resistor summing HS+spareVS data (one extra
+  conductor/smalladapter), or DAC output stage. Values must include real cable
+  and board resistance, not just assume470ohms. EXPANSION_PLAN.md updated.
+- Stable working Z remains untouched/live; no new Quartus build started.
+
+## 21 Nov 2026 21:03 - Z native RAM image plane HARDWARE PASS, restoring backdrop/logo after TV
+
+- Z compiled20:55:41, then compressed/uploaded/hash-verified. RBF SHA256
+  c47bc254fb23fd319298b8ba1561a97d30cff5489c0cd9c40dd55f7bcdeb017d.
+  All48 non-HDMI timing checks evaluated;47 pass, CPU1x hold-0.210ns remains.
+  User explicitly authorised trying timing-missed builds; this is EXPERIMENTAL,
+  not a fully timing-clean release. BaselineY remains available with all48pass.
+- Standard160s test V079Z-205546 PASS: native Guide/background/logo, flashall0,
+  IR00/HALT00; actual capturedRAM all622080 samples within1 of independent YUV
+  reference without correction. Full evidence local+SD, core/RAM hashes saved.
+- Scripted175s repeat V079Z-nav-205841 PASS: Guide -> All Channels -> Info ->
+  playingBBC1 -> Guide. Return screenshot210106 has BOTH backdrop AND Sky Guide
+  cornerlogo. Pixel comparison to FIRST Guide205710 is IDENTICAL (ImageChops
+  difference bboxNone); white logo632pixels in ROIx30..135,y40..105. Do not be
+  misled by small preview thumbnails: logo is present and pixel-identical.
+  UART ends IR00/HALT00, WD05052601 (decoder no longer live). Thus image comes
+  from actual guest RAM-backed plane after TV, not a retained decoder frame.
+  ReturnRAM stillall622080 samples match original reference within1, proving
+  native cached buffer survives TV. Flashcheckall262144 qwords matchoriginal.
+- Test trap restoredY as designed. Third Z run exec87084 now leavesZlive: SD
+  .../Z-left-live/uart.txt and flashcheck.txt,120s monitor, F1 after65s, screenshot
+  coldZ-left-live. COMPLETED: flashall262144 qwords match, IR00/HALT00 at120s;
+  remote MiSTer process confirms V079Z loaded and left active for user.
+- Z fit37436/41910ALMs(89%),444/553M10K(80%),110/112DSP(98%). Expansion planning
+  must respect remaining2DSP: prefer transport/firmware applications or LUT logic,
+  not more arithmetic-heavy pipelines. No CPU or PLL changes in image-plane fix.
+- Slow startup is NOT fixed. Next work: measure genuine readiness phases vs test
+  sleeps, then expansion milestones per EXPANSION_PLAN.md (all5 requested areas
+  saved; preferred Teletext route RGB plus monochromeCVBS/VBI on syncconnection).
+  No public commit/push/release made. No RAM/STATE in any new cold MGL.
+
+## 21 Nov 2026 - Clarified preferred Teletext output
+
+- User already understands HS/VS/subcarrier and TV Teletext requirements. Their
+  preferred topology is RGB unchanged plus MONOCHROME COMPOSITE WITH VBI on
+  the existing CSync connection. Agreed this is the preferred output signal.
+- Implementation belongs in core/sys FPGA waveform and blanking logic, with
+  Main changes only for optional configuration. Existing HS pin is one-bit GPIO;
+  correct3-level sync/black/white needs a suitable output stage or DAC routing,
+  not only a Main patch. Record cable/IOboard electrical evaluation as pending.
+- EXPANSION_PLAN.md updated preferred route; no Z pin/waveform changes.
+
+## 21 Nov 2026 - User asks RGB/subcarrier VBI feasibility
+
+- Answered: retainRGB; full colourCVBS not inherently needed. Teletext must reach
+  TV composite/luma input(SCART20) at proper VBI timing/levels. Current local
+  sys_top.v: VGA_HS=composite sync when configured, VGA_VS=subcarrier reference;
+  subcarrier itself carries noTeletext. Custom spare-VS data plus proper external
+  level-setting combiner with HS is a candidate, not existing feature. Do NOT
+  directly tie drivenpins. Alternative separate monochromeCVBS/luma+VBI alongside
+  RGB. Need actual cable/IOboard/TV AV-Teletext support and waveform validation.
+- Added both RGB-compatible options to EXPANSION_PLAN.md with primary sources.
+  Z source remains frozen; no VBI/pin changes were slipped into running build.
+
+## 21 Nov 2026 - Expansion handoff reviewed; roadmap saved
+
+- User supplied EXPANSION_HANDOFF.MD and asked to add its new features to the
+  plan/handoff, considering easy additions before another build. Read the whole
+  attachment; clean actionable roadmap is EXPANSION_PLAN.md. Z had already
+  started, so its frozen source remains unchanged.
+- Planned features: Teletext/Ceefax, real downloaded OpenTV/Red Button apps,
+  virtual modem/local portal, virtual viewing-card/PIN support, local Box Office
+  preview/order workflow. Keep current cold-boot/cache-image fix and startup
+  investigation first; preserve previous stability/audio/install backlog.
+- Easiest next step: OFFLINE optional Teletext TS/PMT fixture on PC; VBIT2 already
+  supports TS output. Actual core/TV display still needs firmware PID routing and
+  PAL VBI support or proof of an internal decoder. F8/T Text, coloured keys,
+  F2 Box Office/F4 Interactive are ALREADY mapped: no extra FPGA mapping needed.
+- Do not implement attachment's speculative protocol constants as facts: standard
+  DVB0x6C/6E are not application tags (ETSI EN300468); actual Sky parser needed.
+  PIN storage/ATR/INS/retry/baud, adult mandatory-lock claims and PPP/HTTP transport
+  remain unverified for this ROM. Existing smartcard controller is framedB2009010;
+  modem polling UART B4080000..7 lacks RX/IRQ/carrier semantics. Current genre
+  field3bits: do not add invented Adult category8. Roadmap names local code,
+  prerequisites, acceptance criteria and primary ETSI/VBIT2 references.
+- No expansion feature newly claimed as working; no new build beyond Z. Suggested
+  small future FPGA addition is bounded UART tracing/bridge after actual protocol
+  capture. Keep firmware CPU execution entirely in FPGA. No public push/release.
+
+## 21 Nov 2026 20:08 - Real RAM-backed image plane implemented; Z building
+
+- Y-left-live completed120s flashall0/IR00/HALT00; remote MiSTer process confirms
+  V079Y loaded and left running. This is current baseline, no fitter parallelism.
+- Ghidra /tmp/cold_cached_image_registers.txt establishes REAL image registers:
+  80009F60 -> B0004004=Yeven,400C=Yodd,4008=UVeven,4010=UVodd;
+  4014=(sourceH-1)<<16|(sourceW-1),4034=H<<16|W;80009D1C ->4024 outputsize-1.
+  800099B0 writes4000 control07C1C001 when cached plane enabled (bit0=1),
+  07C1C000 when disabled. Native3/3F->manager26->provider8002156C invokes these.
+  Actual Y and X-return RAM at80109194 holds four pointers A05E9678/A061C078/
+  A064EA78/A0667F78,720x576,zero crop; matches these registers. 4034 MUST be
+  024002D0, NOT0 (caught during RE review and covered in final test setup).
+- New rtl/pace_video_image_plane.sv reads guest unsigned YUV420 planes via8-beat
+  shared-DDR bursts into dual-clock line buffers; native4000 enable/readback,
+  source/outputgeometry, tagged interlaced lines, BT.601 RGB. Uses ACTUAL cached
+  DMA7 image, no host bitmap or fixed guest pointer. Full uncropped720x576 only;
+  unsupported profile suppresses output. Pixel chroma index is y/2 so UV field
+  selection=y[1], row=y>>2; Y fieldselection=y[0], row=y>>1.
+- Drains accepted burst on disable/reconfigure/CPU warm reset. Separate bus_reset
+  clears owner epoch only with globalcore_reset, matching main arbiter ownership.
+- Integrated readback/ready priority above generic CSRs; isolates4000..4034 from
+  their former defaultCSR127 alias. New read owner9, per-owner burst count and
+  response demux; OSD retains higher priority. Image RGB/mask has the same3-stage
+  latency as OSD; substitutes only clear/background pixels. CPU/PLL unchanged.
+- sim/tb_video_image_plane.sv PASS:34560 pixel checks over both fields/fullwidth,
+  synthetic unsignedYUV semantic oracle, burst latency/backpressure, TV/disable
+  ->new imagegeneration with no stale tags/colour, warm-reset drain, unsupported
+  size rejection. /tmp/image_plane_tb.log. Full top lint PASS0errors, no new
+  image-plane/UNOPTFLAT warnings (/tmp/image_plane_top_lint.log). Diff checkPASS.
+- Z source snapshot %TEMP%/Pace2500N_cold_imageplane_20261121, label0.7.9Z(RAMimage),
+  seed6, runner exec47061 build-and-test-z.ps1. One fitter only. Retains allY
+  colour/retention/MV fixes and adds image plane. MGL still3 files, noRAM/STATE.
+  Auto runner reports all48 non-HDMI checks; per user's explicit instruction,
+  timing misses are recorded but experimental deployment/test permitted. No
+  release. Standard160s test collectsRAM/UART/screenshots then restoresV079Y.
+  cold-nav-test.sh supports Z,175s Guide/listings/info/TV/returnGuide test must
+  follow to validate return image; it now also restores Y. Do not claim solved
+  on hardware until that return screenshot is observed. No new public push.
+
+## 21 Nov 2026 19:56 - Y completed and hardware PASSES; leaving Y live
+
+- Y runner63203 completed during wait: compilation ended17:40:17,46m51s. ALL48
+  non-HDMI timing checks pass, minimum+0.246ns; CPU2x setup+0.993ns. No timing
+  exception required. RBF SHA25638709ba07a89b20f939a3d12684ae1208ece0dd4cdb7a158da858022b8bdaa64.
+- Auto hardware160s run V079Y-174021 produced native TV Guide/background/logo,
+  flashall0, CPU IR00/HALT00, DMA7 completed, image slot1=802AF170/state0. ALL
+  622080 captured samples in REAL hardware RAM match independent FFmpeg YUV420
+  within1, WITHOUT legacy correction. This validates actual Y pixel conversion.
+  Screenshot guide.png now fetched locally. Normal test restored V078 at exit.
+- User resumed19:55 after waiting. New Y-left-live run exec9900 loads Y, waits65s,
+  flashchecks and opens Guide, records120s UART, leaves Y active on success.
+  No new Quartus build running. No public commit/release.
+- Ghidra next cached-backdrop return bug: provider pointer literal800570F0 ->
+  80105E18 ->800FC520; +120=8002156D,+124=80021A0D,+128=80021709,
+  +E8=80021741,+EC=80021915. Manager cmd26(active native3/3F) invokes+120
+  with cached-image descriptor, stores handle at80105E74=1 in Y RAM. This is
+  promising REAL RAM-backed image-display path, rather than retaining TV banks.
+  Read-only decompile pending /tmp/cold_cached_image_display.txt.
+
+## 21 Nov 2026 17:08 - User authorises small timing misses; X works live, cached backdrop remains
+
+- USER STEERING: explicitly try failed builds despite small timing shortfall;
+  stop burning tokens while compiling. Experimental hardware tests authorised,
+  preserve measured timing failures in evidence. No public reliability claim.
+- Manually converted/deployed X despite CPU1x hold-0.060ns; SHA256
+  cd0be632035712a8edcf5bcd794db00cc97a3a75aeb76b54021786095b25b13b
+  matches remote. First160s test V079X-170016 passes flashall0, IR0/HALT0.
+  User interacted during test; Guide screenshot is PERSONAL PLANNER with correct
+  background/logo. Preserve this run but do not use it as an automated nav proof.
+- Second175s test V079X-nav-170316 is the scripted navigation repeat: real native
+  Guide -> ALL CHANNELS on FIRST attempt -> Info -> playing BBC1 -> Guide. No
+  CPU halt, flashall0, RAM dump16MiB. Local screenshots +RAM/UART on SD and PC.
+  Live-now-170437.png is actual cold-core TV Guide menu, shown to user. X loads
+  only EEPROM/FLASH/liveTS, NO RAM/STATE. User also reports it runs well but slow.
+- IMPORTANT REMAINING BUG, independently observed by user and captured in
+  170540-coldV079X-nav-return-guide.png: after TV, Guide backdrop/logo disappear
+  (plainlightblue/blackheader). Retained decoder image was replaced by TV. Need
+  restore/display the firmware's CACHED native YUV image on Guide return; Y's
+  signed/U-V conversion is prerequisite for valid cached image pixels, but Y
+  alone does NOT implement the RAM-to-display restore. Do not claim it fixed.
+- Script test restoredV078 at exit. A third X load now leaving X live for user:
+  exec from latest tools, UART/flash under SD .../X-left-live, F1 after65s. No
+  restore on successful completion. Y runner63203 compiling; fitter95136 at last
+  check. If Y timing misses slightly, user authorises manual experimental test.
+- Late video MMIO records after80s absent in nav UART (trace overwhelmed/frozen),
+  so don't infer register values on return from absence. Native3/3D8005B77C posts
+  manager command24;3/3E8005B7AC->25;3/3F8005B7E0->26 per existing decompile.
+  Future Ghidra target: cached still-display path and corresponding EMMA pointers.
+
+## 21 Nov 2026 16:56 - X timing rejected; Y compilation started, no X hardware run
+
+- X full compile completed16:53:21,46m03s total. Timing gate found CPU1x hold
+  -0.060ns; NO RBF conversion/deployment/test. Watcher72079 exited with error
+  as designed, MiSTer remains V078. Separate slow100C detailed report gives
+  -0.062ns on write_cdc_data_2x[50] -> mem_dataWrite[50], clocksCPU2x ->CPU1x,
+  clockskew0.732ns/data delay0.731ns. NOT the earlier W itagram path. X CPU
+  setup+0.650ns. Reports saved locally X-hold-paths.txt and X-timing.summary.
+  Do not add false paths or call this a functional CPU fault; route/timing fail.
+- Y queued runner63203 started compiling after X master91068 exited, new master
+  quartus_sh10392/map49944 at last check. Source frozen, seed6, pixel correction
+  plus retention/MV. Y-source-hashes.json saved. Only one fitter at a time.
+- Full independent original-flash MPEG->DMA7 test PASS: all622080 bytes within1
+  of FFmpeg unsigned YUV420, then retained image survives ES input stop. This
+  is semantic pixel coverage, not just comparing against internal signed RAM.
+- Native-decoder-field.png is SIMULATION, not a hardware Guide capture. It shows
+  correct blue backdrop/logo. W-captured-still-converted.png reconstructs the
+  actual old hardware RAM after applying the now-proved format corrections.
+- Prepared lab cold-nav-test.sh V079X|V079Y on SD:65s boot, Guide, All Channels,
+  info, TV, return Guide;175s UART +RAM evidence, stableV078 restoration on exit.
+  Not run yet (X failed timing). Y timing must pass before hardware validation.
+
+## 21 Nov 2026 16:39 - DMA7 signed-sample and U/V-order bug PROVED; Y queued
+
+- Reconstructed W hardware's native image at005E9678 from the four packed planes
+  in V079W-160547/ram.bin. Its unconverted unsigned YUV image has wrong colours.
+  This is a REAL format bug: prior byte-for-byte decoder-RAM checks mirrored the
+  signed internal storage instead of checking the guest image semantics.
+- Decoder motcomp_recon.v stores signed -128..127 samples; resample_bilinear.v
+  stage6 adds128 for display. resample_addrgen.v STATE_WR_U uses COMP_CR at10000,
+  STATE_WR_V uses COMP_CB at14000: the bank names are reversed relative to U/V.
+  DMA7 must XOR every component byte with80 and interleave bank10000 U first,
+  bank14000 V second. Current rtl/pace_video_capture_dma.sv now does this.
+- Independent FFmpeg decode of ORIGINAL16524-byte flash still compared with the
+  transformed W hardware capture: ALL622080 samples differ by at most1, mean
+  absolute errors Y0.0045/U0.0081/V0.0031. This validates field/raster/bank layout
+  and identifies both corrections without relying on a rendered guess.
+  New tools/compare_captured_still.py accepts complete RAM, --base0x5e9678,
+  --reference raw720x576yuv420p and optional --legacy-signed-swapped for OLD W/X.
+  Local private reference-still.yuv/hex, W-captured-still*.png/yuv under evidence.
+- Unit memory model now stores SIGNED semantic Y/U/V pixels at decoder's actual
+  bank offsets. Fails oldRTL first byte80 vs00 (/tmp/capture_signed_before.log),
+  corrected RTL PASS all6 packed/gap planes (/tmp/capture_signed_after.log).
+  Integration sim has optional +YUV_REF=hex, compares every written sample with
+  independent unsigned reference within1. Runner CAPTURE_REFERENCE enables it.
+  PASS all622080 samples within1 plus picture retention at199ms simulated,
+  /tmp/capture_signed_integration.log,120s wall. Exec46963 completed.
+- X remains frozen in %TEMP%/Pace2500N_cold_picturehold_20261121, compile82147,
+  master91068/fit90340, deploy/test watcher72079. X has retention+MV diagnostics
+  but OLD signed/swapped capture bytes. It is still useful for decoder-stall RE.
+- Y isolated snapshot %TEMP%/Pace2500N_cold_capture_pixels_20261121 copies X and
+  only changes capture byte conversion/U-V selection + label0.7.9Y(native pixels).
+  Seed6. build-and-test-y.ps1 exec63203 WAITS for X/quartus_fit then compiles,
+  requires all48 non-HDMI timing checks pass, converts/uploads/hash-checks RBF,
+  and runs SD-backed160s cold-test.sh V079Y (now accepts Y). ONE fitter only.
+- Current normal core verified by remote MiSTer process cmdline: V078. Screenshot
+  omits HPS OSD but shows normal channel video; don't infer version from pixels.
+  No CPU pipeline/PC server changes this continuation. No public commit/release.
+
+## 21 Nov 2026 16:12 - Clean MiSTer reboot gives Guide again; X picture retention + diagnostics
+
+- Fourth W run AFTER A CLEAN MiSTer reboot successfully produced the native Guide
+  again, identical first menu, no CPU/model halt. Evidence V079W-160547/guide.png,
+  ram.bin and UART saved locally and on SD. Flash check all0 differences. Third
+  HOT reload V079W-155114 failed before DMA7 (image state4, DMA7 descriptor still0).
+  First/third executable text bytes9F4..FBE0C BOTH match the original extracted
+  code exactly (zero differences). This points to decoder/reset/initial-source
+  state across hot reloads, not code corruption. Exact cause still unproved.
+- Before reboot backed helper scripts up to SD linux/pace/re-evidence/helpers/;
+  restored them to /tmp afterwards. Relay auto-started and ring recreated; no PC
+  server changes. Normal EEPROM remains intact. W still restored V078 after tests.
+- Both real-decoder restart CONTROL tests PASS on OLD RTL: reset during DDR read,
+  normal6-cycle and extended1024-cycle latency, each decodes a fresh header/picture
+  after reset (61ms sim). These tests do NOT reproduce hardware's hot-reload failure.
+  No memory shim/reset-controller changes made. Do not call them before/after fixes.
+- Separate missing-background bug PROVED by failing regression: stopping ES input
+  after a decoded picture discarded the frame (live0/valid0). Added explicit
+  keep_picture to preserve the decoder/display after a native DMA7 snapshot.
+  New test sim/tb_mpeg_keep_picture.sv FAILS before (old wrapper fixture accepts
+  but ignores new input), PASSES after: held image survives stop+FIFO flush, then
+  releasing it and resetting decodes a fresh image. Logs /tmp/mpeg_keep_{before,after}.log.
+- Main Transport latches guide_picture_held only on real DMA7 completion in ES mode.
+  It survives closing ES; release on new memory-picture input, real non-null TV
+  video route, or reset. Source handover back to live gets the normal flush. The
+  renderer uses the actual retained decoder picture under the OSD background mask;
+  no host-injected bitmap is enabled for cold boot. CPU/core pipeline unchanged.
+- X also adds read-only MV=xxxxxxxx telemetry for the decoder memory interface:
+  bits31..24={DDR_busy,DDR_read,DDR_write,command_read,command_valid,response_write,
+  response_almost_full,decoder_sync_reset_n}; bit23=enable2,22=busy,21..20=0,
+  bits19..16=mem_shim state,15..8=accepted_write_count low8,7..0=read_count low8.
+  Two-stage sample into clk_sys, diagnostic only. This should distinguish a
+  blocked HPS port, a stranded shim command, and a decoder held in reset.
+- Combined FP+MV UART regression PASS; full emu top lint PASS. New native capture
+  integration test also latches keep_picture from actual DMA7 done, verifies all
+  planes then stops ES and checks the picture persists: PASS at199ms simulated,
+  /tmp/capture_hold_integration.log (input generated from flash only).
+- Isolated X snapshot %TEMP%/Pace2500N_cold_picturehold_20261121, label0.7.9X
+  (native still), fitter seed6. Compile exec82147, parent quartus_sh91068, map89240
+  at last check. No concurrent fitter. Timing-gated X deployment watcher prepared
+  as test-x-after-build.ps1, waits91068 and saves160s SD-backed hardware evidence.
+  No public commit/push/release; still validate repeated cold boots/navigation.
+
+
+- Further continuation: native capture routine80023748 decompiled read-only again
+  in /tmp/cold_native_capture_lifecycle.txt, confirming the plane loop. New
+  tools/decode_video_state.py decodes X MV snapshots and sampled-state counts.
+  Stronger FIRST_BEAT restart control holds an old8-beat read at5999 cycles
+  remaining, resets decoder, returns to normal6-cycle latency for NEW requests.
+  PASS62ms /32s wall, /tmp/mpeg_epoch.log. Still does not reproduce hardware
+  stall; no shim/reset RTL change justified. Initial all-reads-long variant was
+  stopped before completion to isolate latency to the OLD accepted request.
+  MiSTer process command line confirms restoredV078 (screenshot omits HPS OSD);
+  current channel video is playing. X compile82147/watch72079 still running.
+
+## 21 Nov 2026 15:45 - FIRST NATIVE GUIDE MENU FROM FLASH; repeat decoder failure remains
+
+- Seed6 W finished15:22:44, ALL48 non-HDMI timing checks pass, minimum+0.171ns,
+  CPU setup+0.689ns. Compressed/deployed as V079W, SHA256
+  7e52f5538b2a7a3abaf1162cf341c6b552f356d461ee11a34b70337fadcb0f29.
+  Test watcher exec82530 completed successfully. No public release/push.
+- Genuine menu appeared on MiSTer from ORIGINAL FLASH with NO RAM/STATE download.
+  MGL has only EEPROM(S1), FLASH_U202(F0), live TS(S0). Evidence in ignored
+  re/deployment/coldboot_20261121/V079W-152249/: guide.png, full ram.bin, UART,
+  flash/core/RAM hashes. Flash all262144 qwords match. CPU IR00/HALT00 through160s.
+  Image resource state is no longer8; DMA7 descriptor ends on a completed chroma
+  request (00667F78..00681477). No retained106/110 assertion found in that RAM.
+  Shown Guide screenshot to user. This is a real milestone, NOT a reliable final build.
+- FIRST menu has plain cyan backdrop and lacks the Sky Guide corner logo. WD ends
+  05050101: decoder saw real headers/ends/pictures, but es_dma and dec_live are now0.
+  Suspect coupling of decoder stop/soft-flush to display, which discards the last
+  decoded still after native image capture. Need model proper picture retention;
+  do not re-enable host-injected backdrop for cold boot.
+- SECOND cold load/navigation test W-nav-153617 did NOT produce a Guide: screenshots
+  guide/channels/info are blank/striped, while CPU/controller remain healthy.
+  WD mostly000000D0, RD00000400 (ES memory mode active, input-ready0, decoder busy1,
+  NO sequence-header/end/picture events). Thus a decoder startup/reset/handover
+  failure, not evidence of a new CPU halt. Second test restored V078 at exit.
+  Its105s UART/screenshots saved locally under W-nav-153617 and on SD.
+- Investigating reset wiring BEFORE changes: mpeg2video soft_flush resets decoder
+  request/tag FIFOs and all three decoder domains, but wrapper's mem_shim_burst
+  currently receives only reset_n (POR), not the decoder memory-domain reset.
+  Stale/aborted memory transactions may survive handover. DO NOT simply reset
+  the shim while it presents a stalled Avalon command; preserve bus protocol.
+  Also do NOT assume the one-time raster walk is wrong: the register file's
+  modeline registers explicitly survive soft reset (hard_rst vs rst distinction).
+- Added sim/tb_mpeg_restart.sv and controllable source/enable/flush regs in the
+  existing MPEG bench (defaults unchanged). First A/B reproduction runs reset
+  during an accepted DDR read, then attempts the original padded still from scratch.
+  Exec id from latest tool, /tmp/mpeg_restart_{build,before}.log, binary
+  /tmp/vl_mpeg_restart/Vtb_mpeg_restart. No decoder/reset RTL changed yet.
+- Real-decoder input now reproducible directly from flash with prepare_capture_still.py;
+  decoded byte equality with old padded test confirmed. Copy engine hardware passed
+  the first native image callback/root-menu path. Keep one agent and one fitter only.
+
+## 21 Nov 2026 15:08 - Success path attaches Guide root; regression needs flash only
+
+- Read-only Ghidra /tmp/cold_backdrop_success_native.txt resolves the first native
+  after the status/request-id assertions (o-code9FC72E7B): module1/E3 ->80085128,
+  named set_window_root. DATA cells+2E114/+2E118 contain root80430A0C and window1
+  in saved P RAM. This is a concrete link from a successful image completion to
+  root-window attachment; do not patch the assertions or root-ready flag.
+- Existing P UART INDEPENDENTLY confirms the requested profile, not just inferred
+  disassembly: at145.16s W B00090B0=00108B78,20DC=000002D0,20E0=00000240,
+  20D8=00008001. Its preserved descriptor matches the tested first Y-field fixture.
+- Added tools/inspect_cold_boot_ram.py, which rejects partial dumps and reports the
+  DMA7 descriptor, image-resource entries and POSSIBLE RETAINED assert arguments.
+  On P it reproduces destination005E9678/end0061C077, state8 and source106/line110.
+  Raw external RAM can lag dirty CPU caches, so these are not blanket corruption
+  checks or proof that a retained assertion is currently executing.
+- Added tools/prepare_capture_still.py and sim/test_video_capture_path.sh. The
+  regression now reproduces its input using ONLY original2MiB FLASH_U202.bin:
+  native720x576 image at flash0B4F48,16524 bytes, plus six524-byte drain blocks
+  using the original000001B7 literal at223FC. Generated19668 bytes compare exactly
+  to the already-passing decoder input. Shell syntax check PASS; original firmware
+  cannot be overwritten by accidentally choosing it as output. No derived image
+  or proprietary ROM bytes were added to tracked files.
+- Ghidra /tmp/cold_capture_chroma_order.txt also confirms the native fill routine
+  stores interleaved colour bytes into its chroma buffer, but does not by itself
+  settle Cb/Cr versus Cr/Cb semantic naming. Preserve this uncertainty until native
+  rendered output validates it. No speculative pixel-order change made.
+- Checked the four-plane descriptor lifecycle: 80005962..76 sets a2=0x28 and
+  calls literal80005C14=80000D34 to zero the descriptor at80108A60+channel*40
+  before EACH setup. This is MIPS32 memset, verified with LinearM16 ISA_MODE=0
+  (/tmp/cold_dma_descriptor_clear32.txt). The generic MIPS16 decompile of that
+  helper is wrong-mode and must be discarded. No descriptor writeback/auto-clear
+  needs to be invented in DMA7 to make subsequent planes work.
+- Seed6 W fitter79300 (parent83344) continues; watcher exec82530 is waiting to
+  timing-gate deployment and the160s SD-backed test. No second fitter or agents.
+
+## 21 Nov 2026 14:54 - W has CPU tag-RAM hold miss; seed6 reroute running
+
+- V full compile finished11:40, W finished12:20. BOTH fail one non-HDMI hold
+  corner, so neither was exported/deployed: V CPU hold about-0.08ns, W-0.027ns
+  (W setup CPU+0.428). V automatic watcher correctly stopped at its timing gate.
+  All other non-HDMI checks positive. W is89% ALMs,444/553 RAM blocks,103/112 DSPs.
+- Read-only post-fit STA pinpoints W's hold path: CPU instruction-cache
+  tag_address_a[1] -> itagram2 MLAB registered address, Slow1100mV100C corner,
+  -0.027ns, clock skew0.401ns. Same path FAST-40C is+0.011ns. Fitter already has
+  All Paths hold repair and multi-corner optimisation enabled. No false paths,
+  uncertainty changes, CPU pipeline edits or relaxed constraints added.
+- Started SAME W RTL with fitter seed6 in isolated directory:
+  %TEMP%/Pace2500N_cold_capture_seed6_20261121, parent quartus_sh83344,
+  fitter79300, unified exec26647. Copied completed W synthesis database; only QSF
+  SEED5->6 differs. Fitter active. This preserves CPU/serial behaviour and aims to
+  fix the tiny placement/routing hold miss; it does not prove hardware boot yet.
+- Timing-gated watcher test-w6-after-build.ps1 waits83344, requires all48
+  non-HDMI checks positive, converts/uploads W compressed RBF, verifies hash,
+  runs SD-backed cold-test.sh160s and downloads evidence. No other hardware test
+  active; MiSTer remains on V078. Original V/W reports and sources preserved.
+- Full slow V simulation COMPLETED34s /588887678 instructions,27878 interrupts,
+  CPU errors00, model halt00, no unmapped accesses. Warm reset and application
+  startup succeeded. Later VM exit6 repeats, expected in this bench with no MPEG
+  header parser or DMA7. Do not mistake this older bench for the new capture path.
+  Saved re/deployment/coldboot_20261121/cold_deviceclock_run.log (ignored).
+- Strengthened REAL-decoder capture test: metadata must equal the decoder's actual
+  display-bank register throughout each copy, and copied Y must have substantial
+  variation, preventing a false pass on empty/wrong-bank zeros. PASS all622080 bytes,
+  Y range0..255, finish179ms /83.5s wall. New flags guard restricts descriptor high
+  control bits to001C0000, verified directly in original literal80005C68; wrong
+  direction flags are rejected D7. Unit packed/strided/stop/invalid cases PASS.
+- sim/build_mpeg.sh now exits on compiler failure so it cannot run an old binary
+  after a failed rebuild. Added tools/decode_fp_state.py for W's FP state snapshots.
+  Example --word71234567 decodes correctly. UART and DMA7 IRQ regressions PASS.
+- Ghidra /tmp/cold_controller_event_masks.txt confirms the serial worker receives
+  TX-queue events only when its mask includes bit2; helper0689C enables that bit
+  while idle,068C0 removes it after loading an outgoing message. No speculative
+  FIFO/handshake changes on this observation; wait for physical W FP snapshots.
+
+## 21 Nov 2026 11:10 - Controller snapshots; SD evidence storage; firmware drain padding confirmed
+
+- U second hardware run (U2) reached loader command44, then stalled without CPU/model
+  errors. Unlike the malformed T capture, its status52 reply is EXACTLY03 03 52 02 00
+  with no duplicate status byte. No later controller traffic after command44's last
+  transmit byte. Saved U2-uart.txt; this does not prove the application/I2C fix yet.
+- Ghidra read-only /tmp/cold_controller_driver_task.txt decompiles loader9FC05424:
+  it keeps clock GPIO high when transmit/receive are both idle and waits for a
+  controller byte; otherwise it lowers the clock and waits for transfer IRQ. ISR
+  9FC053E8 reads RX into its one-byte software mailbox, clears ready, then activates
+  deferred handling. No new handshake behaviour changed on this evidence alone.
+- W now includes low-bandwidth FP=xxxxxxxx telemetry, a read-only clk_sys snapshot:
+  bits31..24={clock_waiting,tx_full,tx_valid,wire_active,ack_pending,wire_escape,
+  tx_escape,RX_ready}, bits23..16=serial_rx,15..12=wire_pos,11..8=wire_len,
+  7..3=tx_count,2=GPIO0,1=CSI enable(bit7),0=EMMA serial IRQ mask(bit13).
+  This avoids guessing a stalled FSM from dropped UART event lines. EXTRA_FP defaults
+  off for older users; the main Transport top enables it. Both UART variants PASS
+  starvation/framing regression (six PACE snapshots with continuous PROF output).
+- Re-linted the connected emu top after telemetry changes: PASS. DMA7 IRQ regression
+  PASS. Optimised expected-span arithmetic to constants (no 32-bit multiplication).
+  Pixel-copy test also now stops an in-flight PIXEL read, ensuring no write or done.
+  All six packed/strided plane cases still PASS. W snapshot updated while V parent
+  76088 is still running; no source mutation during compilation. W exec98138 waits V.
+- The repeated RAM dumps filled MiSTer's246MiB /tmp filesystem during U2. U2 RAM is
+  PARTIAL13537280 bytes; do not treat it as a valid16MiB capture. The test exit trap
+  restored V078. Moved this session's cold079* RAM/UART/test-log artifacts to SD at
+  /media/fat/linux/pace/re-evidence/coldboot_20261121, verified SHA256 before unlinking
+  each temporary original. Manifest there; /tmp now29MiB used,218MiB free. Did not
+  remove the live stream ring, relay log, normal EEPROM or user data.
+- Future lab script re/deployment/coldboot_20261121/cold-test.sh writes evidence to
+  SD, validates full dump length and hashes, and restores V078 on exit. Uploaded to
+  /media/fat/linux/pace/cold-test.sh. V/W MGLs still contain only EEPROM/flash/live TS.
+- Existing padded decoder input is consistent with original firmware code, not a
+  ROM edit: 8000FA04 sends524-byte drain blocks through8000F890 and writes B7 at+20B;
+  its literal at9FC223FC is000001B7. The raw MPEG file alone does not include those
+  driver-generated trailing blocks. Integration bench still uses six padded blocks
+  after the original16524 bytes; exact hardware traffic should remain the authority.
+- Timing-gated V deployment/test watcher prepared (test-v-after-build.ps1): waits
+  V compile, requires all48 non-HDMI checks pass, converts/compresses, verifies upload
+  hash, tests160s and fetches evidence. W waits V separately and will fit concurrently
+  with this hardware test (one fitter only). No public release/push.
+
+## 21 Nov 2026 10:57 - DMA7 implemented and tested; W queued, V fitting
+
+- Added rtl/pace_video_capture_dma.sv, connected to the real decoder's completed
+  display-bank metadata and the guest DDR arbiter (new owner8; owner tags now 4 bits).
+  B00090B0 selects the descriptor, B0009010 bit7 starts/stops, completion sets
+  B0009120 bit7 and the shared DMA IRQ; B0009130 acknowledges it. These addresses
+  and descriptor layout were rechecked in Ghidra /tmp/cold_dma7_setup_confirm.txt.
+- Corrected the earlier design note: decoder storage is RASTER, not tiled.
+  mem_addr.v stages7-9 use Y stride2*mb_width, chroma stride mb_width. Four banks
+  each occupy 0x18000 qwords: Y+0, Cr+10000, Cb+14000 at HPS38000000. Pixels are
+  MSB-first, whereas guest DDR byte lanes increase from lane0, so the copy reverses
+  Y bytes and interleaves Cb/Cr. Cb/Cr order still needs confirmation against the
+  original firmware's rendered output; no claim of a complete Guide yet.
+- Supported profile: uncropped PAL720x576, controls8001/8801/8401/8C01, 720-byte
+  destination rows. Supports packed planes and chroma rows with a 720-byte gap
+  (driver modes4/5 subsequently duplicate alternate rows in software). Other
+  geometry/control/descriptor shapes report D7 without fake completion. Real
+  pixel writes must all be accepted before done. The decoder pauses new display
+  pickups during capture, after acquiring its first valid bank; the DMA waits two
+  field boundaries. mem_shim_burst is write-through, not a dirty writeback cache.
+- Tests PASS: sim/tb_video_capture_dma.sv verifies every byte in both Y fields and
+  both interleaved chroma fields, plus strided chroma, bank2, delayed reads,
+  backpressure, hold during read response, stop/restart and invalid geometry.
+  Found/fixed a 9-bit source-row wrap (PAL needs10 bits) and lost read response
+  during hold while writing this new module. Test pattern distinguishes those rows.
+- sim/tb_video_capture_irq.sv PASS: descriptor, no early IRQ, true completion IRQ,
+  stop without completion, other-DMA coexistence and simultaneous stale START RMW.
+  Existing front-panel and I2C regressions still PASS. Full emu top-level lint PASS.
+- sim/tb_video_capture_path.sv PASS with the REAL MPEG decoder: all622080 copied
+  bytes match its decoded DDR pixels; stable display bank, four actual completions,
+  finish179ms simulated /94s wall time. Uses existing /tmp/guide_still_fw.hex:
+  original16524-byte still plus drain padding/end codes (19668 bytes total). The
+  unpadded single still does not drain this decoder; that run had zero pickups.
+  Do not describe this bench as proof of the raw hardware feed or a Guide boot.
+  Logs /tmp/capture_mpeg_{build,run}.log; top lint /tmp/capture_top_lint.log.
+- U full build finished10:40; all48 non-HDMI timing checks positive (min hold+0.150,
+  CPU setup+1.171; only HDMI negative). Exported/deployed compressed V079U under a
+  separate filename. First160s hardware test stalled in the loader's controller
+  exchange after two transmit bytes; IR/errors00, HALT00. Thus no proof yet of its
+  I2C fix on hardware. U UART/RAM/diagnostic screenshot in ignored coldboot_20261121.
+  Flash qword check all0 differences. Test restored V078. Normal EEPROM untouched.
+- V fitter PID79992 / parent76088 running; includes device_tick clock-domain fix
+  missing from U, plus status52 trace. Full slow V sim exec86771 passed warm reset
+  and entered application at11.034s with zero CPU errors; still running (~14s now).
+- W isolated snapshot %TEMP%/Pace2500N_cold_capture_20261121 queued behind V's
+  parent76088, so one fitter only. Adds the tested DMA7 path and first-command
+  GPIO/ready trace window (U stalled before its narrower status52 trace window).
+  New core error D7 also freezes CPU trace. Main OSD label remains0.7.9; isolated W
+  is labelled0.7.9W (picture capture). No ROM/RAM writes, CPU pipeline changes,
+  snapshot injections, public push or release performed in this continuation.
+
+## 21 Nov 2026 10:29 - Backdrop snapshot uses unimplemented DMA7 (next UI blocker)
+
+- Followed the source-id106/line110 assertion further. Actual event sender 80057A4C
+  constructs {u16 class=0040, u16 status=param3, u32 command=param4, u32 handle=param2};
+  the P event's status1 is therefore an A/V completion status, not a window id.
+- P's still-image resource table at 80161FCC has entry1 {00000000, FFFFFFFF, 00000008}.
+  80058F14's command23 arm sets this state8 on invalid image rectangle or failure of
+  the video driver's image-fetch method (+164), then posts a failure completion.
+  The actual dimensions at 80106390/92 are 720/576, so the old P capture is NOT simply
+  missing decoded width/height. Its request rectangle retained in 80101620 is 0,0,720,576.
+- Driver vtable at 800FC520: +E0=80021079 (width), +E4=80021081 (height),
+  +130=80021C59 (rectangle adjust), +164=80023749 (copy decoded image into RAM).
+  80023748 iterates field/colour planes and calls 8000A4AC. That function sets up a
+  real DMA channel SEVEN transfer via 80005900(7,0,destination,span), writes the video
+  copy control at B00020D8 and geometry B00020DC/E0, waits on semaphore801062F8 for
+  11 ticks, stops channel7, and checks its completion/error through 80005DFC.
+  This core currently implements DMA5 and DMA12, NOT DMA7, so a real image copy cannot
+  complete. This is a concrete missing hardware path to implement, not permission
+  to acknowledge without copying pixels or to bypass the UI assertion.
+- Important correction: B0006040 is only an additional busy poll in 80023748. The
+  actual copy datapath registers are B00020C0 / 20D8 / 20DC / 20E0, already in the A/V
+  UART trace. Added B0006xxx WRITES to the queued V trace too (no busy-read flooding).
+- Ghidra /tmp/cold_backdrop_image_driver.txt and /tmp/cold_video_copy_engine.txt contain
+  the original width/height, rectangle adjust and copy setup code; existing
+  re/av_f4_decompile.txt covers 80058F14's completion/status logic. New report
+  /tmp/cold_backdrop_completion_event.txt proves the event layout. All are read-only.
+- Design investigation only; DMA7 is not implemented yet. The MPEG decoder owns its
+  framebuffer separately at HPS 38000000 (mem_shim_burst), while native DMA7 writes
+  firmware-allocated planar image buffers in guest RAM. A correct implementation must
+  transfer actual decoded picture data and then signal completion. Options being read:
+  decoder's exposed-but-unconnected Y/U/V raster pins, or direct framebuffer reads using
+  the documented tiled layout in rtl/mpeg2/mem_codes.v and mem_addr.v. Reading the
+  displayed frame requires a stable frame-bank selection and write-cache coherency;
+  do not assume a hardcoded frame id or write dummy pixels. No datapath has been edited.
+- V waits behind U (exec65338); its isolated Transport source now includes B0006xxx write
+  tracing, matching main plus version label. U fitter still optimising, no second fitter.
+
+## 21 Nov 2026 10:17 - Older P Guide failure resolves to original UI assertion
+
+- Read-only RE while builds run: OpenTV native (0,43) at 8007DF94 is a printf wrapper,
+  confirmed by its formatter 8007D840. The call immediately before status-6 exit is
+  the EPG's assert helper at bytecode 9FC4A420..438. DATA+E49C contains
+  "Assert : F:%s, L:%d.". Native (0,11) then requests VM exit 6; it is not an unexplained
+  CPU exception. This does not establish that the current pre-Guide T halt is that exit.
+- Independent HARDWARE P saved RAM (not merely a simulation) retains the assert args:
+  EPG DATA copy starts 0045CB5C (RSRC, count 764), format 8046AFF8, source-id pointer
+  804753C0 -> "106", line 0x6E (=110), saved bytecode return 9FC72E55. These values are
+  in the VM stack at 00494D30..60. The root object 80430A0C already has +14 = 1.
+  Do not revive the old root-ready RAM patch; the native cold path already sets it.
+- Bytecode at 9FC72E3E loads an unsigned short from event+2 and asserts at source-id
+  106 line 110 if nonzero. The actual saved event at 00494DC0 is:
+  00400001 00000023 00000001 80494E1C. Thus event+2 status is 1, event id 23, request id 1.
+  The next assertion (line111) compares root+14 request id against event+8; both are 1.
+  Operand decoding is checked against actual interpreter helpers 80068D98 / 80068DA4
+  and handler 8006C116: high nibble 1 -> short offset2, low nibble C -> FP[-16].
+- Native (3,3C) = 8005B6E4 constructs A/V command 23 (the memory-fed backdrop request),
+  handled at 8005803C. So the older blank-Guide capture contains a nonzero backdrop
+  completion status. This narrows the UI issue; it does NOT yet identify whether the
+  A/V allocator, memory feed, decoder flush/sequence-end, DMA8, or another stage failed.
+  Do not fake completion or change the assertion/default-return literal. Once startup
+  is reliable, correlate UART WD raw/gated end/sequence counts and the actual driver
+  return path. The bench lacks decoder header events and can fail differently.
+- Read-only Ghidra reports in /tmp/cold_ocode_{main_exit,callback,member_loads}.txt,
+  /tmp/cold_member_nibbles.txt, /tmp/cold_backdrop_native.txt, /tmp/cold_backdrop_gate.txt.
+  Existing re/epg_still_provider_v071.txt and re/av_manager_decompile.txt cover command23.
+  Tentative static bytecode listings are private re/deployment/coldboot_20261121/
+  ocode_assert_{candidates,context}.txt. The exact assert site is independently confirmed
+  by saved args and bytecode call/return addresses, not just a speculative linear sweep.
+- U fitter PID74612 (parent64236) continues; V waits in exec65338. Full V simulation
+  exec86771 is running (~2 simulated seconds at 10:16), do not restart needlessly.
+  MiSTer has been restored to stable V078 after the T blank-EEPROM control.
+
+## 21 Nov 2026 10:07 - Remove unsynchronised CPU counter from peripheral timing
+
+- RAM from T2 contains the malformed Guide key body 05 00 02 02 00 0C C0 at 002AB0B1.
+  Thus duplicated data reaches the firmware's receive buffer, not just a UART text
+  reconstruction. Handshake/ready tracing in U will distinguish the remaining cause.
+- The blank-EEPROM T control also reached the application and the SAME E7 I2C halt;
+  normal save contents are not the cause of that failure. It completed and restored
+  V078. Evidence T-blank-{uart.txt,ram.bin} saved under ignored re/deployment/coldboot_20261121.
+- Found a genuine functional clock-domain crossing: pace_guide_peripherals used
+  retired!=last_retired to advance CSI, I2C and serial0 delays. retired comes directly
+  from clk2x, while these devices run on clk_sys; Pace2500N.sdc declares those groups
+  asynchronous. These are functional transfer completions, not display-only counters.
+  Timing passes therefore did not validate this crossing, and the old design cannot
+  complete a transfer at all when the CPU stops retiring instructions.
+- NEW main-source change AFTER isolated U: device_tick = WALL_TIMER ? 1 : tick.
+  All serial/I2C completion delays and the completion-cycle GPIO guard use device_tick.
+  Default WALL_TIMER=1 now runs these delays in clk_sys time, independently of CPU;
+  the legacy instruction-timed profile remains explicit WALL_TIMER=0. The CPU, CP0 Count,
+  EMMA timer and byte-receipt gate are unchanged. In hardware the unused retired compare
+  should optimise out of functional device control. This removes the unsafe crossing;
+  it is not yet proof that it explains the captured duplicate bytes.
+- New PAUSE_RETIRE variant of sim/tb_front_panel_receipt.sv FAILS before with "Controller
+  did not deliver a byte"; PASSES after, including late/completion-cycle GPIO tests and
+  all status/identity/heartbeat checks. STALL_RETIRE variant also passes. The I2C abort
+  regression now freezes retirement during its normal EEPROM read; it passes with data
+  A5 and the correct pointer advance. Unsupported A3 still reports E7.
+- V source snapshot prepared at %TEMP%/Pace2500N_cold_deviceclock_20261121, version
+  0.7.9V (device clocks). Exec 65338 waits for current U quartus_sh PID 64236 to end,
+  then compiles V; ONLY ONE fitter at any time. V has all U fixes and handshake tracing,
+  plus the clock-based transfer timing. U still uses the old instruction counter.
+- Full V slow-memory simulation building/running, exec 86771, binary
+  /tmp/vl_cold_deviceclock/Vtb_sys, work /tmp/vl_cold_deviceclock_work, logs
+  /tmp/cold_deviceclock_{build,run}.log. +cold +lat=20 +busy=30 +cycles=1700000000
+  +status=50000000 +vmtrace +fptrace +printf +natives +exctrace +ts=/tmp/home_tp40.ts.
+  tb_sys fptrace now observes devices.device_tick, matching the real completion event.
+- U normal test launcher Pace2500N_V079U_Live.mgl and ignored remote test source
+  re/deployment/coldboot_20261121/cold079u-test.sh are prepared locally, not yet deployed.
+  First Guide is at 65 s, UART capture 160 s, automatic V078 restore. Check non-HDMI timing
+  and export U when it finishes; use the targeted trace if startup still fails.
+
+## 21 Nov 2026 09:55 - U restarted with targeted controller handshake trace
+
+- Second T run did NOT reach warm reset: loader idles at 9FC0DE4C/64, HALT=0. UART
+  reconstructs status reply 03 03 52 02 02 (five bytes, duplicated 02), followed by the
+  terminator; the later Guide key frame also has a duplicated opcode 02. Ghidra loader
+  receive validator 9FC05738 requires total length == frame[0]+1, so the first frame
+  is rejected before its callback. This is an observed malformed RECEIVE sequence;
+  it does not yet prove which clock/IRQ/CPU-read path duplicated it. Do not guess a FIFO
+  or patch the firmware to accept it. Both loader and application ISR read 9010 once
+  after checking 9020, then clear ready before waking the serial task.
+- Added UART trace of 9020 and A000 only when serial_frames is 2/3 (loader status)
+  or 8/9 (application status). All data-register tracing remains. The narrow window
+  avoids flooding the UART during all other commands and captures the next failed
+  handshake. This is observation only, no guest response changes.
+- Also explicitly reset i2c_receive in the peripheral reset branch, alongside its
+  already-tested START/STOP cancellation. U was stopped early in its first fitter
+  (verified PID 72100 child of quartus_sh 65724) and restarted 09:51:40, exec 26043.
+  Same directory %TEMP%/Pace2500N_cold_i2cfix_20261121; first attempt log retained as
+  compile-before-trace-restart.log. It includes all three I2C cancellations and the
+  targeted handshake trace. No other fitter runs.
+- The failed T2 run is complete, V078 restored, ignored T2-{uart.txt,ram.bin,tasks.json}
+  evidence saved. Loader task magic exists but dirty HPS-visible neighbour links prevent
+  census validation (task_count 0). That is not evidence of RAM corruption.
+- A separate-erased-EEPROM T control is running, exec 61846 (started about 09:53),
+  /tmp/cold079tblank-test.sh, 200 s UART and first Guide at 90 s. Launcher
+  Pace2500N_V079T_BlankEE.mgl uses /tmp/pace_blank_eeprom.bin, leaving the normal EEPROM
+  file unchanged. It restores V078 automatically. Still the T bitstream with known I2C
+  abort defect: this control tests startup variation and factory-default initialization.
+- Original ROM path is firmware/FLASH_U202.bin (not original_firmware). Ghidra read-only
+  reports /tmp/cold_loader_serial_driver.txt and /tmp/cold_loader_link_task.txt include
+  the loader's actual serial ISR, receipt path, frame-length validator and dispatcher.
+
+## 21 Nov 2026 09:44 - T boots past warm reset; next I2C abort defect reproduced
+
+- S finished 06:28:29, but CPU setup is -0.029 ns. It was NOT exported or deployed.
+  T finished 07:11:11: all 48 non-HDMI checks pass, minimum +0.247 ns, CPU setup +1.005 ns.
+  RBF output_files/Pace2500N_V079T.rbf SHA256
+  0f6ae34bf6ba76854a384bf5a0fdbbd28fae8a9ecf18d450661c296ec516cd88.
+- Full T slow-memory simulation completed 34 simulated seconds / 590,795,057 retired,
+  no CPU errors. The original 7.539 s MCU reset now succeeds, application entry at
+  11.043 s. This directly fixes the identical old slow-run warm-reset failures.
+  Its first AV_SELECTION returns FFFFFFFF at 31.201791 s; no VM exit by the 34 s limit.
+  The +watchval=FFFFFFF0 capture early in the loader is a normal literal write at
+  BFC18E4C, NOT a bad SP. Do not mistake that generic value watch for the SP trigger.
+- The normal S simulation completed 34 s with repeated VM exit 6. The first caller
+  is 8006E34F -> 8006E318, native (0,11), not the debug subsystem's other status-6 path.
+  This remains bench evidence; the bench lacks sequence/GOP/picture parser events.
+- Whole-CPU IRQ/reset regression fails BEFORE the fix with first post-reset WB at
+  BFC00380; AFTER passes three resets each at latencies 1/6/20/60/300. A later +tlb
+  fetch-miss variant passes both before and after: it is a passing control, not a
+  separate reproduction of this defect. GHDL lowers exceptionStage1 to exceptionstage1
+  in the generated Verilog, which the testbench now uses correctly.
+- T was deployed at 09:38 using ONLY original flash + normal EEPROM + live TS, no
+  RAM/STATE files, extra ROM reload, forced application PC, or guest-memory edits.
+  Physical warm reset reaches the application, whose [9F4:FBE0C] executable bytes again
+  match the independent extraction exactly (1,029,144 bytes, zero differences).
+  HOWEVER it does NOT reach the Guide: before-key and Guide screenshots are clear blue.
+- T then hits model HALT E7 near 60.5 s, followed by the expected CPU stall flag 02
+  because io_ready is suppressed by the model halt. E7 means an I2C receive on an
+  unsupported address, NOT demodulator APR overflow (that would be E5). The frozen
+  trace is complete (227 pages), last transactions START 9A then EEPROM address A0.
+  Thus it froze on this model halt, NOT on the VM-exit-PC trigger. No hardware VM exit
+  is proved by this capture. RAM census validates 20 tasks at the pre-halt capture.
+- Concrete model defect reproduced in sim/tb_i2c_abort.sv: request A1 receive, STOP,
+  START, address A0 -> E7. STOP cancelled i2c_delay but retained i2c_receive, and the next
+  transmit's completion reused the old receive flag against its new address. START
+  had the same omission. Both now cancel pending receive and delay. The regression
+  FAILS before the fix and PASSES after, including normal read via the EEPROM's load
+  port, pointer advance, repeated START cancellation, and continued E7 for unsupported
+  A3 reads. Ghidra /tmp/cold_i2c_flow.txt shows the real driver STOP at 80006F2E/30 and
+  next transaction START at 80006AFA/FC. No unsupported reply zeros were added.
+- U compiling since 09:43:41, exec 22462, isolated snapshot
+  %TEMP%/Pace2500N_cold_i2cfix_20261121, version 0.7.9U (I2C abort). It is T plus the
+  above abort fix. Verify all non-HDMI timing, export, deploy normal cold MGL and test.
+- A SECOND normal T run is currently in progress (09:43:52, exec 19125), remote
+  /tmp/cold079t2-test.sh, 160 s UART capture /tmp/cold079t2-uart.txt, first Guide key at
+  75 s, then RAM/diagnostics. It restores V078 automatically. Use it to check variation
+  and potentially capture the next startup stage while U fits; T still has the I2C bug.
+- First T evidence is private/ignored re/deployment/coldboot_20261121/T-{ram.bin,uart.txt,
+  frozen-trace.txt,tasks.json}. Full remote capture can be recopied after completion.
+  No public push/release. No original firmware changed. User still wants real cold boot.
+
+## 21 Nov 2026 06:18 - Pending CP0 exception survives warm reset (reproduced)
+
+- Both slow-memory runs fail IDENTICALLY at the first MCU reset, before and after the
+  bridge fix: reset at 7.539 s, EPC retains pre-reset 9FC11161, then the first exception
+  handler runs with cleared hardware SP and writes FFFFFFF0, causing recursive TLB-store
+  exceptions at 9FC0EE50. This narrows the problem beyond the independent bridge defect.
+- rtl/r4k/cpu_cop0.vhd reset branch did not clear exception or exceptionStage1 outputs.
+  A pending interrupt redirect could therefore survive reset and bypass the reset ROM.
+  Added those TWO reset assignments (plus explanatory comments), no instruction changes.
+- sim/tb_cop0_warm_reset.vhd reproduces pending IRQ + reset while stalled: FAIL before,
+  PASS after. sim/test_cop0_warm_reset.sh runs it from clean GHDL libraries, no firmware.
+- Stronger whole-CPU synthetic-ROM regression sim/vl/tb_warm_reset.sv runs the actual CPU
+  with wrapper and 20-cycle DDR responses. BEFORE fix it FAILS with first post-reset WB
+  PC=BFC00380 instead of BFC00000, matching the real failure. After-fix run is compiling
+  (/tmp/vl_reset_after): PASSES all three warm resets in order (87 us simulated).
+  This test uses no RAM/STATE/firmware files or guest patches.
+- T isolated build snapshot is %TEMP%/Pace2500N_cold_exceptionfix_20261121. It includes
+  the pending-exception reset and exact-cycle controller collision fixes, plus all S
+  changes. Exec 86233 waits for S's quartus_sh PID 67652 to finish, then compiles T.
+  No two fitters run concurrently. S still lacks these last two fixes.
+- Full T slow-memory simulation started after compilation at ~06:16, exec 36935,
+  /tmp/cold_exception_run.log, binary /tmp/vl_cold_exception/Vtb_sys, work
+  /tmp/vl_cold_exception_work, +cold +lat=20 +busy=30 +vmtrace +fptrace +printf +natives
+  +exctrace +ts=/tmp/home_tp40.ts +watchval=fffffff0 +watchmax=1. Let it continue.
+- Old slow-run logs saved under ignored re/deployment/coldboot_20261121; both old slow
+  processes stopped after identical first-failure evidence. The after log additionally
+  contains a diagnostic SECOND board reset at 8.720784 s (GDB changed warm_count only,
+  plus host trace options; no guest RAM/state edits). That reset took the reset-ROM path.
+  It is NOT the untouched before/after comparison after that timestamp. Do not claim
+  it proves successful ordinary cold boot. The normal S simulation remains unmodified
+  and running in /tmp/cold_resetfix_run.log (about 18 s simulated, no CPU errors).
+
+## 21 Nov 2026 06:08 - Live continuation and controller collision fix (in progress)
+
+- R completed with CPU setup +1.306 ns and all 48 non-HDMI timing checks positive.
+  HDMI is excluded per the user's instruction. Normal hardware R then failed at the
+  loader warm reset: recursive 9FC0EE50/54 exception prolog, bad stack, HALT=0 and
+  cpu_errors=0. Original flash comparison still passed. This is not a solved cold boot.
+- A diagnostic R MGL repeats only the original FLASH download with delay=25 seconds
+  (Main implements delay in seconds). That prolonged CPU hold preserves warm RAM and
+  reaches the application, whose executable region again matches the independently
+  extracted code, all 1,029,144 bytes. This reload is a diagnostic, not the desired boot.
+  It later stalls after outgoing startup command 52 reaches TX escape byte 1B.
+  HPS task census cannot validate cached/dirty task links; do not call that RAM corruption.
+- S was restarted at 05:34:52 from %TEMP%/Pace2500N_cold_resetfix_20261121, exec 44188.
+  It has bridge reset cancellation, query 21/23/28 payloads, 67.5/33.75 MHz clocks,
+  pending UART telemetry, and a first-invalid-stack trace trigger at loader exception
+  prolog PC 9FC0EE4C/BFC0EE4C. Trigger ignores valid SP upper bytes 80/A0. The focused
+  trace test passes. Check core timing after fitting, then test normal S cold boot.
+- Three simulations remain running, do not restart needlessly:
+  /tmp/cold_resetfix_run.log (started 05:07, normal latency, exec 83627),
+  /tmp/cold_slow_before_resetfix.log (05:37, exec 64628), and
+  /tmp/cold_slow_after_resetfix.log (05:37, exec 92013).
+  Slow pair uses +lat=20 +busy=30. Normal S has passed all initial controller replies,
+  including command 52 and the full identity, by 15.288 simulated seconds. Thus the
+  physical controller stall is timing-sensitive, not universal in this revision.
+- Read-only GDB inspection of the running normal simulation works: portable gdb in
+  /tmp/pace-gdb-root, LD_LIBRARY_PATH=/tmp/pace-gdb-root/usr/lib/x86_64-linux-gnu.
+  /tmp/pace_debug_root.o provides DWARF for Vtb_sys___024root. Break at entry of
+  Vtb_sys___024root___eval, root pointer in RDI, inspect, delete breakpoint and detach.
+  Host attachment does not modify guest memory. /tmp/pace-cold-debug.gdb is on Windows
+  TEMP (WSL /mnt/c/Users/joelw/AppData/Local/Temp). The idle state after startup is
+  tx_full=1, wire_active=0, clock_waiting=0: a queued dummy waiting for a future reply,
+  not by itself a stalled transfer. Do not run apt --fix-broken: unrelated existing
+  apt dependencies are broken; the portable debugger works without changing them.
+- NEW main-source-only fix AFTER S isolation: GPIO low coincident with tick and
+  clock_delay=1 previously restarted a just-completed transfer. Added exact-cycle
+  regression to sim/tb_front_panel_receipt.sv: FAILS before fix with duplicated receive
+  transfer; PASSES after ignoring that coincident edge. Existing receipt, delayed edge,
+  full identity, status, and heartbeat checks also pass. No guessed FIFO or CPU edits.
+  S does NOT contain this last collision fix; build a later core if hardware needs it.
+- Native blue backdrop and logo are not a complete Guide boot. P had 41 valid tasks
+  but both OSD field buffers entirely clear DC. Its RAM contains the synthetic BBC1
+  service descriptor. Full-system bench currently lacks sequence/GOP/picture parser
+  events, so its OpenTV status-6 exit must not be assumed to explain physical hardware
+  until the hardware trace confirms it. Telemetry WA has GPU/SI counts; the diagnostic
+  screen's similarly positioned values are DDR/bus statistics, not GPU completion counts.
+- Evidence is private/ignored in re/deployment/coldboot_20261121. Stable V078 restored
+  after each hardware experiment. No RAM/STATE loading or forced application PC is used
+  by normal cold MGLs; the original firmware hash is unchanged. No public push/release yet.
+
+## 21 Nov 2026 - Cold boot continuation, VM exit isolated (in progress)
+
+- V079P booted original U202 through reset into the application on hardware. Two Guide
+  presses produced the native MPEG backdrop and Sky Guide corner logo, but no menu text.
+  Evidence: %TEMP%/pace-cold-20261120/P-guide.png and P-uart.txt. Captured P-ram.bin has
+  a validated circular created list of 41 tasks (P-tasks.json); TASK0 waits on EVENT00,
+  FETask on FeCmd, and TASK30 was runnable. No model halt or reboot trace trigger occurred.
+  Its OSD descriptor at 00583FE8 is valid 720x576 8bpp, with both field buffers entirely
+  clear colour DC. This is a firmware drawing/startup blocker, not hidden menu text.
+- The two full RTL simulations completed. /tmp/cold_continue_run.log: 40 s, 1,469,417,370
+  retired, no CPU/model/GPU error. /tmp/cold_receipt_run.log: 32 s, 1,045,156,687 retired,
+  no errors. Both include PAL field interrupts and original flash from reset. Both now
+  show OpenTV repeatedly starting and exiting with status 6, then CLEANING_UP/relaunch.
+  The first exits occur around 25.59 s. GPU completions are repeated clears (48 by 40 s).
+  The receipt-only patch does not remove this repeatable application failure.
+- Ghidra: 800516BC launches the module and at 800519A6 calls 8006E1E8, saving its return
+  at 800519AE. The VM uses real setjmp 800F8D5C / longjmp 800F8D90 and context 8011FF50.
+  8006E318 terminates the VM with its argument. 8006E344 calls it with 6 and is native
+  (0,11), flash pair 9FC29C28. A second status-6 path exists at 800709D8 (debug subsystem).
+  The registered fatal callback 8006E0FC exits with 5, so status 6 must not be called a
+  CPU exception or identified with that callback without a trace. Reports /tmp/cold_vm*.txt.
+- Controller replies are now structurally valid: 52 has its one-byte status (2, the
+  software model's disclosed profile); 10 has six explicit unmodelled identity zeros;
+  other acknowledgements echo their command instead of invoking the opcode-10 callback.
+  sim/tb_front_panel_receipt.sv verifies byte consumption, delayed GPIO edge, 52 payload,
+  the full escaped six-byte identity and heartbeat opcode. It passes with the patch.
+- Fixed telemetry starvation in pace_debug_uart: a pending status frame survives a busy
+  UART. sim/tb_debug_uart_pending.sv passes (6 PACE and 3 PROF), original HEAD fails
+  with 0 PACE under continuous PROF. This is diagnostic-only, no CPU stall/change.
+- V079P timing: CPU -0.011 ns; V079Q (receipt/protocol/UART fixes) CPU -0.411 ns. Q was
+  compiled successfully but NOT deployed. TimeQuest's CPU path is decodeValue -> jump
+  FetchAddrSelect -> instruction TLB mini_hit -> stall1. HDMI also fails as already known.
+- V079R compiling since 04:39 from %TEMP%/Pace2500N_cold_vmexit_20261121. CPU is now
+  67.5 MHz (VCO/20), memory side 33.75 MHz (VCO/40); COUNT_NUM=3/DEN=10 retains 20.25 MHz
+  CP0 Count. No CPU pipeline edits. TRACE_PC=800519AA freezes just after VM return,
+  before its status print; trace survives warm reset. UART also includes B0004xxx OSD.
+  Wait for core timing to pass before treating hardware results as validated.
+- Matching new RTL sim started 04:42: /tmp/vl_cold_vmexit/Vtb_sys +cold +cycles=1700000000
+  +status=50000000 +vmtrace +printf +natives +ts=/tmp/home_tp40.ts
+  +mlog=/tmp/cold_vmexit_mlog.txt > /tmp/cold_vmexit_run.log. Built via W=/tmp/vl_cold_vm_work
+  OBJ=/tmp/vl_cold_vmexit COUNT_NUM=3 COUNT_DEN=10 bash sim/vl/build.sh. Do not restart it.
+  +vmtrace logs AV_SELECTION, VM_EXIT, and the registered fatal callback, with a short
+  instruction ring. It is read-only observation. Still no RAM/STATE loading or guest edits.
+- That simulation was restarted at 04:50 after adding VM_NONLOCAL_EXIT instrumentation
+  at 8006E318 as well as the fatal callback. It now records the terminating argument,
+  caller, saved registers and preceding 200 instructions, avoiding an ambiguous status alone.
+- Additional main-source fixes AFTER the isolated R build: responses 21/23/28 explicitly
+  include frame[3]=0 (unknown-zero profile). Ghidra callbacks 80029DF0/8002A740/8002A5FC
+  each consume that byte. R predates this change; the focused front-panel test includes 28.
+- A second concrete defect is fixed in the main pace_r4k.sv bridge. reset_sys previously
+  reset the state machines but retained request/ack toggles; an unfinished MMIO write was
+  reissued when reset ended. hold_sys also resets the CPU and could replay completed writes.
+  Reset/hold now cancel both handshake halves. sim/tb_r4k_reset_bus.sv (Icarus -g2012 -i,
+  CPU interface driven directly) FAILS before the patch with "Warm reset replayed the old
+  peripheral write" and PASSES after it, including pending DDR and fresh read/write checks.
+  No CPU pipeline/instruction changes. The slow-DDR handoff crash is a possible consequence,
+  not yet a proven one. R predates this bridge fix too.
+- /tmp/vl_cold_resetfix is being compiled (05:05) with the bridge + complete query replies;
+  W=/tmp/vl_cold_vm_work OBJ=/tmp/vl_cold_resetfix bash sim/vl/build.sh nosynth.
+  Launch its full cold run when compilation completes. Keep the R comparison run running.
+  Build the corresponding S hardware after R finishes, to avoid two memory-heavy fitters.
+- tools/decode_frozen_trace.py decodes the latest complete frozen PROF ring, newest copied
+  pages preferred. Verified on O-tasks-uart.txt: 227 pages, 1024 instructions, 64 bus entries,
+  final write B2006000=A8. Firmware-derived output belongs in ignored re/deployment.
+  All 20 Python tests pass, one optional FFmpeg skip. U202 SHA256 remains 32f6b2e8...f63d38c7f.
+- Hardware P text comparison: P-ram.bin[000009F4:000FBE0C] is IDENTICAL to the independent
+  extraction in re/application_initialized_segments.bin, all 1,029,144 bytes, zero mismatches.
+  The firmware's own copy/decompression therefore produces the expected executable image.
+- P repeated-input test (21 Nov 05:17) tried four Guide presses, Sky then Guide, and standby
+  then Guide. Still only clear colour/backdrop/logo, no menu rows. Evidence in ignored
+  re/deployment/coldboot_20261121/cold079p-retries-{uart.txt,ram.bin}; task census still 41.
+- R simulation reaches the loader reset at 5.577 s and application entry at 8.030 s with
+  corrected startup replies/67.5 MHz and zero CPU errors. The reset-fix comparison is running
+  in /tmp/cold_resetfix_run.log (started 05:07), 34 s limit, same vmtrace/printf/natives,
+  with +exctrace and +mlog=/tmp/cold_resetfix_mlog.txt. Neither run has completed yet.
+- S hardware source %TEMP%/Pace2500N_cold_resetfix_20261121 is ready. A PowerShell job
+  (exec session 70595) waits for R's full successful compile, then compiles S automatically.
+  S also freezes the diagnostic trace on CPU error flags. No two fitters run concurrently.
+- Remote /tmp/cold079r.sh is ready for the diagnostic test (200 s, automatic V078 restore).
+  A SEPARATE erased EEPROM input /tmp/pace_blank_eeprom.bin (64 KiB FF) and local
+  Pace2500N_V079R_BlankEE.mgl are prepared for a factory-startup comparison if needed.
+  The normal EEPROM save file has not been replaced. The blank MGL still needs upload.
+
+## 20 Nov 2026 - Codex cold boot continuation (earlier work)
+
+- User wants the cold-boot fork completed with original firmware and persistent EEPROM,
+  eliminating external RAM.bin/STATE.bin. Use one agent only. Current branch is cold-boot.
+- Original U202 is unchanged. The fresh system run /tmp/cold_continue_run.log uses
+  /tmp/vl_cold_continue/Vtb_sys +cold +cycles=2000000000 +status=50000000 +fptrace +printf
+  +ts=/tmp/home_tp40.ts. The bench now supplies PAL field interrupts every 20 ms and logs
+  complete outgoing front-panel frames. The loader reset remains at 5.296 s and application
+  entry at 7.626 s. This run is still executing, do not restart it unnecessarily.
+- Diagnostic V079P is compiling from %TEMP%/Pace2500N_cold_trace_20261120, Quartus 17.0.2,
+  seed 5. CPU wrapper has a separate trace_reset tied to full core_reset, so a warm reset
+  preserves the frozen instruction/bus trace. TRACE_PC=8003A928 captures the caller of the
+  firmware reboot routine. Focused simulation verified trigger, warm-reset retention and
+  full-reset clearing. UART MMIO trace omits boot FIFO traffic and serial status/clock
+  polling, retaining serial data bytes. No functional controller reply change yet.
+- Ghidra 12.1.4 projects still work in re/ghidra. Reports in WSL /tmp/cold_*.txt.
+  8003A928 calls 8002A1BC, which sends packet 03 seq 12 00. 80037228 can request it
+  for platform events 1B/21, and the runtime fatal handler can also call it. A transport
+  reply is accepted by its sequence in 8002B1AC, independently of opcode.
+- The model's generic 02 seq 10 replies are malformed for the application's opcode-10
+  callback (80029788 copies SIX payload bytes). Opcode 52's app callback 8002A534 reads
+  one payload byte, also missing from the current reply. This is an observed protocol
+  defect, its role in the reboot has not been proven. Do not equate heartbeat 18 with
+  a mandatory data reply: it has no callback in the application's seven-opcode table.
+- Repeated V079O hardware runs vary. One fresh run remained in the application for
+  120 s with black output and only four GPU completions. Another eventually froze its
+  trace after a Guide key. All 227 frozen pages were recovered to
+  %TEMP%/pace-cold-20261120/O-tasks-uart.txt and decoded instructions to
+  O-frozen-instructions.txt. Latest bus transaction is I2C control A8 at 12006000.
+  Last retired PC is 800D3628 (scheduler restoring FETask), not the TLB panic address.
+  Exact model halt code has not yet been established. Do not assume E5 from these alone.
+- Hardware artifacts are /tmp/cold079o-continue-*, /tmp/cold079o-tasks-* and
+  /tmp/cold079o-diag-* on MiSTer. The scripts restore V078 automatically. Read-only
+  DDR dumps are in %TEMP%/pace-cold-20261120/O-tasks40.bin and O-tasks80.bin.
+  A raw HPS DDR dump can omit dirty CPU cache lines. The task census rejects this
+  dump's partially visible created-task links. Saved stacks suggest TASK0 was in
+  frontend initialization (800284C3) and FETask in 80024FFF/80028F91, but this is
+  incomplete cached-memory evidence.
+- Playout was initially stopped and was started for testing. The old EXE in dist dated
+  17 Nov 19:17 used the OLD synchronous carousel builder. py-spy proved streams waiting
+  behind FirmwareHuffman.encode and Server.carousel. It and its FFmpeg children were
+  stopped. The current-source app was rebuilt, installed in dist/PaceChannelBuilder and
+  started as PID 54216. Rollback copy is dist/coldboot-app-rollback-20261120-2159.
+  huffman_ram now points to original firmware/FLASH_U202.bin; other personal settings
+  are retained, with a settings backup in %TEMP%/pace-cold-20261120 (private).
+  Both /tune probes delivered valid packets in 0.14 s. A 65-second paced Guide feed
+  delivered 50,834,448 bytes, maximum socket read 0.141 s. Cold V079O still produced
+  black output with this corrected feed, so the core blocker remains.
+- A concrete byte-loss defect is now fixed in rtl/pace_guide_peripherals.sv. The ISR
+  clears RX ready before SMNTask consumes its software mailbox. Controller-driven
+  bytes now wait for a fresh B2009010 write (the task's receipt); a GPIO edge arriving
+  after the corresponding transfer completed cannot start another without new TX data.
+  A write during an active transfer stays queued. sim/tb_front_panel_receipt.sv fails
+  against original HEAD at the early-advance assertion and passes with the patch.
+  Updated full system run /tmp/cold_receipt_run.log uses /tmp/vl_cold_receipt/Vtb_sys,
+  +cold +cycles=1600000000 +status=50000000 +fptrace +printf +ts=/tmp/home_tp40.ts.
+  It is running alongside the original comparison run. V079Q build sources are prepared
+  in %TEMP%/Pace2500N_cold_receipt_20261120; start Quartus after V079P finishes.
+- Removed the PC encoder's need for a checkpoint too. FirmwareHuffman.from_file now
+  accepts original 2 MiB U202 and uses extract_application_ram.extract plus the
+  resident resource at 800FD798 (511 edge pairs, 256 phrases). It never writes a CPU
+  checkpoint. Codes and symbols match the initialized-RAM codec exactly. Defaults
+  and GUI wording now select FLASH_U202.bin while honoring existing saved paths.
+  All 20 Python tests pass, with one pre-existing optional FFmpeg skip.
+  The source edits and diagnostics remain uncommitted pending hardware verification.
 
 ## 20 Nov 2026 (late) - V079O: loader fixed, application now requests a reset (STOPPED HERE)
 
@@ -452,7 +1413,7 @@ Open items:
 - The MiSTer OSD's `Widescreen on 4:3` option reports status bit 6 in an
   optional `LB1` extension to the live-ring status block. The relay requests
   letterboxing per video tune. Playout fits the stream's display aspect,
-  including anamorphic sample aspect, into the 720×576 4:3 PAL raster. The
+  including anamorphic sample aspect, into the 720Ã—576 4:3 PAL raster. The
   Guide and radio stay on their existing audio and transport paths.
 - A packaged `portable.flag` keeps the app's settings, Plex sign-in, lineup
   and cache in `data` next to the executable. In-folder settings paths are
@@ -500,10 +1461,10 @@ Open items:
   DVB audio services have type 2 in BAT/SDT and audio-only MP2 PMTs on
   12207 MHz. The Guide and its background music still use 11778 MHz.
 - The relay forwards live radio from the firmware's audio route on
-  PIDs `0x0700–0x0763`. PC playout transcodes the selected public stream to
+  PIDs `0x0700â€“0x0763`. PC playout transcodes the selected public stream to
   48 kHz stereo MP2 at the television loudness target. Channel Builder saves
   stations in the line-up's `radio` array. The preset list is opt-in.
-- v0.7.4 displayed stations 801–809 in the firmware's Music & Radio grid.
+- v0.7.4 displayed stations 801â€“809 in the firmware's Music & Radio grid.
   The tuner held lock on 801 for a 70-second run and switched to 802 via the
   grid. A ring capture from the installed setup contained decodable stereo
   MP2 at 48 kHz on `0x0701`. The box returned to BBC1 from All Channels and
@@ -754,10 +1715,10 @@ The user can compile Quartus locally, but expects **real, working source** rathe
 ## 2. Hardware, firmware and reference architecture
 
 - **Target receiver:** Pace 2500N, Sky model family **9F04**, circa 2000; dumped application is from approximately **September 2002**, not the original 1998 launch firmware.
-- **Likely SoC family:** NEC EMMA / µPD6103x, possibly **µPD61032** (NDS VideoGuard variant); **exact Pace board chip marking not independently confirmed**. NEC references include the September 1999 µPD6103x product documentation. A detailed NEC hardware register map has not been found.
+- **Likely SoC family:** NEC EMMA / ÂµPD6103x, possibly **ÂµPD61032** (NDS VideoGuard variant); **exact Pace board chip marking not independently confirmed**. NEC references include the September 1999 ÂµPD6103x product documentation. A detailed NEC hardware register map has not been found.
 - **CPU:** Big-endian MIPS, using both standard 32-bit instructions and **MIPS16** (not microMIPS). ISA changes, branch-delay slots, exceptions and cache effects matter. Exact VR4110-compatible details require confirmation.
 - **Firmware:** original JTAG dumps `FLASH_U202.bin` and `FLASH_U203.bin`, **2,097,152 bytes each**, in `firmware/` of v0.4.2. U202 SHA-256: `32f6b2e84d0c4c4ec280a72f2d080e4b6fa5e68e8438ef712f34f97f63d38c7f`; U203 SHA-256: `7832d619b63e369bdd4a0f3de8dd73c98a99285d96c94a8bb0a39fe829ce1f40`.
-- **Flash banks:** differ by 30 bytes, confined to `0x1A0000`–`0x1A001F`. Original dumper said this represented dual OTA-update banks. The 128 KiB bootloader at `0x000000`–`0x01FFFF` matches both; original dumper zeroed four Digibox serial bytes at `0x1FFF8`.
+- **Flash banks:** differ by 30 bytes, confined to `0x1A0000`â€“`0x1A001F`. Original dumper said this represented dual OTA-update banks. The 128 KiB bootloader at `0x000000`â€“`0x01FFFF` matches both; original dumper zeroed four Digibox serial bytes at `0x1FFF8`.
 - **Boot:** first actual reset instructions at U202 offset `0x000008`: `3C08BFC0 25080408 01000008 00000000` (`lui/addiu/jr/nop`), jumping to `0xBFC00408`. Application jump code at offset `0x2002C` points to `0xBFC2048C`.
 - **MiSTer hardware:** DE10-Nano, analogue RGB to a CRT TV. Use **625-line, 50-field/s interlaced timing, 15.625 kHz horizontal** (usually described as **576i/50** in active-picture terms), **not 480i/60** or 240p. The generated sync is still an approximation and must be verified on the real CRT. Exact native chip video modes and assets have *not* been extracted/verified.
 - **Upstream public FPGA reference:** `https://github.com/MiSTer-devel/Arcade-KillerInstinct_MiSTer`. This has a substantial synthesizable **MIPS III** VHDL CPU, but the current Pace project **does not instantiate it**. Only its MiSTer `sys/` board shell/pin configuration is reused. Its CPU is not a drop-in solution because Pace needs MIPS16 and NEC-specific differences. Respect upstream GPL licensing.
@@ -769,7 +1730,7 @@ The user can compile Quartus locally, but expects **real, working source** rathe
 The supplied `probe_strict.json` records execution in an **experimental Python CPU interpreter**, not execution on FPGA:
 
 - **3,178,986 interpreted instructions** until an unknown 16-bit MMIO read, `0xB0000002`, at `PC 0xBFC01E1C` in MIPS16 mode.
-- **MIPS32 → MIPS16** transition: instruction at `0xBFC00578` (`JALX`) enters `0xBFC01E18`.
+- **MIPS32 â†’ MIPS16** transition: instruction at `0xBFC00578` (`JALX`) enters `0xBFC01E18`.
 - Initial seven real-firmware MMIO writes, in order:
 
   | Guest address | Written value |
@@ -788,10 +1749,10 @@ The supplied `probe_strict.json` records execution in an **experimental Python C
 
 ## 4. History and exact present blocker
 
-1. Earlier v0.1–v0.2 projects were standalone FPGA diagnostics, not normal MiSTer menu cores. v0.3 added a fake Guide-like graphics prototype and a firmware viewer; that visual prototype was **rejected** because the real firmware must generate the UI.
+1. Earlier v0.1â€“v0.2 projects were standalone FPGA diagnostics, not normal MiSTer menu cores. v0.3 added a fake Guide-like graphics prototype and a firmware viewer; that visual prototype was **rejected** because the real firmware must generate the UI.
 2. v0.4 provided a standard MiSTer `emu`/`sys_top` shell, an incomplete custom MIPS32/MIPS16 executor, ROM, DDR3 bridge and 576i CRT boot monitor.
 3. **v0.4 initial Quartus failure:** `Error (10028): Can't resolve multiple constant drivers ... Pace2500N.sv(83)`. The error was caused by connecting the `hps_io` **output** `.sd_buff_wr` to `1'b0`. **v0.4.1 fixed this** to `.sd_buff_wr()` (unconnected). This is the one confirmed compiler issue addressed in that release.
-4. User's **v0.4.1** Analysis & Synthesis ran for **around 90 minutes without reaching the fitter**. This is the current observed performance problem. It was **suspected**, not proven, that multiple independently addressed reads of a 32,768-word × 32-bit firmware ROM triggered inefficient synthesis/multiplexer expansion.
+4. User's **v0.4.1** Analysis & Synthesis ran for **around 90 minutes without reaching the fitter**. This is the current observed performance problem. It was **suspected**, not proven, that multiple independently addressed reads of a 32,768-word Ã— 32-bit firmware ROM triggered inefficient synthesis/multiplexer expansion.
 5. **v0.4.2 Lean** was produced to address that suspicion: ROM changed to a single synchronous inferred M10K port and video hex browser removed. **v0.4.2 synthesis and final FPGA resources/performance are not yet tested.** The user requested this handoff **before attempting the new build**.
 
 Do not describe the v0.4.2 fix as verified until an A&S report shows inferred memory and realistic runtime/resource counts.
@@ -802,33 +1763,33 @@ Archive root after extraction: `Pace2500N/`.
 
 ```text
 Pace2500N/
-├── README.md
-├── CHANGELOG_v042.txt
-├── QUARTUS_FIX_v041.txt
-├── build_windows.bat
-├── Pace2500N.sdc
-├── files.qip
-├── firmware/
-│   ├── FLASH_U202.bin       # genuine full 2 MiB bank, supplied
-│   └── FLASH_U203.bin       # second genuine 2 MiB bank, supplied
-├── rom/
-│   ├── bootloader_words.hex # genuine first 128 KiB of U202, BE 32-bit words
-│   ├── font8x8.hex
-│   └── monitor.hex          # DIAGNOSTIC MONITOR text, not Sky firmware UI
-├── rtl/
-│   ├── Pace2500N.sv        # MiSTer emu top, HPS file upload and DDR interface
-│   ├── pace_bootrom.sv      # single-port synchronous M10K ROM
-│   ├── pace_firmware_cpu.sv # experimental MIPS32/MIPS16 executor
-│   ├── pace_pal576i.sv      # 625/50 RGB interlace timing (simplified sync)
-│   └── pace_boot_monitor.sv # live status screen (PC, instruction, MMIO, etc.)
-├── sim/
-│   └── tb_boot.sv           # WARNING: stale; see section 7
-└── tools/
-    ├── build_project.ps1   # downloads/copies KI sys/, creates .qpf/.qsf
-    ├── build_project.py    # alternative Python generator
-    ├── make_monitor.py
-    ├── pace_probe.py       # software interpreter
-    └── verify_firmware.py  # reproducibility/integrity checks
+â”œâ”€â”€ README.md
+â”œâ”€â”€ CHANGELOG_v042.txt
+â”œâ”€â”€ QUARTUS_FIX_v041.txt
+â”œâ”€â”€ build_windows.bat
+â”œâ”€â”€ Pace2500N.sdc
+â”œâ”€â”€ files.qip
+â”œâ”€â”€ firmware/
+â”‚   â”œâ”€â”€ FLASH_U202.bin       # genuine full 2 MiB bank, supplied
+â”‚   â””â”€â”€ FLASH_U203.bin       # second genuine 2 MiB bank, supplied
+â”œâ”€â”€ rom/
+â”‚   â”œâ”€â”€ bootloader_words.hex # genuine first 128 KiB of U202, BE 32-bit words
+â”‚   â”œâ”€â”€ font8x8.hex
+â”‚   â””â”€â”€ monitor.hex          # DIAGNOSTIC MONITOR text, not Sky firmware UI
+â”œâ”€â”€ rtl/
+â”‚   â”œâ”€â”€ Pace2500N.sv        # MiSTer emu top, HPS file upload and DDR interface
+â”‚   â”œâ”€â”€ pace_bootrom.sv      # single-port synchronous M10K ROM
+â”‚   â”œâ”€â”€ pace_firmware_cpu.sv # experimental MIPS32/MIPS16 executor
+â”‚   â”œâ”€â”€ pace_pal576i.sv      # 625/50 RGB interlace timing (simplified sync)
+â”‚   â””â”€â”€ pace_boot_monitor.sv # live status screen (PC, instruction, MMIO, etc.)
+â”œâ”€â”€ sim/
+â”‚   â””â”€â”€ tb_boot.sv           # WARNING: stale; see section 7
+â””â”€â”€ tools/
+    â”œâ”€â”€ build_project.ps1   # downloads/copies KI sys/, creates .qpf/.qsf
+    â”œâ”€â”€ build_project.py    # alternative Python generator
+    â”œâ”€â”€ make_monitor.py
+    â”œâ”€â”€ pace_probe.py       # software interpreter
+    â””â”€â”€ verify_firmware.py  # reproducibility/integrity checks
 ```
 
 **HDL-specific facts:**
@@ -836,18 +1797,18 @@ Pace2500N/
 - `rtl/Pace2500N.sv` uses the standard MiSTer `emu` ports from `sys/emu_ports.vh`, `hps_io`, and the `sys/` support files sourced from Killer Instinct. The KI **CPU itself is not used**.
 - `rtl/pace_bootrom.sv` declares `(* ramstyle = "M10K" *) reg [31:0] words [0:32767]`, initialises it from `rom/bootloader_words.hex`, and has **one registered read port**.
 - The CPU accesses the protected flash region via ROM, and the remainder of U202 via a MiSTer DDR3 upload if the full `.bin` has been selected. It also uses DDR3 for emulated RAM. **The correctness of byte lanes, address translations, DDR3 request/ready sequencing and memory map is unverified on MiSTer.**
-- Top-level video drives `CLK_VIDEO = CLK_50M` and a 12.5 MHz pixel enable from `pace_pal576i.sv`. Nominal raster is 800 samples per 64 µs line, 625 lines/25 frames and 50 fields/s; 640×576 active sample layout with alternating fields. PAL equalising/serration pulses are **not** complete or broadcast-exact.
+- Top-level video drives `CLK_VIDEO = CLK_50M` and a 12.5 MHz pixel enable from `pace_pal576i.sv`. Nominal raster is 800 samples per 64 Âµs line, 625 lines/25 frames and 50 fields/s; 640Ã—576 active sample layout with alternating fields. PAL equalising/serration pulses are **not** complete or broadcast-exact.
 - The RGB picture is **only a diagnostic monitor**. There is **no** actual NEC EMMA overlay/OSD decoder, MPEG-2 video/audio output, TS demux, tuner, smartcard, Sky Guide graphics renderer, or firmware-controlled output plane. Even a successful core build will *not* show Sky Guide yet.
 - The CPU lacks comprehensive CP0, exceptions, TLB, cache, interrupts and complete MIPS16. The `CACHE` opcode is explicitly treated as a no-op; MMIO reads may halt or return guesses. These shortcuts can change real firmware execution.
 
-## 6. Build and MiSTer deployment — intended procedure, NOT yet proven
+## 6. Build and MiSTer deployment â€” intended procedure, NOT yet proven
 
 1. Extract `Pace2500N_RealFirmwareBoot_v042_Lean.zip` in a fresh Windows folder.
 2. Run `build_windows.bat`. It calls `tools/build_project.ps1`, downloads the public Killer Instinct repository if needed, copies `sys/`, and generates `Pace2500N.qpf` / `.qsf`. Requires an Internet connection for the automatic download, or use `tools/build_project.py --ki <existing KI checkout>`.
 3. Open `Pace2500N.qpf` in **Quartus Prime Standard** for Cyclone V. **Run Analysis & Synthesis only first**. Record duration, RAM Summary/M10K use, ALM/register count, memory-inference warnings and the last progress messages. Stop/report if it behaves like v0.4.1.
 4. Only after A&S succeeds, run full compilation, producing `output_files/Pace2500N.rbf` (assuming project QSF settings and tool versions allow it).
 5. Copy `Pace2500N.rbf` to `/media/fat/_Other/` (visible as **Other** in the MiSTer menu). Optionally place `FLASH_U202.bin` at `/media/fat/games/Pace2500N/FLASH_U202.bin` for convenient browsing; this is a convenient storage path, **not a mandatory auto-load convention**.
-6. Load **Other → Pace2500N**, then press **F12**. The **actual v0.4.2** `CONF_STR` is:
+6. Load **Other â†’ Pace2500N**, then press **F12**. The **actual v0.4.2** `CONF_STR` is:
 
    ```text
    F0,BIN,Load FLASH_U202.bin;
@@ -883,14 +1844,14 @@ Pace2500N/
 
 ## 9. Important reference/archive filenames
 
-- **Current candidate:** `Pace2500N_RealFirmwareBoot_v042_Lean.zip` — project source and both full flash dumps.
-- **Previous build:** `Pace2500N_RealFirmwareBoot_v041_QuartusFix.zip` — had fixed multi-driver output; user's A&S took about 90 minutes without reaching fitter.
+- **Current candidate:** `Pace2500N_RealFirmwareBoot_v042_Lean.zip` â€” project source and both full flash dumps.
+- **Previous build:** `Pace2500N_RealFirmwareBoot_v041_QuartusFix.zip` â€” had fixed multi-driver output; user's A&S took about 90 minutes without reaching fitter.
 - **Original firmware dumps:** `flashdump_PACE2500N.zip`.
 - **Original protected bootloader:** `PACE2500N_Bootloader.zip`.
 - **Historic JTAG dump program/manual:** `DigiboxTool.zip`.
 - **Software trace history:** `pace2500n_stage4_cpu_probe.zip`, and `probe_strict.json` / `probe_experimental.json` inside the v0.4.2 project.
 - **Upstream shell / alternative CPU:** https://github.com/MiSTer-devel/Arcade-KillerInstinct_MiSTer
-- **NEC product overview found in earlier research:** https://tvsat.com.pl/PDF/U/UPD61032_nec.pdf — product-family description, **not** a confirmed Pace 2500N register-programming manual.
+- **NEC product overview found in earlier research:** https://tvsat.com.pl/PDF/U/UPD61032_nec.pdf â€” product-family description, **not** a confirmed Pace 2500N register-programming manual.
 
 ---
 
