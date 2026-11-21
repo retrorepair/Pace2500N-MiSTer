@@ -11,13 +11,12 @@ local simulated orders throughout development.
 
 ## Current work and build scope
 
-- Y is the working cold-boot baseline. Original firmware, EEPROM and live TS are
-  sufficient; no RAM or CPU-state checkpoint is loaded. Its actual captured YUV
-  image matches an independent reference within one rounding level, and all48
-  non-HDMI timing checks pass.
-- Z is already compiling. It adds the native RAM-backed image plane so cached
-  Guide backgrounds can return after live TV. Its source snapshot is frozen.
-  Validate Guide → All Channels → TV → Guide before claiming that fix works.
+- V080A is live: original firmware, EEPROM and liveTS suffice, without RAM or
+  CPU-state checkpoint. All48 non-HDMI timing checks pass. Z's native RAM-backed
+  image plane restores both Guide background and corner logo after liveTV.
+- Fixed Teletext page100 body/colours decode on the user's Sony over the existing
+  MiSTerPi analogueIO/SCART cable, taking about20s to stabilise. Improve reception
+  speed/reliability first; page888 subtitles follow that work. V079Z is fallback.
 - Keep slow startup on the active backlog. Measure boot/image/menu readiness
   separately from deliberate test-script sleeps before changing CPU/peripheral
   timing. Preserve the working cold handoff and controller/I2C reset fixes.
@@ -66,6 +65,43 @@ that the correct PMT advertises it without interrupting A/V, EPG or continuity.
 5. For native TV decoding, implement PAL VBI insertion through the actual analogue
    output path and verify on a Teletext-capable display. Do not call an optional
    host/OSD page viewer equivalent to native VBI support. HDMI is not a priority.
+
+### Page 888 subtitles — requested after Teletext is stable
+
+User requests TV-decoded page888 subtitles for Plex and, when the source permits,
+IPTV. Keep this queued after acquisition/reliability improvements: the current
+approximately20s stabilisation is unsuitable for timed cues. No subtitle code
+has been implemented, and page100 success does not prove subtitle overlay yet.
+
+- **Plex first:** inspect selectable subtitle tracks and retrieval endpoints.
+  Start with text-based SRT/extractable embedded text, using the selected
+  language (English by default) and cue start/end times. Keep selection local
+  to this application's playout session and preserve general Plex settings.
+  Plex supports local external and embedded subtitles; see
+  [Plex subtitle documentation](https://support.plex.tv/articles/200471133-adding-local-subtitles-to-your-media/).
+- **IPTV:** probe each actual source, not its playlist label. Preserve/repackage
+  existing Teletext subtitles, including remapping an advertised source page to
+  888 when needed. Convert separate text subtitle tracks (e.g. WebVTT) into
+  timed cues. Availability depends on the provider retaining those tracks.
+  [FFmpeg's libzvbi decoder](https://ffmpeg.org/ffmpeg-codecs.html#libzvbi_002dteletext)
+  can decode DVB Teletext subtitles when compiled with that library; verify the
+  shipped Windows binary's capabilities before depending on it.
+- **Image-only sources:** PGS/VobSub and DVB bitmap subtitles need recognition
+  to recover text for Teletext. Treat OCR as a separate later feature; do not
+  claim ordinary subtitle decoding yields text. Burned-in-only captions have
+  no separate text track. Missing/unsupported subtitles should be stated clearly.
+  [FFmpeg's DVB subtitle format](https://ffmpeg.org/ffmpeg-codecs.html#dvbsub-1)
+  is bitmap based.
+- **Delivery:** one bounded, timestamped cue pipeline to page888 (magazine8,
+  page88), with subtitle/overlay signalling, explicit erase at cue end and on
+  retune, and appropriate row repetition. Validate signalling against ETSI before
+  assigning control bits. Rebase cue times to actual playout/transcode offsets
+  and buffering; discard stale cues after reconnect, seek or programme change.
+  Extend the real TS/demux/VBI path; keep firmware execution entirely in FPGA.
+- **Acceptance:** deterministic timed text fixture over moving RGB video on the
+  actual TV, then one Plex title and one IPTV source with genuine subtitle data.
+  Verify TV subtitle overlay, timing, cue clearing, retune/reconnect and no-track
+  behaviour without disturbing A/V or EPG. Keep page100 available for diagnosis.
 
 ### RGB SCART and VBI output options
 

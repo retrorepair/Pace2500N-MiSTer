@@ -4,6 +4,18 @@
 Quartus results and HDL regressions. The latest session is directly below; the original
 7 Nov snapshot further down is retained for history only (it predates everything that works).
 
+## 21 Nov 2026 - User requests page888 subtitles AFTER Teletext is stable
+
+- Queue page888 TV subtitle overlay after improving page100 acquisition and
+  reliability. Plex text subtitles first; IPTV when its actual source exposes
+  Teletext or separate text subtitles. Probe tracks/languages, preserve cue
+  times through playout buffering, clear at end/retune and keep Plex settings
+  local to this app/session. Bitmap-only subtitles need OCR for text; do not
+  promise universal IPTV/Plex compatibility or treat burn-in as a text track.
+- Detailed implementation/acceptance plan and primary-source links added to
+  EXPANSION_PLAN.md. No implementation or new Quartus build for this request.
+  Current20s stabilisation must improve before timed subtitles are dependable.
+
 ## 21 Nov 2026 - Physical CRT Teletext body and colours CONFIRMED; acquisition about20s
 
 - User reports: "It took about20 seconds of the page repeating to stabilise
