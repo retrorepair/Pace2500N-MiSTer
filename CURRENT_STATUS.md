@@ -11,7 +11,9 @@ V080A adds an optional fixed Teletext page100 experiment on HSync PDM while
 preserving RGB. All48 non-HDMI timing checks and repeated190s hardware checks
 pass. It is left running on192.168.1.103 with ordinary CSync. Press F11 to open
 a30s test window, then select Text/page100 on the TV's own remote; F11 cancels.
-Physical-TV Teletext decoding is unproven. See [TELETEXT_TEST.md](TELETEXT_TEST.md)
+User CRT photo now confirms body text and colours decode through the existing
+MiSTerPi analogueIO/SCART setup, taking about20s of repetition to stabilise.
+Acquisition speed/reliability remains to improve. See [TELETEXT_TEST.md](TELETEXT_TEST.md)
 and [EXPANSION_PLAN.md](EXPANSION_PLAN.md). No new public release was made.
 
 The older investigation entries below are historical and may describe issues

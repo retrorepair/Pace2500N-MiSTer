@@ -244,8 +244,11 @@ V080A now implements this as an optional, labelled fixed-page100 output test.
 Digital waveform simulation and independent libzvbi page decoding pass; Quartus
 all48 non-HDMI timing checks and repeated190s hardware tests now pass. Exact
 flash, CPU health, packet progress,30s timeout/manual cancel and unchanged RGB
-are verified; outcomes are recorded in handoff.md. No physical-TV decoding is
-claimed. F11 starts/cancels a30s window; ordinaryCSync is the default and timeout
+are verified; outcomes are recorded in handoff.md. User CRT photo now confirms
+body text and colours decode on the existing MiSTerPi analogueIO/SCART setup,
+after about20s of repetition to stabilise. Next investigate acquisition speed
+and reliability; do not extrapolate universal TV compatibility or analogue
+standards compliance. F11 starts/cancels a30s window; ordinaryCSync is the default and timeout
 state. See TELETEXT_TEST.md. Live broadcast Teletext routing remains later work.
 
 If that receiver-dependent experiment fails, use a small weighted-resistor

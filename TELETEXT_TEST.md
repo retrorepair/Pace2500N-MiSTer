@@ -61,10 +61,17 @@ exactly 1,500 packets. RGB screenshots before/during/after were pixel-identical.
 The first verifier hit a malformed UART frame; its parser was fixed and the
 complete hardware test repeated successfully. Malformed frames are counted and
 reported, with limits; readable CPU halts remain failures. V080A was left running
-with the experiment off. Actual TV Teletext decoding still needs observation.
+with the experiment off. Physical TV observations follow.
 
-Subsequent user photo confirms reception of the exact test-page header on the
-CRT through the existing cable. The page body is blank in that photo, so full
-page reception is still pending. If only the header appears, leave TV Text on
-and press F11 on MiSTer to start a fresh transmission window; the TV may have
-retained a header from an earlier test after the 30-second window ended.
+The first user photo showed the header only. A second photo and user report
+confirm body text and colours decode on the Sony CRT through the existing
+MiSTerPi analogueIO/SCART cable. The user reports about **20 seconds** of repeated
+transmission before the page stabilised. This demonstrates reception on that
+setup; acquisition speed/reliability still needs improvement. No error rate or
+compatibility with other TVs has been measured.
+
+If only the header appears, leave TV Text on and press F11 on MiSTer to start
+a fresh transmission window; the TV may have retained a header from an earlier
+test after the 30-second window ended. Allow time for acquisition. A longer
+temporary test window and controlled acquisition tests are candidates for the
+next revision; the current build still has its 30-second limit.

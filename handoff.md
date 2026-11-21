@@ -4,6 +4,28 @@
 Quartus results and HDL regressions. The latest session is directly below; the original
 7 Nov snapshot further down is retained for history only (it predates everything that works).
 
+## 21 Nov 2026 - Physical CRT Teletext body and colours CONFIRMED; acquisition about20s
+
+- User reports: "It took about20 seconds of the page repeating to stabilise
+  but it works." Second CRT photo shows page100 header AND multiple body rows
+  with cyan/white/green/yellow/red text matching our fixture, including PACE
+  2500N/MISTER, HSyncPDM experiment, decoder confirmation and F11 instructions.
+  This supersedes the header-only observation below. Actual TV body reception
+  is established on this Sony with existing MiSTerPi analogueIO/SCART wiring.
+- Keep scope precise: reception demonstrated on ONE setup after about20s;
+  not an error-rate measurement, fast acquisition, universal compatibility or
+  proof of standards-compliant analogue levels. Still a fixed output fixture,
+  not broadcast/TS Teletext or firmware-controlled page delivery.
+- Next VBI priority: diagnose/improve acquisition while preserving RGB/native
+  firmware stability and existing wiring. Do not assume whether erase-page
+  cadence, sparse one-packet/field transmission or analogue filtering/gain is
+  responsible without a discriminating test. Nominal carousel is0.5s, but
+  observed stabilisation is about20s. Existing30s test window is quite short
+  relative to that observation; consider a longer temporary window next time.
+- No new code, key injection, reload or Quartus build for this observation.
+  Photo retained only in local ignored evidence; documentation pushed to the
+  cold-boot branch under the user's existing GitHub backup instruction.
+
 ## 21 Nov 2026 - User photo confirms TV receives page100 header; body reception pending
 
 - User reports Teletext after pressing the Teletext button, with CRT photo
