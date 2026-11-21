@@ -4,6 +4,45 @@
 Quartus results and HDL regressions. The latest session is directly below; the original
 7 Nov snapshot further down is retained for history only (it predates everything that works).
 
+## 21 Nov 2026 22:28 - V080A built, deployed and hardware checks PASS; TV decoding pending
+
+- User-requested quiet build observed: no feature work/research during44m09s
+  Quartus compilation. User explicitly requested GitHub backup during wait;
+  source, prior cold-boot fixes, optional page100 fixture, watcher and handoff
+  pushed to existing cold-boot branch in fe90523. No public release created.
+- Full compilation completed22:19:30. ALL48 non-HDMI timing checks PASS;
+  worst setup+0.266ns, hold+0.256ns, recovery+3.576ns, removal+0.671ns,
+  pulsewidth+0.370ns. HDMI excluded as requested. Fit37532/41910ALMs(90%),
+  446/553RAMblocks(81%),110/112DSP(98%): only96ALMs+2RAM overZ, no addedDSP.
+- Uploaded RBF hash verified locally/remotely:
+  c12db1c5a599847881ab644367d7eaa8a0dade89227ed36c3ec357dcea7f308e.
+  Firmware unchanged32f6b2e84d0c4c4ec280a72f2d080e4b6fa5e68e8438ef712f34f97f63d38c7f.
+  MGL loads original FLASH_U202, EEPROM and liveTS only, NO RAM/STATE image.
+- Watcher first190s capture V080A-221935: hardware checks passed but my Python
+  verifier raised KeyError on one UART-corrupted RET field. Restore trap
+  successfully returned toZ. This was a TEST-PARSER error, not a CPU halt.
+  Fixed parser: require complete snapshots, report malformed count, reject
+  excessive corruption and any readable HALT even in a malformed frame.
+  Regression preflight verifies isolated corruption accepted/reported and an
+  injected HALT=E5 in that malformed frame rejected. Also fixed scp directory
+  copy (OpenSSH rejected remote/.). No FPGA rebuild or CPU changes needed.
+- Repeated complete190s hardware test V080A-222357 PASS; originalflash all
+  262144qwords exact, IR00/HALT00 and continuing retirement, PAL line lock,
+  packet rate50/s (250 over5s sampled span), automatic30s expiry and manual
+  cancel. First capture's automatic window emitted exactly1500 packets.
+  UART malformed snapshots reported1/83 first,2/83 repeat, not silently hidden.
+  Full evidence downloaded to local re/deployment/coldboot_20261121 and SD.
+- Native720x576Guide screenshot before/during/after first test is PIXEL-IDENTICAL
+  (PIL difference bboxNone), including background and upper-leftSkyGuide logo.
+  This proves FPGA RGB is unchanged; SSH screenshots CANNOT see the TV's own
+  Teletext decoder. Physical-TV acquisition remains UNPROVEN until user tests.
+- V080A confirmed LEFT LIVE on192.168.1.103, experiment OFF/ordinaryCSync.
+  User controls: F11 starts30s window, TV's own remoteText then100; F11 cancels.
+  F11 can be mapped on user's USBRP2040IRadapter. Test is builtin labelled
+  fixedpage100, not live broadcast Teletext. TELETEXT_TEST.md has instructions.
+- V079Z remains fallback. Startup delay still unfixed; expansion liveTTX/OpenTV/
+  modem/card/BoxOffice and earlier backlog remain per EXPANSION_PLAN.md.
+
 ## 21 Nov 2026 - V080A fixed page 100 prepared for quiet build/watch/deploy/test
 
 - User requires build time be QUIET: finish code/tests/scripts/docs first, start

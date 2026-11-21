@@ -52,3 +52,13 @@ Build with `PACE_TELETEXT_TEST=1`; without that macro the platform's original
 HSync assignment and core interface remain in use. The frozen V079Z RBF/MGL
 remain available as the working fallback. This is an experimental local build;
 timing reports and actual TV observation must accompany any later feature claim.
+
+21 Nov 2026 result: V080A compiled and all 48 non-HDMI timing checks passed
+(minimum setup +0.266 ns, hold +0.256 ns). Two 190-second hardware captures
+confirmed exact original flash, healthy firmware execution, PAL lock, packet
+progress, 30-second expiry and manual cancel. The first automatic window sent
+exactly 1,500 packets. RGB screenshots before/during/after were pixel-identical.
+The first verifier hit a malformed UART frame; its parser was fixed and the
+complete hardware test repeated successfully. Malformed frames are counted and
+reported, with limits; readable CPU halts remain failures. V080A was left running
+with the experiment off. Actual TV Teletext decoding still needs observation.

@@ -35,6 +35,6 @@ $remoteEvidence=@(Get-Content $testLog | Where-Object {$_ -match '^/media/fat/li
 if($remoteEvidence.Count -ne 1){throw 'Unexpected evidence folder response'}
 $localEvidence=Join-Path $evidenceRoot ($remoteEvidence[0] -split '/')[-1]
 New-Item -ItemType Directory -Path $localEvidence -Force | Out-Null
-& scp -q -O -r -o BatchMode=yes -o HostKeyAlias=MiSTer ('root@192.168.1.103:'+$remoteEvidence[0]+'/.') $localEvidence
+& scp -q -O -r -o BatchMode=yes -o HostKeyAlias=MiSTer ('root@192.168.1.103:'+$remoteEvidence[0]) $evidenceRoot
 if($LASTEXITCODE){throw 'Evidence download failed'}
 Write-Output "V080A complete; evidence: $localEvidence"

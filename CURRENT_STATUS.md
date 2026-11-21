@@ -1,4 +1,21 @@
-# Pace 2500N current status — 9 November 2026
+# Pace 2500N current status
+
+## 21 November 2026 — cold-boot branch, V080A live
+
+Read the latest entries in [handoff.md](handoff.md) for the continuation state.
+Original firmware now cold-boots entirely in FPGA with no RAM/STATE checkpoint.
+Native Guide, live TV and return-to-Guide background/corner logo work. Startup
+is still slow. V079Z is the established fallback.
+
+V080A adds an optional fixed Teletext page100 experiment on HSync PDM while
+preserving RGB. All48 non-HDMI timing checks and repeated190s hardware checks
+pass. It is left running on192.168.1.103 with ordinary CSync. Press F11 to open
+a30s test window, then select Text/page100 on the TV's own remote; F11 cancels.
+Physical-TV Teletext decoding is unproven. See [TELETEXT_TEST.md](TELETEXT_TEST.md)
+and [EXPANSION_PLAN.md](EXPANSION_PLAN.md). No new public release was made.
+
+The older investigation entries below are historical and may describe issues
+that subsequent versions fixed. The newest handoff takes precedence.
 
 ## v0.5.8 (10 Nov, 23:20) - MPEG-2 video and MP2 audio from the Guide, on hardware
 

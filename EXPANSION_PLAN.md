@@ -242,7 +242,9 @@ and peak voltage unchanged, preserve PAL sync timing, default to ordinaryCSync,
 and start with a separate fixed-page100 test rather than speculative live data.
 V080A now implements this as an optional, labelled fixed-page100 output test.
 Digital waveform simulation and independent libzvbi page decoding pass; Quartus
-and hardware outcomes are recorded in handoff.md. No physical-TV decoding is
+all48 non-HDMI timing checks and repeated190s hardware tests now pass. Exact
+flash, CPU health, packet progress,30s timeout/manual cancel and unchanged RGB
+are verified; outcomes are recorded in handoff.md. No physical-TV decoding is
 claimed. F11 starts/cancels a30s window; ordinaryCSync is the default and timeout
 state. See TELETEXT_TEST.md. Live broadcast Teletext routing remains later work.
 
