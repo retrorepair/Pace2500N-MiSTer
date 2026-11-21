@@ -4,6 +4,22 @@
 Quartus results and HDL regressions. The latest session is directly below; the original
 7 Nov snapshot further down is retained for history only (it predates everything that works).
 
+## 21 Nov 2026 - User photo confirms TV receives page100 header; body reception pending
+
+- User reports Teletext after pressing the Teletext button, with CRT photo
+  showing the exact builtin header PACE TEST100 / RGB / VBI TEST. This is
+  physical-TV header acquisition through the existing MiSTerPi analogueIO /
+  SCART setup. The photo's body is blank: do not claim a complete page yet.
+- Read-only SSH check confirms V080A remains live and CPU IR00/HALT00. TT=
+  40000000: PAL line lock, temporary test OFF, completed packet counter zero.
+  TV may be displaying a header cached during prior automatic test windows;
+  this is a hypothesis, not an established cause of the blank body.
+- Suggested user test: leave TV in Text mode, press F11 on MiSTer to open a
+  fresh30s transmission window, wait a few seconds for rows. Asked whether
+  their Text button was TV remote or MiSTer mapper, and whether rows appeared.
+  Await observation before modifying waveform or starting another build.
+- No FPGA changes, reloads, injected keys or new build during this observation.
+
 ## 21 Nov 2026 22:28 - V080A built, deployed and hardware checks PASS; TV decoding pending
 
 - User-requested quiet build observed: no feature work/research during44m09s

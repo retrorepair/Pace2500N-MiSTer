@@ -62,3 +62,9 @@ The first verifier hit a malformed UART frame; its parser was fixed and the
 complete hardware test repeated successfully. Malformed frames are counted and
 reported, with limits; readable CPU halts remain failures. V080A was left running
 with the experiment off. Actual TV Teletext decoding still needs observation.
+
+Subsequent user photo confirms reception of the exact test-page header on the
+CRT through the existing cable. The page body is blank in that photo, so full
+page reception is still pending. If only the header appears, leave TV Text on
+and press F11 on MiSTer to start a fresh transmission window; the TV may have
+retained a header from an earlier test after the 30-second window ended.
