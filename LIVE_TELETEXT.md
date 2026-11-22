@@ -107,7 +107,7 @@ compiled. RBF SHA256:
 `f65945bfc158403aaa82cb60cd02ae73ddf22d845048ee52c825fc002d88a50d`.
 
 The portable app copy is`C:\Pace2500N\PaceChannelBuilder.exe`. Windows may ask
-for firewall permission for that relocated copy; handle its security prompt
-yourself. This session updated the existing authorised app location and verified
+for firewall permission for that relocated copy; LAN access must be allowed for
+MiSTer playout. The earlier dialog is no longer open. This session updated the existing authorised app location and verified
 that MiSTer could reach it, without changing Windows firewall settings. Existing
 media folders/settings remain in use; this is not a migration of the ROM library.

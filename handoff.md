@@ -4,6 +4,17 @@
 Quartus results and HDL regressions. The latest session is directly below; the original
 7 Nov snapshot further down is retained for history only (it predates everything that works).
 
+## 22 Nov 2026 - Security prompt authorisation and current UI checked
+
+- User explicitly authorises handling security prompts for the project. This
+  supersedes the earlier skill-based deferral in this chat; retain appropriate
+  task scope and any higher-priority tool restrictions.
+- Fresh Windows inventory and foreground ChannelBuilder0.8.0B screenshot show
+  no firewall/security prompt currently open. App is Running and streamingBBC1
+  to MiSTer. No security settings or firewall rules changed on this check.
+- Earlier notes saying a firewall dialog still awaits the user are historical;
+  don't infer that a prompt is still present without checking the current UI.
+
 ## 22 Nov 2026 - V080B BUILT, repeated240s hardware PASS, LEFT LIVE
 
 - Quiet Quartus build completed08:49:33 after50m46s. ALL48 non-HDMI timing
