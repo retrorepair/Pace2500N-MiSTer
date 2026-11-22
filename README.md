@@ -21,8 +21,9 @@ checks of the new live clock and timed subtitle overlay are still pending.
 
 **Downloads:** [V080B / v0.8.0-beta.2](https://github.com/retrorepair/Pace2500N-MiSTer/releases/tag/v0.8.0-beta.2)
 contains the tested `Pace2500N_V080B.rbf`, matching Live launcher and relay,
-Channel Builder 0.8.0B Windows app, and `SHA256SUMS.txt`. This is a prerelease;
-v0.7.5 remains the latest stable release. Older v0.7.x packages use their own matching launcher/app and
+Channel Builder 0.8.0B Windows app, and `SHA256SUMS.txt`. **V080B is the latest
+full release**, with GitHub's prerelease flag cleared. The existing tag and
+asset names are retained to preserve download links. Older v0.7.x packages use their own matching launcher/app and
 [checkpoint-era instructions](https://github.com/retrorepair/Pace2500N-MiSTer/blob/v0.7.7-rc3/README.md).
 The installation instructions below describe V080B from this branch.
 
