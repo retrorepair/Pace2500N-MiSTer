@@ -7,10 +7,12 @@ served live from your PC (and optionally your Plex library), transcoded only
 while the box is tuned to them, with period adverts and continuity between
 programmes.
 
-## Current cold-boot release: V080B
+## Latest full release: V080B
 
 [Download V080B / v0.8.0-beta.2](https://github.com/retrorepair/Pace2500N-MiSTer/releases/tag/v0.8.0-beta.2)
 for the tested FPGA core, matching launcher/relay and Channel Builder 0.8.0B.
+GitHub marks V080B as the latest full release, not a prerelease. The existing
+tag and asset names are retained to preserve download links.
 The firmware boots entirely in FPGA from the original flash and an EEPROM save:
 **no RAM.bin or STATE.bin checkpoint is required.** Supply your own firmware.
 
