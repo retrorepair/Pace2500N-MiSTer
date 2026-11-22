@@ -11,12 +11,14 @@ local simulated orders throughout development.
 
 ## Current work and build scope
 
-- V080A is live: original firmware, EEPROM and liveTS suffice, without RAM or
+- V080B is live: original firmware, EEPROM and liveTS suffice, without RAM or
   CPU-state checkpoint. All48 non-HDMI timing checks pass. Z's native RAM-backed
   image plane restores both Guide background and corner logo after liveTV.
 - Fixed Teletext page100 body/colours decode on the user's Sony over the existing
-  MiSTerPi analogueIO/SCART cable, taking about20s to stabilise. Improve reception
-  speed/reliability first; page888 subtitles follow that work. V079Z is fallback.
+  MiSTerPi analogueIO/SCART cable. User reports it remains stable once acquired.
+  B adds live transport-fed pages and timed888 captions, with two240s hardware
+  passes and all48 non-HDMI timing checks passing. Physical-TV page refresh/
+  subtitle timing feedback remains pending. A andZ are available as fallbacks.
 - Keep slow startup on the active backlog. Measure boot/image/menu readiness
   separately from deliberate test-script sleeps before changing CPU/peripheral
   timing. Preserve the working cold handoff and controller/I2C reset fixes.
@@ -72,14 +74,15 @@ that the correct PMT advertises it without interrupting A/V, EPG or continuity.
 NO OCR. V080B implementation is prepared and digitally tested: transport-fed
 FPGA VBI, timed888 cues, live index/clock, now-next listings, BBC headlines,
 public-IP weather and official MiSTer Main updates. Actual PlexSRT and IPTV
-WebVTT cue extraction pass. Core build/TV overlay validation remain pending.
+WebVTT cue extraction pass. Core build/timing and repeated hardware tests pass;
+physical-TV timed overlay validation remains pending.
 See LIVE_TELETEXT.md and the newest handoff; the initial sequence below is
 retained as the implementation/acceptance checklist.
 
 User requests TV-decoded page888 subtitles for Plex and, when the source permits,
-IPTV. Keep this queued after acquisition/reliability improvements: the current
-approximately20s stabilisation is unsuitable for timed cues. No subtitle code
-has been implemented, and page100 success does not prove subtitle overlay yet.
+IPTV. Usable text/Teletext paths are implemented in B with NO OCR. The earlier
+fixed-page acquisition observation does not establish timed subtitle overlay;
+check actual live refresh, caption timing/clearing and source changes on the TV.
 
 - **Plex first:** inspect selectable subtitle tracks and retrieval endpoints.
   Start with text-based SRT/extractable embedded text, using the selected

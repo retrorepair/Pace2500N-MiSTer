@@ -1,24 +1,26 @@
 # Pace 2500N current status
 
-## 21 November 2026 — cold-boot branch, V080A live
+## 22 November 2026 — cold-boot branch, V080B live
 
 22 Nov continuation: Channel Builder0.8.0B is updated and serving49channels.
-V080B core source is frozen for build/deploy/test: live pages100/101/200+/300/
+V080B core is built, deployed and left live: live pages100/101/200+/300/
 400/500 and timed888 captions from text/Teletext sources, noOCR. Real PlexSRT
 and MovieSphereHLSWebVTT extraction pass, plus13 Python tests and independent
 FPGA-stream/libzvbi tests. RedDwarf's1440x1080 central picture is detected inside
 1920x1080 for automatic4:3 filling. See [LIVE_TELETEXT.md](LIVE_TELETEXT.md).
-Core build/hardware results remain pending in the newest handoff; do not claim
-the new timed overlay has already been seen on the TV.
+All48 non-HDMI timing checks and two240s hardware captures pass. No CPU halt;
+Guide/background/logo survive TV and return pixel-identically. The first
+watcher's PASS-prefix reporting error was fixed and the complete test repeated.
+Live clock and timed888 overlay still need physical-TV observation/feedback.
 
 Read the latest entries in [handoff.md](handoff.md) for the continuation state.
 Original firmware now cold-boots entirely in FPGA with no RAM/STATE checkpoint.
 Native Guide, live TV and return-to-Guide background/corner logo work. Startup
 is still slow. V079Z is the established fallback.
 
-V080A adds an optional fixed Teletext page100 experiment on HSync PDM while
+Earlier V080A added the optional fixed Teletext page100 experiment on HSync PDM while
 preserving RGB. All48 non-HDMI timing checks and repeated190s hardware checks
-pass. It is left running on192.168.1.103 with ordinary CSync. Press F11 to open
+pass. A remains available as fallback. B is now running on192.168.1.103. Press F11 to open
 a30s test window, then select Text/page100 on the TV's own remote; F11 cancels.
 User CRT photo now confirms body text and colours decode through the existing
 MiSTerPi analogueIO/SCART setup, taking about20s of repetition to stabilise.

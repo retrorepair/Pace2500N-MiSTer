@@ -18,7 +18,7 @@ Use the TV's own Text/page-number controls:
 
 The core OSD has **Live Teletext: On/Off**, defaultOn. The original fixed page100
 fixture remains available with F11 for30s; live packets resume afterwards.
-Switch back to ordinary TV viewing when using888 as a subtitle overlay. Actual
+Select888 with the TV's Text controls while watching a channel. Actual
 TV overlay behaviour and timing need checking on the physical display.
 
 Channel Builder Settings contains switches for live Teletext, subtitles,
@@ -93,6 +93,18 @@ transparent background. Fixed-test controls also pass with live-mode FIFO reset
 feedback enabled. All49 saved channels load and HTTP transport includes Teletext.
 Quartus and on-hardware results are recorded in the latest handoff; simulator
 results alone do not establish physical-TV timed-subtitle success.
+
+22 Nov result: all48 non-HDMI timing checks pass (minimum setup+0.717ns,
+hold+0.225ns). Two240s hardware captures pass: original flash exact, no CPU halt,
+live VBI counters advancing, F11 fixture/timeout/cancel and native navigation.
+First/return Guide screenshots are pixel-identical. A success-marker mismatch
+initially caused rollback despite passing checks; corrected and fully retested.
+V080B is left running. Live TV Teletext clock/overlay timing needs user feedback.
+
+The checked-in QSF uses tested seed6 and enables both`PACE_TELETEXT_TEST=1`and
+`PACE_TELETEXT_LIVE=1`. HDL/configuration matches the frozen source actually
+compiled. RBF SHA256:
+`f65945bfc158403aaa82cb60cd02ae73ddf22d845048ee52c825fc002d88a50d`.
 
 The portable app copy is`C:\Pace2500N\PaceChannelBuilder.exe`. Windows may ask
 for firewall permission for that relocated copy; handle its security prompt

@@ -32,6 +32,6 @@ for phase in ('expired', 'cancelled'):
     assert len(sample) == 3 and all(s['TT'] & 0xd0000000 == 0xc0000000 for s in sample), phase + ': live service did not resume'
     assert (sample[-1]['TT'] - sample[0]['TT']) & 65535 > 50, phase + ': counter stopped'
 assert all(s['TT'] & 0x90000000 == 0x80000000 for s in steady[-5:]), 'Not left in live mode'
-print('PASS240s: exact flash, IR/HALT0, retirement, live VBI packet delta%d, F11 fixture/timeout/cancel, native navigation CPU health' % delta)
+print('PASS 240s: exact flash, IR/HALT0, retirement, live VBI packet delta%d, F11 fixture/timeout/cancel, native navigation CPU health' % delta)
 print('Malformed UART snapshots reported: %d of%d' % (bad, len(raw)))
 print('Actual TV page refresh and timed subtitle overlay still require physical observation.')

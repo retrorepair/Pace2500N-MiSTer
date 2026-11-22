@@ -4,6 +4,49 @@
 Quartus results and HDL regressions. The latest session is directly below; the original
 7 Nov snapshot further down is retained for history only (it predates everything that works).
 
+## 22 Nov 2026 - V080B BUILT, repeated240s hardware PASS, LEFT LIVE
+
+- Quiet Quartus build completed08:49:33 after50m46s. ALL48 non-HDMI timing
+  checks PASS: setup minimum+0.717ns, hold+0.225ns, recovery+4.141ns,
+  removal+0.692ns, pulsewidth+0.370ns. Fit37772/41910ALMs(90%),448/553RAM(81%),
+  110/112DSP(98%). No CPU/PLL changes, no increased analogue pin drive.
+- RBF uploaded/hash-verified:
+  f65945bfc158403aaa82cb60cd02ae73ddf22d845048ee52c825fc002d88a50d.
+  MGL contains originalFLASH_U202, EEPROM, liveTS only; noRAM/STATE checkpoint.
+- First240s capture V080B-084937 PASSED all assertions: exact262144flash qwords,
+  IR00/HALT00, ongoing retirement, transport-fed VBI progress(delta1650 across
+  5s sample), F11 fixedfixture/30s expiry/manual cancel, native navigation.
+  BUT my Python success line printed PASS240s while shell grep expected PASS
+  followed by space. Shell therefore rolled back toA despite successful checks.
+  Fixed success marker to PASS 240s. This was a watcher reporting bug, not a
+  timeout/CPU failure. User was watching and reports it looked okay.
+- Repeated full240s test V080B-125908 PASS, delta1653;3malformed UART snapshots
+  reported out of133 in each capture, complete frames healthy. Both captures
+  downloaded locally and retained on SD. Second run successfully disarmed its
+  restore trap and LEFT V080B LIVE on192.168.1.103, confirmed by MiSTer process
+  and remoteRBF hash. Live service On; fixedfixture test off.
+- FirstGuide and return-from-TVGuide screenshots are PIXEL-IDENTICAL,720x576,
+  PIL difference bboxNone, including original background/cornerlogo. Test also
+  captured live-channel screenshot. This verifies nativeRGB regression; SSH
+  screenshots do not capture the TV's Teletext renderer.
+- New live pages100 index,101 changingclock,200+actual channel now/next,
+  300BBCnews,400public-IPweather,500officialMiSTerMaincommits,888English
+  text/Teletext subtitles are ready for physical-TV refresh/overlay/timing
+  checks. Original F11 fixedpage100 still30s; it temporarily owns VBI output.
+  User confirmed earlierA fixedpage body/colours onSony; do not mislabel that
+  as observation of B's live clock or timed888 overlay.
+- PC0.8.0B remains running from existing authoriseddist app path. Standalone
+  copy C:/Pace2500N/PaceChannelBuilder.exe also installed. Windows firewall
+  dialog was left untouched for user; network server remains reachable.
+  ActualPlexSRT and MovieSphereWebVTT cues verified;13Python tests and digital
+  FPGA/libzvbi tests passed. RedDwarf4:3 crop1440x1080@240,0 verified/cached;
+  EnglishPGS still needs an English text track because user explicitlyNO OCR.
+- Repository QSF/HDL now match the actual tested frozen source byte-for-byte
+  (seed6, PACE_TELETEXT_TEST=1 and PACE_TELETEXT_LIVE=1, version0.8.0B).
+  Only copied tested configuration/version label back, no post-build logic edits.
+  Source and final handoff pushed to cold-boot; no new public release yet.
+  Startup delay and physical subtitle sync feedback remain open; no build running.
+
 ## 22 Nov 2026 - V080B live Teletext/subtitles/pillarbox candidate prepared
 
 - Latest user steering: page100 is stable once acquired; don't rework electrical
