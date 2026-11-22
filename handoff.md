@@ -16,8 +16,9 @@ Quartus results and HDL regressions. The latest session is directly below; the o
   preserve EEPROM, one startup entry, invalid/missing input before settings
   changes, old CLI arguments and /tmp source compatibility. No live relay
   restart, FPGA rebuild or Windows app change was required.
-- Refresh the V080B MiSTer files zip and SHA256SUMS with this installer; retain
-  the exact tested RBF/app/launcher. Release notes describe the Scripts flow.
+- Refreshed the V080B MiSTer files zip and SHA256SUMS with this installer;
+  all five uploaded SHA-256 digests verified. Exact tested RBF/app/launcher
+  retained. Release notes describe the Scripts flow, channels and Guide music.
 - README last: SD-root copy paths, PC app Settings, Scripts-menu setup, Plex/
   local/IPTV/radio channel steps and Channels > Choose audio for Guide music.
   Music remains on the PC, is saved per line-up and loops through EPG screens.
