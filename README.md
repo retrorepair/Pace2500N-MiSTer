@@ -103,165 +103,138 @@ Earlier captures from v0.7.7-rc2 show the existing Guide and playout features:
   into the same transport. The FPGA inserts them into the analogue VBI alongside
   RGB. The TV decodes the pages; firmware execution remains in FPGA.
 
-## 1. Install the core on the MiSTer
+## 1. Copy the files to your MiSTer SD card
 
-Download V080B from the release above (or build this branch), then copy these
-files to the MiSTer SD card:
+From the [V080B release](https://github.com/retrorepair/Pace2500N-MiSTer/releases/latest),
+download the RBF, **MiSTer files zip** and **Windows app zip**. Unzip both zip files.
 
-| File | Where |
-|------|-------|
-| `Pace2500N_V080B.rbf` | `/media/fat/_Other/` |
-| [`Pace2500N_V080B_Live.mgl`](Pace2500N_V080B_Live.mgl) | `/media/fat/_Other/` |
-| Your firmware `FLASH_U202.bin` | `/media/fat/games/Pace2500N/` |
-| `EEPROM.bin` (64 KiB persistent save) | `/media/fat/games/Pace2500N_GUIDE/` |
+Copy these files onto your MiSTer SD card. Create the folders if needed:
 
-Supply your own original 2 MiB U202 firmware image; firmware is not distributed.
-The relay installer in step 3 creates the EEPROM save if it is missing and
-preserves an existing one. The launcher mounts `/tmp/pace_live.ts`, which the
-relay creates. Complete the relay setup before loading the launcher.
+| File | Folder on the SD card |
+|---|---|
+| `Pace2500N_V080B.rbf` | `_Other` |
+| `Pace2500N_V080B_Live.mgl` (from the MiSTer files zip) | `_Other` |
+| Your original `FLASH_U202.bin` (2 MiB) | `games/Pace2500N` |
+| `install_relay.sh` and `pace_live_relay.py` (from the MiSTer files zip) | `Scripts` |
 
-Leave **Boot: Cold from flash** selected in the OSD. The V080B launcher loads
-no RAM or CPU-state checkpoint. Existing V080A launchers can be retained as a
-fallback. The firmware starts from reset and takes time to initialise.
+You supply the firmware; it is not included. **You do not need `RAM.bin` or
+`STATE.bin`.** The installer creates the EEPROM save for you and keeps any
+existing save. These folder names start at the SD card's root (shown as
+`/media/fat/` when browsing the MiSTer over the network).
 
-## 2. The Windows app: Pace Channel Builder
+## 2. Set up Channel Builder on your PC
 
-A normal Windows program - nothing else to install (Python, ffmpeg and yt-dlp
-are inside its folder).
+1. Put the extracted **PaceChannelBuilder** folder somewhere permanent, such
+   as `C:\Pace2500N`. Keep everything inside it together.
+2. Run **PaceChannelBuilder.exe**. In **Settings**, choose your original
+   `FLASH_U202.bin` under **Firmware image**. Set **Days of listings** to **7**.
+3. If you want to use Plex, click **Sign in with Plex...** in Settings and
+   approve it in your browser. **Test connection** checks your libraries.
+4. Allow the app through Windows Firewall if asked. Open the **Playout** tab
+   and note the PC address shown there, including `:8250`.
 
-- **Get it:** unzip `PaceChannelBuilder-v0.8.0-beta.2-windows.zip` from the
-  [V080B release](https://github.com/retrorepair/Pace2500N-MiSTer/releases/tag/v0.8.0-beta.2)
-  into your chosen location, for example `C:\Pace2500N`. Run
-  `PaceChannelBuilder.exe` and keep the whole folder together, including
-  `_internal\` and `tools\`. Older v0.7.x Windows packages do not contain the
-  new Teletext/subtitle features.
-- **Run it:** *Pace Channel Builder* on the Desktop / Start menu, or
-  `PaceChannelBuilder.exe` in that folder.
-- **Upgrading:** close the app (it asks first while playout is running - the
-  box loses its channels until you reopen it), replace the folder, start it
-  again. Your settings, line-ups and adverts are kept (they are not in the
-  app folder).
-- **If something goes wrong:** the app writes `%APPDATA%\Pace2500N\app.log`
-  (everything it did, errors, and a full dump if playout stops answering).
-  The *Playout* tab shows whether the box is connected and when it last was.
-- **Plex:** *Settings* tab -> **Sign in with Plex...**. Your browser opens Plex's
-  own sign-in page; approve *Pace Channel Builder* and the app receives the
-  token and finds your server by itself. You never copy a token by hand.
-  (*Test connection* lists your libraries.)
-- **Firmware image:** in Settings, select the original `FLASH_U202.bin` for
-  guide-text encoding. A RAM checkpoint is not needed by the current app.
-- **Playout runs inside the app** and starts when the app opens (tick box in
-  Settings). The *Playout* tab shows what each channel is showing and what is
-  being streamed to the box. Keep the app open while you use the box.
-- First time only: allow it through Windows Firewall if asked (the MiSTer
-  connects to port 8250).
-- Settings normally live in `%APPDATA%\Pace2500N\settings.json`. Optional
-  portable mode uses `data\settings.json` when an empty `portable.flag` file
-  exists beside the executable. The *Data folder* holds line-ups and `roms\`
-  (ripped adverts); copying the app does not copy your media library or firmware.
-- **New settings:** enable live Teletext, page 888 subtitles, internet pages
-  and automatic 4:3 pillarbox removal as needed. Subtitle delay is adjustable
-  from −10 to +10 seconds, initially +0.7. These are this app's settings and do
-  not change Plex's general audio/subtitle preferences.
+Keep the PC and app running while you watch. Your video and audio files stay
+on the PC; you do not copy them to the MiSTer.
 
-To rebuild the app from source: `tools\build_app.bat` (needs Python,
-PyInstaller and a gyan.dev FFmpeg release-essentials build extracted under
-`third_party\` on the build machine only; close the app first).
+## 3. Run the installer on MiSTer
 
-## 3. Install the relay on the MiSTer (once)
+1. On the MiSTer, open **Scripts**. Allow scripts if MiSTer asks.
+2. Select **install_relay** (the `install_relay.sh` file you copied).
+3. Using a keyboard, enter the **PC address from Channel Builder's Playout
+   tab**, for example `192.168.1.10:8250`, then press Enter. Use your PC's
+   address here, not the MiSTer's address.
+4. When it finishes, press Enter to return to the menu.
 
-The two files are in the MiSTer files zip (or
-`tools/mister/` in the source). From that folder on the PC (`MISTER` is the
-MiSTer's address; the last address is your PC's LAN address, which the app's
-Playout tab shows):
+**No SSH or PC terminal is needed.** You normally do this only once. The
+connection starts automatically each time MiSTer starts. To change the PC
+address or update the relay, copy the latest two files into `Scripts` and run
+it again. Press Enter at the address prompt to keep the existing address.
 
-```bash
-scp pace_live_relay.py install_relay.sh root@MISTER:/tmp/
-```
+## 4. Add channels and Guide music
 
-```bash
-ssh root@MISTER "sh /tmp/install_relay.sh YOUR_PC_LAN_IP:8250"
-```
+Channel Builder saves changes automatically. A **line-up** is your saved set
+of channels and their programmes; its file is shown at the top of **Channels**.
+You can keep several using **New line-up**, **Open...** and **Save as...**.
 
-This puts the relay in `/media/fat/linux/pace/`, writes `relay.ini` (the PC
-address — edit it if your PC's address changes) and adds one line to
-`/media/fat/linux/user-startup.sh` so it starts at boot. It is idle until the
-Pace core runs. Its log is `/tmp/pace_live_relay.log`. To upgrade, run the same
-two commands with the new files; the old relay is stopped first.
+### Make a channel from your videos or Plex
 
-## 4. Build channels
+1. On **Channels**, click **Add**. Give it a name and an unused channel number.
+2. Choose its **Guide genre** and **Style**. BBC style has continuity without
+   adverts; ITV and Sky styles add advert breaks when advert sets are selected.
+   Leave the broadcast start time alone unless you want a particular schedule.
+3. Click **Add files...** for videos on the PC, or **Add from Plex...** for
+   Plex films/episodes. The Plex picker can also **Add the whole library**.
+4. Use **Up / Down** beneath the programme list to set the running order.
+   The programmes repeat to fill the schedule. A channel with no programmes
+   stays off air.
 
-In the app:
+The **Schedule** tab's **Show today's guide** lets you check the result.
 
-- **Channels** - *Add* a channel; set its name, number, **style** (BBC style:
-  continuity, no adverts / ITV style: terrestrial advert breaks / Sky style:
-  satellite breaks), when its broadcast day starts, and tick the advert /
-  continuity sets it uses. Add programmes with *Add files...* or
-  *Add from Plex...* (pick a library, then a show and episodes - or **Add the
-  whole library**: every film, or every episode of a TV library). The list
-  repeats to fill the day. **Every change is saved as you make it** (the line-up
-  file is shown at the top of the tab; a new one is `roms\lineup.json`), and a
-  running playout picks it up a couple of seconds later - no Save or restart
-  needed. A channel with no programmes yet stays off air.
-- **Adverts & continuity** - search YouTube (e.g. `TVS adverts 1987`,
-  `BBC1 continuity 1989`, `Sky One adverts 1994`), select results and *Rip
-  selected* into a set named for the station and years. Videos you downloaded
-  yourself go in with *Import videos into set...*.
-  Long compilations (a whole evening's breaks in one video) are split
-  automatically at the cuts between items - black frames with silence, black
-  frames alone on hissy tapes, announcer pauses in long continuity. Select a set
-  to see every spot with its time and length: *Play* (or double-click) previews
-  it, *Exclude / include* drops anything that is not an advert, ident or
-  continuity. Breaks use runs of spots exactly as they were broadcast, and never
-  run across an excluded or over-long segment (e.g. a programme excerpt).
-- **Live TV channels (IPTV)** - on the **Channels** tab choose **Add IPTV**. A picker loads an
-  [iptv-org](https://github.com/iptv-org/iptv) country list (UK by default); search it, keep
-  *Official sources only* ticked, select channels and **Add selected**. Each gets a Guide genre
-  from the list's category and a number in Sky's block for it (Kids 601+, Movies 301+, Sports
-  401+, News 501+, Entertainment 101+), and the stream is checked (see the Playout log). Or use
-  *Paste a stream URL instead* for any `.m3u8` or MPEG-TS address. Use official free channels, e.g. from the
-  [Free-TV](https://github.com/Free-TV/IPTV) or [iptv-org](https://github.com/iptv-org/iptv)
-  lists (Pluto TV, Samsung TV Plus, the BBC's own UK streams); many other entries in those lists
-  are unofficial re-streams of paid channels. The stream is converted only while the box is
-  tuned to it. The picker's *Listings* column shows which channels come with a programme
-  guide: their real schedule and synopses are fetched automatically from the XMLTV guides
-  [i.mjh.nz](https://i.mjh.nz) publishes for Pluto TV, Plex, Samsung TV Plus and others
-  (about 100 of the ~170 official UK channels), matched by the channel's iptv-org id. For any
-  other stream add `"epg": {"url": "<XMLTV file>", "id": "<channel id>"}` to the channel in the
-  line-up file. Without a guide the Guide rows read "Live TV". Tested: Pluto TV Retro Toons on
-  601 and Tiny Pop on 602, with listings on All Channels and the Kids page and synopses in Info.
-- **Internet radio** - open the **Music & Radio** tab. Choose *Add starter
-  stations* for channels 801–809, or *New* to enter a channel number in
-  800–899, a station name and a direct HTTP(S) audio-stream URL. *Save station*
-  adds it to the current line-up. On the MiSTer, use **TV Guide → Music &
-  Radio** (F1, then 7) or enter the channel number. The updated Playout app
-  and MiSTer relay send audio to the existing v0.7.4 core when you tune a
-  station. The app polls the stream for ICY metadata while playout is running.
-  A station's current track appears in the app and in the Guide's current
-  slot. Reopen Music & Radio to refresh the firmware's grid. Other slots and
-  stations without track metadata show *Live Radio*.
-- **Schedule** - *Show today's guide* lists exactly what the box will show.
-  *Find natural breaks* (once per programme, slow) moves ITV/Sky centre breaks
-  to the programme's own fade-to-black points.
+### Add internet TV
 
-For scripting there are command-line equivalents (`tools/pace_channels.py`,
-`tools/pace_playout.py`); a sample line-up is `tools/lineup.example.json`.
-`tools/radio.example.json` is a sample value for the line-up's `radio` field.
+On **Channels**, click **Add IPTV**, choose the stations you want and click
+**Add selected**. You can also use **Paste a stream URL instead** for a direct
+stream address. Keep **Official sources only** selected in the picker.
+
+Programme listings and descriptions are fetched automatically where a matching
+TV guide exists. The picker's **Listings** column shows which stations have
+one; others show **Live TV**. Each station is given its own channel number.
+
+### Add internet radio
+
+Open **Music & Radio** and click **Add starter stations** for a ready-made
+selection. To add your own, click **New**, enter a station name, an unused
+number from **800–899** and a direct audio-stream URL, then **Save station**.
+A station's current track appears in the Guide when its stream supplies that
+information. On MiSTer, choose **TV Guide → Music & Radio** or type its number.
+
+### Add the Guide background music
+
+1. On **Channels**, click **Choose audio…** beside **EPG background audio**.
+2. Pick your music file on the PC: **MP2, MP3, WAV, FLAC, M4A or OGG**. For
+   example, select your `sky_epg_music_2002.mp2` if you have it. Keep the file
+   in that location; it is streamed from the PC and is not bundled with the app.
+3. On the box, set **Services → System Setup → Sound Settings → Background
+   Music** to **On**.
+
+The music choice is saved with the current line-up. It loops while you browse
+the EPG, including Guide, All Channels, Box Office and Services. Returning to
+live TV restores channel audio. **Clear** removes the music choice; without a
+working music file the EPG is silent.
+
+### Optional: add adverts and continuity
+
+In **Adverts & continuity**, search for videos, select results and click
+**Rip selected**, or use **Import videos into set...** for your own files.
+Give the set a useful name, such as a station and year. Long recordings are
+split into spots; preview them and use **Exclude / include** to skip unwanted
+parts. Then select the set under that channel's **Adverts / continuity sets**.
+**Find natural breaks** in Schedule can place breaks at programme fades.
 
 ## 5. Watch
 
-1. Open **Pace Channel Builder** on the PC (playout starts with it).
-2. On the MiSTer load your matching **Pace2500N Live** launcher. The core
-   cold-boots the firmware and starts gathering listings. Allow time for
-   initialisation; startup and initial Guide acquisition are still slow.
+1. In Channel Builder, open **Playout** and click **Start playout** if it is
+   not already **Running**. Keep the app open.
+2. On MiSTer, open **Other** and select **Pace2500N_V080B_Live**. Leave
+   **Boot: Cold from flash** selected in the core OSD. Initial boot and Guide
+   loading take time; wait for the firmware to finish starting.
 3. Press **TV Guide** (F1), choose **All Channels**, highlight a channel and
    press **Select** (Enter). After a few seconds (the PC starts the transcode at
    the scheduled point) the picture and sound appear.
    Keyboard/IR remote mapping: [KEYBOARD_REMOTE_MAP.md](KEYBOARD_REMOTE_MAP.md).
 4. To change channel, press TV Guide again and pick another one.
 
-Channel numbering in the line-up maps to the box's services: channel *n*
-(0-based) is SID 1001+n, video PID 0x200+0x10·n, audio PID 0x102+0x10·n.
+### Keep your setup when upgrading
+
+Close the app, replace its program folder with the new download, then reopen
+it. Settings normally stay in `%APPDATA%\Pace2500N`; line-ups and media stay
+in the **Data folder** selected in Settings. Keep those files when upgrading.
+Optional portable mode uses `data/settings.json` beside the app when an empty
+`portable.flag` file is present. The app log is `%APPDATA%\Pace2500N\app.log`.
+
+For live Teletext and subtitles, use the switches in **Settings**. Subtitle
+delay is adjustable from -10 to +10 seconds, initially +0.7. These choices do
+not change Plex's general audio/subtitle preferences.
 
 ## 6. Teletext, subtitles and picture fit
 
