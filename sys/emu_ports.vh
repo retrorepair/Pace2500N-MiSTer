@@ -8,6 +8,14 @@ input         RESET,
 `ifdef PACE_TELETEXT_TEST
 output        PACE_TTX_TRIGGER,
 input  [31:0] PACE_TTX_STATUS,
+`ifdef PACE_TELETEXT_LIVE
+output        PACE_TTX_CLK,
+output        PACE_TTX_RESET,
+output        PACE_TTX_WR,
+output  [7:0] PACE_TTX_DATA,
+output        PACE_TTX_ENABLE,
+input         PACE_TTX_SPACE,
+`endif
 `endif
 
 //Must be passed to hps_io module

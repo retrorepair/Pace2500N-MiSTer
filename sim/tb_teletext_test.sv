@@ -1,5 +1,5 @@
 `timescale 1ns/1ps
-module tb_teletext_test;
+module tb_teletext_test #(parameter LIVE=0);
     reg clk=0;
     always #1 clk=~clk;
     reg reset=1,allowed=1,trigger=0;
@@ -11,8 +11,9 @@ module tb_teletext_test;
     wire sync_n=!(hs^vs);
     wire out;
     wire [31:0] state;
-    pace_teletext_test #(.TEST_CYCLES(60000000)) dut(
+    pace_teletext_test #(.TEST_CYCLES(60000000),.LIVE(LIVE)) dut(
         .clk(clk),.reset(reset),.allowed(allowed),.trigger_toggle(trigger),
+        .live_enable(1'b1),.stream_reset(LIVE!=0 && state[28]),.packet_available(1'b0),.packet_data(8'd0),.packet_read(),
         .hsync(hs),.vsync(vs),.sync_n(sync_n),.hs_out(out),.debug_state(state));
     always @(posedge clk)raster<=raster==2159999 ? 0:raster+1;
     integer cycles=0,packet_count=0,packet_age=0,bit_no=0,next_bit,ones=0,width=0;

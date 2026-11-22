@@ -4,6 +4,57 @@
 Quartus results and HDL regressions. The latest session is directly below; the original
 7 Nov snapshot further down is retained for history only (it predates everything that works).
 
+## 22 Nov 2026 - V080B live Teletext/subtitles/pillarbox candidate prepared
+
+- Latest user steering: page100 is stable once acquired; don't rework electrical
+  setup. Implement888 from usable text/Teletext tracks ONLY, NO OCR. Add useful
+  pages/news/weather/current listings/MiSTer updates. Weather location should
+  come from gateway/public egress IP. Also zoom4:3 inside16:9 (Blu-rayRedDwarf).
+- PC modules pace_teletext/subtitles/teletext_pages/geometry implement bounded
+  live PES transport and cues, language filtering, live pages100/101/200+/300/
+  400/500/888, background feeds/public-IP weather, conservative3-sample crop.
+  Existing playout/app integrated, switches/delay in Settings. No globalPlex
+  preference changes. Live subtitle/display timing requires TV observation.
+- ActualRedDwarf video crop1440x1080,x240,y0 from1920x1080 verified and cached.
+  Its English subtitles arePGS; SRTs areCzech, so do not pickCzech as fallback.
+  Real MovieSphere IPTV exposesWebVTT; packaged app selected that track.
+- FPGA optional PACE_TELETEXT_LIVE (also requiresPACE_TELETEXT_TEST) adds passive
+  PID1EF0 canonicalPES tap, atomic2KiB dcfifo and stream-fed serializer on11 VBI
+  lines/field. Original waveform/CPU/PLL unchanged. OriginalF11 page10030s test
+  retained; liveOSDOn/Off defaultOn. Reset uses authoritative TS packet boundary;
+  fixed-test ownership flushes FIFO so stale data is not replayed afterwards.
+- PASS13 Python tests incl realFFmpeg subtitle seek/shutdown/crop and RFC8216
+  HLS WebVTT timestamp-map/33-bit-wrap/relative-URI tests. ActualPlex EnglishSRT
+  produced a real cue4.970..6.940s. FFmpeg did not emit MovieSphereWebVTT despite
+  provider segments containing cues; added direct bounded HLS text reader with
+  videoPTS origin mapping and retries. ActualVTT parsing returned mapped cues
+  14.936..16.972s and18.874..20.342s (no caption text logged). Actual49-
+  channel HTTP server outputs15TTX PES/45rows in500TS slots. PASS fullcorelint,
+  malformedPES/TEI/otherPID/fullFIFO atomic admission,60line TS-to-VBI byte match,
+  independentlibzvbi page100+888 (transparent background/boxed subtitle), fixed
+  page100controls with LIVE1 and FIFOresetfeedback. BBC/weather/MiSTer requests
+  all succeeded. Lablogs under re/deployment/coldboot_20261121.
+- Final direct saved-URL IPTV smoke PASS: MovieSphere EnglishWebVTT -> reader
+  queue in3.9s, real cue intervals0..0.522s,0.656..2.658s,2.791..4.960s relative
+  to videoPTS; only timing/character counts logged. Earlier short smoke attempts
+  used expensive full49-channel loading and/or pre-fix extraction; don't present
+  those failures as proof the provider has no captions. Final app repackaged
+  with pace_hls_subtitles and installed/restarted in both prepared locations.
+- Packaged0.8.0B installed C:/Pace2500N and existingdist app path; previousdist
+  backed up %TEMP%/PaceChannelBuilder_before_liveTTX_20261122. Existing app was
+  stopped/closed cleanly via computer-use skill. Launcher helper reopened old
+  path; explicitStart-Process corrected it. NewCpath triggeredWindowsfirewall
+  prompt, left UNTOUCHED per skill. Updated existing authorised app path; MiSTer
+  reaches8250 and49channels. Newprocess127088 was servingMovieSphere, IR/HALT0
+  confirmed on existingA core after app update. Security prompt still awaits
+  user; no firewall settings changed and no further UI inputs behind it.
+- LIVE_TELETEXT.md documents controls, sources, limits, app location and crop.
+  Frozen source %TEMP%/Pace2500N_live_ttx_20261122, seed6, CPU/PLL hashes matchA;
+  manifest in local evidence. Next: start one quiet
+  Quartus build with prepared build-and-test-live-ttx.ps1 watcher, automatic
+  hash-verified deploy/240s test and rollbackV080A on failure. Tell user when
+  starting; do no other work while fitting. No new public release yet.
+
 ## 21 Nov 2026 - User requests page888 subtitles AFTER Teletext is stable
 
 - Queue page888 TV subtitle overlay after improving page100 acquisition and

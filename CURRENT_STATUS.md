@@ -2,6 +2,15 @@
 
 ## 21 November 2026 — cold-boot branch, V080A live
 
+22 Nov continuation: Channel Builder0.8.0B is updated and serving49channels.
+V080B core source is frozen for build/deploy/test: live pages100/101/200+/300/
+400/500 and timed888 captions from text/Teletext sources, noOCR. Real PlexSRT
+and MovieSphereHLSWebVTT extraction pass, plus13 Python tests and independent
+FPGA-stream/libzvbi tests. RedDwarf's1440x1080 central picture is detected inside
+1920x1080 for automatic4:3 filling. See [LIVE_TELETEXT.md](LIVE_TELETEXT.md).
+Core build/hardware results remain pending in the newest handoff; do not claim
+the new timed overlay has already been seen on the TV.
+
 Read the latest entries in [handoff.md](handoff.md) for the continuation state.
 Original firmware now cold-boots entirely in FPGA with no RAM/STATE checkpoint.
 Native Guide, live TV and return-to-Guide background/corner logo work. Startup

@@ -68,6 +68,14 @@ that the correct PMT advertises it without interrupting A/V, EPG or continuity.
 
 ### Page 888 subtitles — requested after Teletext is stable
 
+22 Nov progress: user confirms stability and prioritises usable text/Teletext,
+NO OCR. V080B implementation is prepared and digitally tested: transport-fed
+FPGA VBI, timed888 cues, live index/clock, now-next listings, BBC headlines,
+public-IP weather and official MiSTer Main updates. Actual PlexSRT and IPTV
+WebVTT cue extraction pass. Core build/TV overlay validation remain pending.
+See LIVE_TELETEXT.md and the newest handoff; the initial sequence below is
+retained as the implementation/acceptance checklist.
+
 User requests TV-decoded page888 subtitles for Plex and, when the source permits,
 IPTV. Keep this queued after acquisition/reliability improvements: the current
 approximately20s stabilisation is unsuitable for timed cues. No subtitle code

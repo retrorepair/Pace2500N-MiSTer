@@ -37,6 +37,9 @@ from pace_channels import (RATE, RadioStation, LiveChannel, load_radio, load_set
                            lineup_tables, carousel,  # noqa: E402
                            MUSIC_PID, MUSIC_PMT, MUSIC_SID, HOME_TSID, CHAN_TSID, transport_of)
 from pace_radio import RadioMetadata
+from pace_teletext import Carousel as TeletextCarousel
+from pace_teletext_pages import InformationPages
+from pace_subtitles import SubtitleReader
 
 P = 188
 NULL = bytes([0x47, 0x1f, 0xff, 0x10]) + b'\xff' * 184
@@ -53,7 +56,7 @@ def normalised_audio(target):
     return f'{STEREO_48K},loudnorm=I={target}:TP={TRUE_PEAK}:LRA=18,aresample=48000'
 
 
-def pal_video_filter(letterbox):
+def pal_video_filter(letterbox, crop=None):
     if letterbox:
         # Fit the source display aspect (including anamorphic SAR) into a
         # 720x576 PAL 4:3 raster whose samples are 16:15. Keep interlaced
@@ -62,7 +65,8 @@ def pal_video_filter(letterbox):
                     ':flags=lanczos:interl=-1,pad=720:576:(ow-iw)/2:(oh-ih)/2:black')
     else:
         geometry = 'scale=720:576:flags=lanczos'
-    return geometry + ',setsar=16/15,fps=25,format=yuv420p,setfield=tff'
+    prefix = ('crop=' + ':'.join(str(int(v)) for v in crop) + ',') if crop else ''
+    return prefix + geometry + ',setsar=16/15,fps=25,format=yuv420p,setfield=tff'
 
 
 def pid_of(p):
@@ -78,8 +82,9 @@ class Weaver:
     (ffmpeg's own PSI, stuffing) carries the next due guide-data packet or a
     null packet. Continuity counters are renumbered for every PID, so the
     joins between ffmpeg runs are seamless to the demux."""
-    def __init__(self, si, av_pids):
+    def __init__(self, si, av_pids, extra=None):
         self.av = set(av_pids)
+        self.extra = extra
         self.slot = 0
         self.cc = {}
         self.set_si(si)
@@ -111,6 +116,10 @@ class Weaver:
             if due <= now:
                 self.k += 1
                 return self.stamp(sp)
+        if self.extra:
+            extra = self.extra(now)
+            if extra is not None:
+                return self.stamp(extra)
         return NULL
 
 
@@ -128,6 +137,37 @@ class Session:
         self.stopped = threading.Event()
         self.si_interval = 5 if self.srv.stations else 60
         self.refresh = time.monotonic() + self.si_interval
+        self.subtitle_reader = None
+        self.subtitle_origin = 0.
+        self.ttx = TeletextCarousel()
+        self.ttx_refresh = -1
+
+    def text_packet(self, when):
+        if not self.srv.settings.get('teletext', True):
+            return None
+        if int(when) != self.ttx_refresh:
+            self.ttx_refresh = int(when)
+            # A background snapshot uses the actual EPG schedule. Never refresh
+            # XMLTV or Plex from the hot A/V output path.
+            lines = self.srv._ttx_listings
+            self.ttx.pages = self.srv.teletext_pages.pages(lines, getattr(self.chan, 'name', 'TV Guide'))
+        reader = self.subtitle_reader
+        text = reader.text(max(0, when - self.subtitle_origin - float(self.srv.settings.get('subtitle_delay', .7)))) if reader else ''
+        return self.ttx.packet(when, text, reader.raw if reader else None)
+
+    def weaver(self, pids):
+        return Weaver(self.si(), pids, self.text_packet)
+
+    def start_subtitles(self, source, start, length, weaver):
+        self.end_subtitles()
+        if self.srv.settings.get('teletext_subtitles', True):
+            self.subtitle_origin = weaver.slot * P / RATE
+            self.subtitle_reader = SubtitleReader(self.srv.media, source, start, length, self.srv.log)
+
+    def end_subtitles(self):
+        if self.subtitle_reader:
+            self.subtitle_reader.close()
+            self.subtitle_reader = None
 
     def schedule_time(self):
         """The time on air of the next byte (what the box will show when it plays it)."""
@@ -190,6 +230,7 @@ class Session:
             why = 'finished'
         finally:
             self.stopped.set()
+            self.end_subtitles()
             with self.srv.session_lock:
                 self.srv.sessions.discard(self)
         self.srv.log(f'session ended after {self.sent / RATE:.0f} s: {why}')
@@ -202,7 +243,7 @@ class Session:
 
     def guide_only(self):
         self.srv.log('guide data only (no channel tuned)')
-        self.stuff(Weaver(self.si(), ()))
+        self.stuff(self.weaver(()))
 
     def transcode(self, cmd, weaver, target=None):
         """Read complete packets with a bounded stall timeout and reap FFmpeg on every exit."""
@@ -268,7 +309,7 @@ class Session:
         length = self.srv.music_length
         at = self.schedule_time() % length
         self.srv.log(f"EPG background audio: {Path(self.srv.music).name} @{at:.1f}s of {length:.1f}s")
-        w = Weaver(self.si(), (MUSIC_PID,))
+        w = self.weaver((MUSIC_PID,))
         cmd = [self.srv.settings['ffmpeg'], '-hide_banner', '-loglevel', 'error', '-nostdin',
                '-ss', f'{at:.3f}', '-stream_loop', '-1', '-i', self.srv.music, '-map', '0:a:0',
                '-af', normalised_audio(GUIDE_LUFS),
@@ -286,7 +327,7 @@ class Session:
     def radio(self):
         station = self.chan
         self.srv.log(f'{station.name}: opening live radio')
-        w = Weaver(self.si(), (station.audio_pid,))
+        w = self.weaver((station.audio_pid,))
         cmd = [self.srv.settings['ffmpeg'], '-hide_banner', '-loglevel', 'error', '-nostdin',
                '-rw_timeout', '6000000', '-probesize', '32768', '-analyzeduration', '1000000',
                '-protocol_whitelist', 'http,https,tcp,tls,crypto',
@@ -313,7 +354,7 @@ class Session:
         c = self.chan
         self.srv.log(f'{c.name}: opening live TV')
         self.item = dict(kind='live', title='Live TV', source=c.url)
-        w = Weaver(self.si(), (c.video_pid, c.audio_pid))
+        w = self.weaver((c.video_pid, c.audio_pid))
         cmd = [self.srv.settings['ffmpeg'], '-hide_banner', '-loglevel', 'error', '-nostdin',
                '-rw_timeout', '10000000', '-protocol_whitelist', 'http,https,tcp,tls,crypto']
         if '.m3u8' in c.url:
@@ -329,7 +370,11 @@ class Session:
                 '-muxrate', str(RATE * 8), '-pcr_period', '20', '-muxdelay', '0.7', '-f', 'mpegts', 'pipe:1']
         while not self.stopped.is_set():
             try:
-                self.transcode(cmd, w)
+                self.start_subtitles(c.url, 0, None, w)
+                try:
+                    self.transcode(cmd, w)
+                finally:
+                    self.end_subtitles()
             except ClientDisconnected:
                 raise
             except (OSError, RuntimeError, subprocess.SubprocessError):
@@ -341,7 +386,7 @@ class Session:
 
     def channel(self):
         c = self.chan
-        w = Weaver(self.si(), (c.video_pid, c.audio_pid))
+        w = self.weaver((c.video_pid, c.audio_pid))
         failed, failures = None, 0
         while True:
             on_air = self.schedule_time()
@@ -356,7 +401,11 @@ class Session:
                          f"@{it['inpoint'] + offset:.1f}s for {remaining:.1f}s")
             try:
                 cmd = self.srv.ffmpeg_cmd(c, it['source'], it['inpoint'] + offset, remaining, letterbox=self.letterbox)
-                self.transcode(cmd, w, target)
+                self.start_subtitles(it['source'], it['inpoint'] + offset, remaining, w)
+                try:
+                    self.transcode(cmd, w, target)
+                finally:
+                    self.end_subtitles()
                 failed, failures = None, 0
             except ClientDisconnected:
                 raise
@@ -421,6 +470,11 @@ class Server(ThreadingHTTPServer):
         self._radio_titles, self._radio_version = {}, 0
         super().__init__(('0.0.0.0', port), Handler)
         self.radio_metadata = RadioMetadata(self.stations)
+        self.teletext_pages = InformationPages(settings, self.log)
+        self._ttx_listings = ['Gathering channel listings...']
+        self._geometry_pending = set()
+        self._geometry_queue = queue.Queue(maxsize=128)
+        threading.Thread(target=self._prepare_geometry, name='Pillarbox analysis', daemon=True).start()
         # Both transponders' carousels, built before the box first tunes and kept fresh, so no
         # tune waits for listings to be built.
         threading.Thread(target=self._keep_carousels, name='SI refresh', daemon=True).start()
@@ -432,9 +486,64 @@ class Server(ThreadingHTTPServer):
                     self.carousel(time.time(), on)
                 except Exception as e:          # a broken line-up must not kill the refresher
                     self.log(f'listings build failed: {e}')
+            try:
+                self._ttx_listings = [f"{c['number']} {c['name']}: {c['now']}. Next {c['next_at']} {c['next']}"
+                                      for c in self.now()['channels']]
+                # Warm the current scheduled titles before the box tunes them.
+                # Cached probes and geometry work stay on background workers.
+                if self.settings.get('auto_pillarbox', True):
+                    for channel in self.chans:
+                        if isinstance(channel, LiveChannel):
+                            continue
+                        item, _, _ = channel.at(time.time())
+                        source = item['source']
+                        hit = self.media.cache.get(self.media.key(source), {})
+                        if not hit.get('pillarbox_checked') and source not in self._geometry_pending:
+                            info = self.media.probe(source)
+                            if info.get('video'):
+                                self.source_crop(source, info)
+            except Exception:
+                pass
             time.sleep(20)
 
+    def _prepare_geometry(self):
+        from pace_geometry import detect_pillarbox
+        while not self.closing:
+            try:
+                source, info = self._geometry_queue.get(timeout=.5)
+            except queue.Empty:
+                continue
+            try:
+                crop = detect_pillarbox(self.media.ffmpeg, info.get('input') or source, info['video'], info['duration'])
+                key = self.media.key(source)
+                with self.media.cache_lock:
+                    hit = self.media.cache.setdefault(key, {})
+                    hit['pillarbox_checked'] = True
+                    hit['pillarbox_crop'] = crop
+                    self.media._dirty.add(key)
+                    self.media.save()
+                if crop:
+                    self.log('Detected stable 4:3 pillarboxing; next programme start/retune will fill the 4:3 picture')
+            except Exception as exc:
+                self.log(f'Pillarbox analysis unavailable ({type(exc).__name__})')
+            finally:
+                self._geometry_pending.discard(source)
+
+    def source_crop(self, source, info):
+        if not self.settings.get('auto_pillarbox', True):
+            return None
+        hit = self.media.cache.get(self.media.key(source), {})
+        if not hit.get('pillarbox_checked') and source not in self._geometry_pending:
+            self._geometry_pending.add(source)
+            try:
+                self._geometry_queue.put_nowait((source, info))
+            except queue.Full:
+                self._geometry_pending.discard(source)
+        return hit.get('pillarbox_crop')
+
     def server_close(self):
+        if hasattr(self, 'teletext_pages'):
+            self.teletext_pages.close()
         if hasattr(self, 'radio_metadata'):
             self.radio_metadata.stop.set()
         with self.session_lock:
@@ -553,7 +662,7 @@ class Server(ThreadingHTTPServer):
             cmd += ['-f', 'lavfi', '-t', f'{length:.3f}', '-i', 'anullsrc=r=48000:cl=stereo']
             amap = '1:a:0'
         cmd += ['-map', '0:v:0', '-map', amap,
-                '-vf', pal_video_filter(letterbox),
+                '-vf', pal_video_filter(letterbox, self.source_crop(source, info)),
                 '-af', audio_filter,
                 '-c:v', 'mpeg2video', '-flags', '+ilme+ildct', '-g', '12', '-bf', '2',
                 '-b:v', f'{VIDEO_KBPS}k', '-maxrate', f'{VIDEO_KBPS + 600}k', '-bufsize', '1835k',

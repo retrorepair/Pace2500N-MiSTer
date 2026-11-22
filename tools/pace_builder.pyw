@@ -21,7 +21,7 @@ sys.path.insert(0, str(HERE))
 import pace_channels as pc  # noqa: E402
 import pace_playout  # noqa: E402
 
-APP = 'Pace Channel Builder'
+APP = 'Pace Channel Builder 0.8.0B'
 STYLES = {'bbc': 'BBC style - continuity, no adverts', 'itv': 'ITV style - terrestrial advert breaks',
           'sky': 'Sky style - satellite advert breaks'}
 # Guide genre pages (TV Guide 2-8). Automatic: Plex films make a movie channel, otherwise the
@@ -1077,9 +1077,21 @@ class App(tk.Tk):
             self.v_paths[key] = v
         self.v_autostart = tk.BooleanVar(value=self.settings.get('autostart', True))
         ttk.Checkbutton(f, text='Start playout when the app opens', variable=self.v_autostart).grid(row=11, column=1, sticky='w', pady=4)
-        ttk.Button(f, text='Save settings', command=self.save_settings).grid(row=12, column=1, sticky='w', pady=10)
+        self.v_text_options = {}
+        for row, (key, label) in enumerate((
+                ('teletext', 'Live Teletext pages (V080B or newer core)'),
+                ('teletext_subtitles', 'Page 888 subtitles from English text / Teletext tracks'),
+                ('teletext_internet', 'News, weather from public IP, and MiSTer updates'),
+                ('auto_pillarbox', 'Fill 4:3 programmes stored inside a 16:9 picture')), 12):
+            var = tk.BooleanVar(value=self.settings.get(key, True))
+            self.v_text_options[key] = var
+            ttk.Checkbutton(f, text=label, variable=var).grid(row=row, column=1, sticky='w', pady=2)
+        self.v_subtitle_delay = tk.StringVar(value=str(self.settings.get('subtitle_delay', .7)))
+        ttk.Label(f, text='Subtitle delay (seconds)').grid(row=16, column=0, sticky='w')
+        ttk.Entry(f, textvariable=self.v_subtitle_delay, width=10).grid(row=16, column=1, sticky='w')
+        ttk.Button(f, text='Save settings', command=self.save_settings).grid(row=17, column=1, sticky='w', pady=10)
         ttk.Label(f, text=f'Settings are stored in {pc.settings_path()}.',
-                  foreground='#555').grid(row=13, column=0, columnspan=3, sticky='w')
+                  foreground='#555').grid(row=18, column=0, columnspan=3, sticky='w')
         self.show_plex_state()
 
     def browse(self, var, kind):
@@ -1139,12 +1151,16 @@ class App(tk.Tk):
     def save_settings(self):
         settings = {**self.settings, **{k: v.get().strip() for k, v in self.v_paths.items()}}
         settings.update(plex_url=self.v_plex_url.get().strip().rstrip('/'), autostart=bool(self.v_autostart.get()))
+        settings.update({key: bool(var.get()) for key, var in self.v_text_options.items()})
         try:
             settings['port'], settings['days'] = int(settings['port']), int(settings['days'])
+            settings['subtitle_delay'] = float(self.v_subtitle_delay.get())
             if not 1 <= settings['port'] <= 65535 or not 1 <= settings['days'] <= 8:
                 raise ValueError
+            if not -10 <= settings['subtitle_delay'] <= 10:
+                raise ValueError
         except ValueError:
-            messagebox.showerror(APP, 'Enter a port from 1 to 65535 and 1 to 8 days of listings.')
+            messagebox.showerror(APP, 'Enter a port from 1 to 65535, 1 to 8 days of listings, and a subtitle delay from -10 to 10 seconds.')
             return
         if not Path(settings['data_root']).is_dir():
             messagebox.showerror(APP, 'Choose an existing data folder.')

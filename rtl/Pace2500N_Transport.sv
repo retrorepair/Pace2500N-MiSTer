@@ -3,7 +3,13 @@
 module emu (
 `include "sys/emu_ports.vh"
 );
-localparam CONF_STR={"Pace2500N_TS;;","F0,BIN,Load FLASH_U202.bin;","F1,BIN,Load RAM checkpoint;","F2,BIN,Load CPU state;","F3,TS,Load transport stream (64MiB max);","S0,TS,Stream transport stream / live ring;","S1,BIN,EEPROM save (64 KiB);","O6,Widescreen on 4:3,Stretch,Letterbox;","O3,Display,Guide,Diagnostics;","O4,Diagnostic RF lock,From TS,Off;","O5,Broadcast clock (TOT),MiSTer RTC,TS file;","O7,Boot,Cold from flash,Checkpoint;","-;","R0,Reset (reload checkpoint);","V,0.7.9 (cold boot)"};
+localparam TTX_CONF=
+`ifdef PACE_TELETEXT_LIVE
+"O8,Live Teletext,On,Off;";
+`else
+"";
+`endif
+localparam CONF_STR={"Pace2500N_TS;;","F0,BIN,Load FLASH_U202.bin;","F1,BIN,Load RAM checkpoint;","F2,BIN,Load CPU state;","F3,TS,Load transport stream (64MiB max);","S0,TS,Stream transport stream / live ring;","S1,BIN,EEPROM save (64 KiB);","O6,Widescreen on 4:3,Stretch,Letterbox;","O3,Display,Guide,Diagnostics;","O4,Diagnostic RF lock,From TS,Off;","O5,Broadcast clock (TOT),MiSTer RTC,TS file;","O7,Boot,Cold from flash,Checkpoint;",TTX_CONF,"-;","R0,Reset (reload checkpoint);","V,0.7.9 (cold boot)"};
 wire clk_sys,clk_video,clk_mem,clk_dec,clk_dot,pll_locked;
 wire clk_cpu2x,clk_cpu1x;
 pll pll(.refclk(CLK_50M),.rst(1'b0),.outclk_0(clk_sys),.outclk_1(clk_video),
@@ -165,6 +171,22 @@ assign device_ready=demux_selected?device_req && demux_config_ready:image_hit?de
 pace_mmio_response mmio_bus(.clk(clk_sys),.reset(soc_reset),.hold(holding),.cpu_req(iq),
  .cpu_ready(irdy),.cpu_data(ir),.device_req(device_req),.device_ready(device_ready),.device_data(demux_selected?dir:image_hit?image_rdata:mpeg_hit?mpeg_rdata:pir));
 wire ts_valid,ts_ready,demux_irq;wire [7:0] ts_data;
+`ifdef PACE_TELETEXT_LIVE
+reg [3:0] ttx_flush=15;
+reg ttx_window_old=0;
+always @(posedge clk_sys)begin
+ ttx_window_old<=ttx_status[28];
+ if(core_reset || (ttx_window_old && !ttx_status[28]) ||
+    (ps2_key[10]!=ttx_key_old && ps2_key[9] && ps2_key[8:0]==9'h078))ttx_flush<=15;
+ else if(ttx_flush!=0)ttx_flush<=ttx_flush-1'b1;
+end
+assign PACE_TTX_CLK=clk_sys;
+assign PACE_TTX_RESET=core_reset || stream_loading || stream_restart || ttx_flush!=0 || status[8] || ttx_status[28];
+assign PACE_TTX_ENABLE=!status[8];
+pace_teletext_pes text_transport(.clk(clk_sys),.reset(PACE_TTX_RESET),
+ .strobe(ts_valid && ts_ready),.packet_start(ts_boundary),.data(ts_data),.space(PACE_TTX_SPACE),
+ .valid(PACE_TTX_WR),.value(PACE_TTX_DATA),.accepted(),.dropped());
+`endif
 wire [15:0] av_video,av_audio;
 wire raw_valid,raw_ready;wire [7:0] raw_data;wire [31:0] tot_rewrites;
 wire [31:0] ts_loops,ts_packets,ts_sections,ts_dropped,ts_crc_errors;

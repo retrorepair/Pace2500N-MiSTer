@@ -103,3 +103,5 @@ set_global_assignment -name SEARCH_PATH rtl/mpeg2/mp2
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_ts_stream.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_eeprom_save.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_teletext_test.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_teletext_pes.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/pace_teletext_fifo.sv

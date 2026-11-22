@@ -12,6 +12,7 @@ tasklist /fi "imagename eq PaceChannelBuilder.exe" | find /i "PaceChannelBuilder
 )
 py -3 -m PyInstaller --noconfirm --windowed --name PaceChannelBuilder --paths tools ^
   --hidden-import pace_huffman --hidden-import pace_si --hidden-import pace_transport --hidden-import extract_application_ram ^
+  --hidden-import pace_teletext --hidden-import pace_subtitles --hidden-import pace_teletext_pages --hidden-import pace_hls_subtitles --hidden-import pace_geometry ^
   --add-data "%CD%\tools\radio.example.json;." ^
   --workpath "%TEMP%\pace_app_build" --distpath dist --specpath "%TEMP%\pace_app_build" tools\pace_builder.pyw || exit /b 1
 mkdir dist\PaceChannelBuilder\tools 2>nul

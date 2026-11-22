@@ -1566,7 +1566,19 @@ reg  [39:0] PhaseInc;
 	 && !yc_en
 `endif
 	;
-	pace_teletext_test ttx100(.clk(clk_vid),.reset(reset),.allowed(ttx_allowed),
+`ifdef PACE_TELETEXT_LIVE
+	wire [7:0] ttx_q;
+	wire ttx_available,ttx_read;
+	wire [10:0] ttx_used;
+	pace_teletext_fifo ttx_fifo(.wrclk(pace_ttx_clk),.rdclk(clk_vid),.reset(reset || pace_ttx_reset),
+	 .wrreq(pace_ttx_wr),.rdreq(ttx_read),.data(pace_ttx_data),.q(ttx_q),
+	 .space(pace_ttx_space),.available(ttx_available),.rdusedw(ttx_used));
+	pace_teletext_test #(.LIVE(1)) ttx100(.live_enable(pace_ttx_enable),
+	 .stream_reset(pace_ttx_reset),.packet_available(ttx_available),.packet_data(ttx_q),.packet_read(ttx_read),
+`else
+	pace_teletext_test ttx100(.live_enable(1'b0),.stream_reset(1'b0),.packet_available(1'b0),.packet_data(8'd0),.packet_read(),
+`endif
+	 .clk(clk_vid),.reset(reset),.allowed(ttx_allowed),
 	 .trigger_toggle(pace_ttx_trigger),.hsync(vga_hs),.vsync(vga_vs),
 	 .sync_n(normal_hs),.hs_out(ttx_hs),.debug_state(pace_ttx_status));
 	assign VGA_HS=av_dis ? 1'bZ : ttx_hs;
@@ -1818,12 +1830,21 @@ wire [13:0] fb_stride;
 `ifdef PACE_TELETEXT_TEST
 wire pace_ttx_trigger;
 wire [31:0] pace_ttx_status;
+`ifdef PACE_TELETEXT_LIVE
+wire pace_ttx_clk,pace_ttx_reset,pace_ttx_wr,pace_ttx_enable,pace_ttx_space;
+wire [7:0] pace_ttx_data;
+`endif
 `endif
 emu emu
 (
 `ifdef PACE_TELETEXT_TEST
 	.PACE_TTX_TRIGGER(pace_ttx_trigger),
 	.PACE_TTX_STATUS(pace_ttx_status),
+`ifdef PACE_TELETEXT_LIVE
+	.PACE_TTX_CLK(pace_ttx_clk),.PACE_TTX_RESET(pace_ttx_reset),
+	.PACE_TTX_WR(pace_ttx_wr),.PACE_TTX_DATA(pace_ttx_data),
+	.PACE_TTX_ENABLE(pace_ttx_enable),.PACE_TTX_SPACE(pace_ttx_space),
+`endif
 `endif
 	.CLK_50M(FPGA_CLK2_50),
 	.RESET(reset),

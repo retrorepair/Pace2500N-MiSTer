@@ -312,7 +312,7 @@ class Media:
         hit = self.cache.get(k, {})
         if not isinstance(hit.get('duration'), (float, int)) or not 0 < hit['duration'] < math.inf or 'audio_index' not in hit:
             out = subprocess.run(creationflags=NO_WINDOW, args=[self.ffprobe, '-v', 'error', '-show_entries',
-                                  'format=duration:stream=index,codec_type,codec_name,width,height:'
+                                  'format=duration:stream=index,codec_type,codec_name,width,height,sample_aspect_ratio:'
                                   'stream_tags=language,title:stream_disposition=default,comment,visual_impaired',
                                   '-of', 'json', url], capture_output=True, text=True,
                                  encoding='utf-8', errors='replace', timeout=20)
@@ -334,7 +334,7 @@ class Media:
                 hit = self.cache.setdefault(k, {})
                 hit.update(duration=duration,
                            audio=bool(audio), audio_index=track.get('index'),
-                           video=next(({k: s.get(k) for k in ('codec_name', 'width', 'height')}
+                           video=next(({k: s.get(k) for k in ('codec_name', 'width', 'height', 'sample_aspect_ratio')}
                                        for s in info['streams'] if s['codec_type'] == 'video'), None))
                 self._dirty.add(k)
                 self.save()
@@ -1182,6 +1182,9 @@ def lineup_tables(now, codec, chans, days, music=False, on=HOME_TSID, stations=(
         streams = b'\x03' + u16(0xe000 | audio) + b'\xf0\x00'
         if video is not None:
             streams = b'\x02' + u16(0xe000 | video) + b'\xf0\x00' + streams
+        from pace_teletext import PID as TTX_PID, descriptor_payload
+        ttx_desc = descriptor(0x56, descriptor_payload())
+        streams += b'\x06' + u16(0xe000 | TTX_PID) + loop(ttx_desc)
         body = u16(0xe000 | (video if video is not None else audio)) + b'\xf0\x00' + streams
         pmts.append((pmt_pid(sid), long_section(0x02, sid, body, version=ver)))
     tables = [(0x14, tot(when)), (0x10, nit)] + [(0x11, x) for x in sdts + bats] + [(0, pat)] + pmts
