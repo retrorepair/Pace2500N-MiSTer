@@ -4,6 +4,15 @@
 Quartus results and HDL regressions. The latest session is directly below; the original
 7 Nov snapshot further down is retained for history only (it predates everything that works).
 
+## 22 Nov 2026 - V080B promoted to latest full release
+
+- User explicitly requested a full release, not a prerelease. GitHub release
+  V080B now has prerelease=false and is verified as /releases/latest.
+- Retained tag v0.8.0-beta.2 and asset names to preserve existing download links;
+  this is the same tested RBF and packages, with no rebuild or asset replacement.
+- Release title/notes and README identify it as the latest full release. The
+  earlier prerelease/stable-version statements below are historical.
+
 ## 22 Nov 2026 - V080B release published
 
 - User requested the latest tested RBF as a GitHub release. Published prerelease
