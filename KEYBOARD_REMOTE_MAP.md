@@ -26,18 +26,24 @@ serial remote-control messages.
 | Play / Pause / Stop / Record | Space / J / K / C |
 | Rewind / Fast Forward | [ / ] |
 | MiSTer menu | F12 (reserved) |
+| Fixed Teletext page 100 test (V080A/B) | F11; starts/cancels a 30-second diagnostic |
 
-The initial Guide build resumes a disclosed diagnostic firmware checkpoint.
-It executes firmware in FPGA logic; it does not run a software CPU on the ARM
-or require a PC connection. The loader handoff remains unresolved, and no RF
-or broadcast listings are supplied. Some remote functions require hardware
-features that are still unimplemented; mapping a button does not establish
-that those features work.
+The current `cold-boot` branch (V080B) starts the original firmware in FPGA
+logic using FLASH_U202.bin and the EEPROM save. Its Live launcher does not load
+RAM.bin or STATE.bin. The PC supplies listings, media and live Teletext through
+the relay; firmware execution stays in FPGA. Use **Pace2500N_V080B_Live.mgl**
+in Other to start it. Earlier checkpoint launchers are historical builds.
 
-The first build's reboot entry is **Pace2500N_Guide.mgl** in Other. It loads
-the original U202, guest RAM and CPU checkpoint. Reload that entry to restart.
-The ordinary v044/v046 cores are retained separately.
+For live Teletext, use the **TV's own Text and page-number controls**. Page 101
+has a changing clock; 888 carries available subtitles. F8/T sends the Pace
+firmware's Text command; F11 selects the separate fixed output test and
+temporarily pauses live Teletext for up to 30 seconds. See
+[LIVE_TELETEXT.md](LIVE_TELETEXT.md) for pages, setup and current validation.
 
-Machine-readable mappings: `re/KEYBOARD_REMOTE_MAP.csv`. PS/2 values in that
+Some remote functions require hardware features that remain unimplemented;
+mapping a button alone does not establish that its native workflow works.
+
+Machine-readable firmware-button mappings: `re/KEYBOARD_REMOTE_MAP.csv`.
+F11 is handled separately by the core. PS/2 values in that
 file describe MiSTer's internal Set2 event format; enter the **keyboard key
 names** above in the RP2040 application.

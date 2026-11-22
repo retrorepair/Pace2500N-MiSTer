@@ -4,6 +4,25 @@
 Quartus results and HDL regressions. The latest session is directly below; the original
 7 Nov snapshot further down is retained for history only (it predates everything that works).
 
+## 22 Nov 2026 - Documentation checkpoint
+
+- Current working development branch is cold-boot, V080B with ChannelBuilder
+  0.8.0B. Original flash/EEPROM/liveTS boot, all48 non-HDMI timing checks and
+  repeated240s hardware tests pass. Live TV clock/subtitle timing feedback is
+  still pending; retain the distinction from earlier fixed-page TV reception.
+- GitHub main still contains the older v0.7.x implementation. Latest packaged
+  prerelease verified as v0.7.7-rc3; latest stable release v0.7.5. V080B has no
+  new release bundle. Documentation must distinguish those paths and must not
+  tell V080B users to load RAM.bin/STATE.bin or select RAM for guide text.
+- Keyboard instructions updated for cold boot, TV-owned Teletext controls and
+  F11's temporary fixed-page test. Native V080B Guide screenshot retained in
+  docs/screenshots/cold-boot-v080b-guide.png; no living-room photos published.
+- User requests README be the FINAL documentation update after handoff push.
+  README scope: current build/status/installation, Teletext pages and subtitle
+  limits, public-IP weather, pillarbox crop, tested configuration and legacy
+  release distinction. Default-branch README should direct current development
+  users to cold-boot without merging experimental implementation into main.
+
 ## 22 Nov 2026 - Security prompt authorisation and current UI checked
 
 - User explicitly authorises handling security prompts for the project. This
