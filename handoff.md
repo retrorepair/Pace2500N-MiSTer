@@ -4,6 +4,24 @@
 Quartus results and HDL regressions. The latest session is directly below; the original
 7 Nov snapshot further down is retained for history only (it predates everything that works).
 
+## 22 Nov 2026 - Simpler installation from MiSTer Scripts
+
+- User requests plain installation instructions with no SSH requirement,
+  plus clear Guide music and channel-building steps.
+- install_relay.sh now finds pace_live_relay.py beside itself. Copy both into
+  /media/fat/Scripts and run install_relay from MiSTer's Scripts menu. The
+  script prompts for the PC address from Channel Builder's Playout tab; plain
+  IP/hostname defaults to port8250. Reruns offer the existing saved address.
+- Isolated shell checks pass: menu input, default port, saved-address reuse,
+  preserve EEPROM, one startup entry, invalid/missing input before settings
+  changes, old CLI arguments and /tmp source compatibility. No live relay
+  restart, FPGA rebuild or Windows app change was required.
+- Refresh the V080B MiSTer files zip and SHA256SUMS with this installer; retain
+  the exact tested RBF/app/launcher. Release notes describe the Scripts flow.
+- README last: SD-root copy paths, PC app Settings, Scripts-menu setup, Plex/
+  local/IPTV/radio channel steps and Channels > Choose audio for Guide music.
+  Music remains on the PC, is saved per line-up and loops through EPG screens.
+
 ## 22 Nov 2026 - V080B promoted to latest full release
 
 - User explicitly requested a full release, not a prerelease. GitHub release
