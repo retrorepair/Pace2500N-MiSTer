@@ -7,8 +7,32 @@ served live from your PC (and optionally your Plex library), transcoded only
 while the box is tuned to them, with period adverts and continuity between
 programmes.
 
-> This guide is kept current with every change. Developer and reverse-engineering
-> notes are in `CURRENT_STATUS.md`, `handoff.md` and `re/`.
+## Current cold-boot release: V080B
+
+[Download V080B / v0.8.0-beta.2](https://github.com/retrorepair/Pace2500N-MiSTer/releases/tag/v0.8.0-beta.2)
+for the tested FPGA core, matching launcher/relay and Channel Builder 0.8.0B.
+The firmware boots entirely in FPGA from the original flash and an EEPROM save:
+**no RAM.bin or STATE.bin checkpoint is required.** Supply your own firmware.
+
+V080B adds live RGB/SCART Teletext (listings, news, public-IP weather and MiSTer
+updates), page 888 English text subtitles and automatic cropping of 4:3 material
+inside scheduled 16:9 files/Plex sources. All 48 non-HDMI timing checks and two
+four-minute hardware tests passed; the Guide background/logo survive returning
+from live TV. Boot/Guide acquisition remains slow. New live Teletext refresh
+and timed subtitle overlay still need physical-TV confirmation; image-only
+subtitles are not converted and no OCR is used.
+
+**Use the [V080B installation and user guide](https://github.com/retrorepair/Pace2500N-MiSTer/blob/cold-boot/README.md).**
+See [Teletext/subtitle details](https://github.com/retrorepair/Pace2500N-MiSTer/blob/cold-boot/LIVE_TELETEXT.md)
+and the [updated handoff](https://github.com/retrorepair/Pace2500N-MiSTer/blob/cold-boot/handoff.md).
+The implementation is on the `cold-boot` branch; `main` retains the older
+v0.7.x source. This README update does not merge those implementations.
+
+## Earlier v0.7.x packages and instructions
+
+The remainder of this page documents the earlier checkpoint-based packages.
+Its launcher, app and checkpoint instructions apply to those versions; use the
+V080B guide above for the new release.
 
 **Downloads:** [Releases](https://github.com/retrorepair/Pace2500N-MiSTer/releases)
 (**v0.7.7-rc3**, release candidate) — `Pace2500N_V077.rbf` (the core),
