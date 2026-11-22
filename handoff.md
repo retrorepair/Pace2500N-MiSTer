@@ -4,6 +4,23 @@
 Quartus results and HDL regressions. The latest session is directly below; the original
 7 Nov snapshot further down is retained for history only (it predates everything that works).
 
+## 22 Nov 2026 - V080B release published
+
+- User requested the latest tested RBF as a GitHub release. Published prerelease
+  v0.8.0-beta.2 (V080B), tagged at cda74d5b23d17baefe6632a34933c8b593a64f51:
+  https://github.com/retrorepair/Pace2500N-MiSTer/releases/tag/v0.8.0-beta.2
+- Assets: exact tested Pace2500N_V080B.rbf, matching Live MGL, MiSTer relay/files
+  zip, ChannelBuilder 0.8.0B Windows zip and SHA256SUMS.txt. All five uploaded
+  asset sizes and GitHub SHA-256 digests match the local files. RBF remains
+  f65945bfc158403aaa82cb60cd02ae73ddf22d845048ee52c825fc002d88a50d.
+- App package contains executable/runtime/tools only; no personal settings,
+  credentials, firmware or media. No rebuild or MiSTer reload was needed.
+- Release notes retain slow startup and pending physical-TV live clock/888
+  timing checks. Earlier statements below saying V080B is unpublished are now
+  historical. v0.7.5 remains the latest stable release.
+- Push this handoff first, then finish README updates LAST on cold-boot and
+  main, linking the actual release and its matching instructions.
+
 ## 22 Nov 2026 - Documentation checkpoint
 
 - Current working development branch is cold-boot, V080B with ChannelBuilder
