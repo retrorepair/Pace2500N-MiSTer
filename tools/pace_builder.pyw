@@ -436,9 +436,11 @@ class App(tk.Tk):
         self.chan_list.bind('<<ListboxSelect>>', lambda e: self.show_channel())
         row = ttk.Frame(left)
         row.pack(fill='x', pady=2)
-        for text, cmd in (('Add', self.add_channel), ('Add IPTV', self.add_iptv), ('Remove', self.del_channel),
+        for text, cmd in (('Add', self.add_channel), ('Add IPTV', self.add_iptv), ('Add YouTube', self.add_youtube),
+                          ('Remove', self.del_channel),
                           ('Up', lambda: self.move_channel(-1)), ('Down', lambda: self.move_channel(1))):
-            ttk.Button(row, text=text, command=cmd, width=9 if text == 'Add IPTV' else 8).pack(side='left', padx=1)
+            ttk.Button(row, text=text, command=cmd, width={'Add IPTV': 9, 'Add YouTube': 12}.get(text, 8)).pack(
+                side='left', padx=1)
         right = ttk.Frame(body, padding=(10, 0))
         body.add(right, weight=3)
         form = ttk.Frame(right)
@@ -488,7 +490,8 @@ class App(tk.Tk):
     def refresh_channels(self, select=None):
         self.chan_list.delete(0, 'end')
         for c in self.lineup['channels']:
-            kind = 'live IPTV' if c.get('iptv') else f"{len(c.get('programmes') or [])} programmes"
+            kind = ('live IPTV' if c.get('iptv') else 'YouTube' if c.get('youtube')
+                    else f"{len(c.get('programmes') or [])} programmes")
             self.chan_list.insert('end', f"{c.get('number', '')}   {c['name']}   ({kind})")
         if select is not None and self.lineup['channels']:
             self.chan_list.selection_set(select)
@@ -518,8 +521,58 @@ class App(tk.Tk):
             if n in c.get('interstitials', []):
                 self.sets_box.selection_set('end')
         self.prog.delete(*self.prog.get_children())
+        if c.get('youtube'):
+            # The channel's uploads (as last fetched): filled in by playout, not edited here.
+            for vid, seconds, title in self.youtube_videos(c):
+                self.prog.insert('', 'end', values=(title, f'YouTube {vid}  ({int(seconds) // 60} min)'))
+            return
         for p in c['programmes']:
             self.prog.insert('', 'end', values=(p['title'], p['source']))
+
+    def youtube_videos(self, c):
+        try:
+            cache = pc.read_json(pc.settings_path().with_name('youtube_channels.json'))
+            videos = cache.get(pc.youtube_feed(c['youtube']), {}).get('videos', [])
+        except (OSError, ValueError, AttributeError):
+            return []
+        order = str(c.get('order', 'newest')).lower()
+        return list(reversed(videos)) if order == 'oldest' else videos
+
+    def add_youtube(self):
+        """A channel made from a YouTube channel's (or playlist's) uploads. Nothing is downloaded:
+        playout streams each video while the box is tuned to it."""
+        url = simpledialog.askstring(APP, 'YouTube channel or playlist URL\n(e.g. https://www.youtube.com/@JoshuaWeissman):',
+                                     parent=self)
+        if not url:
+            return
+        try:
+            pc.youtube_feed(url)
+        except ValueError as e:
+            messagebox.showerror(APP, str(e))
+            return
+        self.log(f'Fetching the uploads list for {url}...')
+
+        def fetch():
+            try:
+                listing = pc.youtube_listing(url, self.settings, self.log, force=True)
+            except Exception as e:
+                self.log(f'YouTube channel not added: {e}')
+                return
+            self.after(0, lambda: self.add_youtube_channel(url.strip(), listing))
+        threading.Thread(target=fetch, name='YouTube list', daemon=True).start()
+
+    def add_youtube_channel(self, url, listing):
+        used = {str(o.get('number')) for o in self.lineup['channels'] + list(self.lineup.get('radio') or [])
+                if isinstance(o, dict)}
+        number = next(k for k in range(101, 1000) if str(k) not in used and not 800 <= k <= 899)
+        name = listing.get('title') or url.rstrip('/').split('/')[-1].lstrip('@')
+        n = len(self.lineup['channels'])
+        self.lineup['channels'].append({'name': name, 'number': number, 'style': 'sky', 'genre': 'entertainment',
+                                        'youtube': url, 'order': 'newest', 'interstitials': [], 'programmes': []})
+        self.refresh_channels(n)
+        self.changed()
+        self.log(f"YouTube channel {number} {name} added: {len(listing['videos'])} videos to schedule "
+                 '(newest first; Shorts and live streams left out).')
 
     def field_edited(self):
         if self._showing or not self.current():

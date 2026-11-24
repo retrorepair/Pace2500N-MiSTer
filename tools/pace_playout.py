@@ -399,6 +399,7 @@ class Session:
             self.item = dict(it, offset=offset)
             self.srv.log(f"{c.name}: {it['kind']} '{it['title']}' {Path(it['source']).name} "
                          f"@{it['inpoint'] + offset:.1f}s for {remaining:.1f}s")
+            self.srv.prepare_next(c, on_air + remaining)
             try:
                 cmd = self.srv.ffmpeg_cmd(c, it['source'], it['inpoint'] + offset, remaining, letterbox=self.letterbox)
                 self.start_subtitles(it['source'], it['inpoint'] + offset, remaining, w)
@@ -643,18 +644,43 @@ class Server(ThreadingHTTPServer):
                 with self._si_lock:
                     self._si_building.discard(on)
 
+    def prepare_next(self, c, when):
+        """Resolve the item due at `when` in the background (YouTube stream links take a few
+        seconds to look up), so its run starts without a gap."""
+        if isinstance(c, LiveChannel):
+            return
+        try:
+            source = c.at(when + 0.5)[0]['source']
+        except Exception:
+            return
+        if source.startswith('yt:'):
+            threading.Thread(target=lambda: self._quiet_probe(source), name='YouTube lookup', daemon=True).start()
+
+    def _quiet_probe(self, source):
+        try:
+            self.media.probe(source)
+        except Exception as exc:
+            self.log(f'{source}: lookup failed ({exc})')
+
     def ffmpeg_cmd(self, c, source, start, length, *, letterbox=False):
         info = self.media.probe(source)
         if not info.get('video'):
             raise ValueError('source contains no video stream')
         # The streams were probed when the line-up loaded: a short probe here saves ~0.5 s of
         # every programme start over HTTP (Plex), which is time the box waits on black.
+        # YouTube serves picture and sound as separate streams over HTTPS: both are opened at
+        # the same point, with reconnects for a dropped connection part way through.
+        web = ['-reconnect', '1', '-reconnect_streamed', '1', '-reconnect_delay_max', '5'] if source.startswith('yt:') else []
         cmd = [self.settings['ffmpeg'], '-hide_banner', '-loglevel', 'error', '-nostdin',
-               '-probesize', '262144', '-analyzeduration', '500000',
+               '-probesize', '262144', '-analyzeduration', '500000', *web,
                '-ss', f'{start:.3f}', '-t', f'{length:.3f}', '-i', info.get('input', source)]
         amap = '0:a:0'
         audio_filter = STEREO_48K
-        if info.get('audio'):
+        if info.get('audio_input'):
+            cmd += [*web, '-ss', f'{start:.3f}', '-t', f'{length:.3f}', '-i', info['audio_input']]
+            amap = '1:a:0'
+            audio_filter = normalised_audio(TV_LUFS)
+        elif info.get('audio'):
             if info.get('audio_index') is not None:
                 amap = f"0:{info['audio_index']}"
             audio_filter = normalised_audio(TV_LUFS)

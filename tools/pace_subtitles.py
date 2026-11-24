@@ -34,6 +34,10 @@ def wanted_language(track, media):
 
 
 def select_source(media, source):
+    if source.startswith('yt:'):
+        # YouTube's captions: the uploader's English track, else the automatic one (WebVTT)
+        captions = media.probe(source).get('captions')
+        return (captions[0], '0:0', 'webvtt', captions[1], 0.) if captions else None
     if source.startswith('plex:'):
         part = media.plex_parts(source[5:])[0]
         streams = [s for s in part.get('Stream', []) if int(s.get('streamType', 0)) == 3

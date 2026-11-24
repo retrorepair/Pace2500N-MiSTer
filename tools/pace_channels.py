@@ -18,7 +18,11 @@ Line-up file (see tools/lineup.example.json):
           itv  : terrestrial commercial: centre breaks + end breaks of period adverts/idents
           sky  : satellite commercial: as itv, Sky-length breaks
   start   the broadcast day begins here (UTC); the programme list repeats to fill 24 h
-  source  a file path, or plex:<ratingKey> (a Plex library item; needs the Plex settings)
+  source  a file path, or plex:<ratingKey> (a Plex library item; needs the Plex settings),
+          or yt:<video id> (a YouTube video, resolved with yt-dlp when it goes on air)
+  youtube a channel or playlist URL in place of "programmes": its uploads become the programme
+          list (refreshed daily; Shorts, live streams and members-only videos left out).
+          "order": newest (default), oldest or shuffle.
 
 Interstitial sets are folders of period recordings (YouTube rips of advert
 breaks / continuity, kept under roms/). `split` finds the cuts between spots
@@ -99,6 +103,19 @@ def redact(text):
     return re.sub(r'(?i)(x-plex-token(?:=|%3d))[^&\s\'"]+', r'\1[redacted]', str(text))
 
 
+def remote(source):
+    """A source that is not a file: a Plex item or a YouTube video."""
+    return source.startswith(('plex:', 'yt:'))
+
+
+def ytdlp_path(settings):
+    for p in (settings.get('ytdlp'), bundled('yt-dlp.exe'),
+              str(Path(os.environ.get('APPDATA', '')) / 'Python' / 'Python312' / 'Scripts' / 'yt-dlp.exe')):
+        if p and Path(p).is_file():
+            return p
+    return 'yt-dlp'
+
+
 def load_settings(log=print):
     p = settings_path()
     try:
@@ -172,6 +189,7 @@ class Media:
         self._keys = {}
         self._dirty = set()
         self._plex_items = {}
+        self._youtube = {}
 
     def read_cache(self):
         try:
@@ -196,10 +214,12 @@ class Media:
         """Something ffmpeg can open."""
         if source.startswith('plex:'):
             return self.plex_part(source[5:])
+        if source.startswith('yt:'):
+            return self.youtube(source[3:])['input']
         return source
 
     def key(self, source):
-        if source.startswith('plex:'):
+        if remote(source):
             return source
         k = self._keys.get(source)
         if k is None:      # stat once per run: sources are often on a network share
@@ -295,7 +315,50 @@ class Media:
                 self._dirty.add(source)
         return hit.get('plex_kind', ''), hit.get('plex_genres', [])
 
+    def youtube(self, video_id):
+        """Stream links for a YouTube video (yt-dlp): SD H.264 video and AAC audio as separate
+        inputs where YouTube splits them, the uploader's English captions (WebVTT) if any. The links
+        expire after a few hours, so they are kept in memory only, until shortly before then."""
+        if not re.fullmatch(r'[A-Za-z0-9_-]{11}', video_id):
+            raise ValueError(f'Invalid YouTube video id: {video_id}')
+        with self.cache_lock:
+            cached = self._youtube.get(video_id)
+        if cached and time.time() < cached[0]:
+            return cached[1]
+        out = subprocess.run(creationflags=NO_WINDOW, args=[
+            ytdlp_path(self.s), '-j', '--no-playlist', '--no-warnings', '-f', YOUTUBE_FORMAT,
+            f'https://www.youtube.com/watch?v={video_id}'], capture_output=True, text=True,
+            encoding='utf-8', errors='replace', timeout=60)
+        if out.returncode:
+            reason = (out.stderr.strip().splitlines() or ['yt-dlp failed'])[-1]
+            raise RuntimeError(f'YouTube video {video_id} unavailable: {reason}')
+        info = json.loads(out.stdout)
+        parts = info.get('requested_formats') or [info]
+        video = next((f for f in parts if f.get('vcodec') not in (None, 'none')), None)
+        audio = next((f for f in parts if f.get('acodec') not in (None, 'none')), None)
+        if not video or not video.get('url'):
+            raise ValueError(f'YouTube video {video_id} has no playable picture')
+        # Uploader-provided English captions only: YouTube's automatic speech-to-text track is
+        # word-by-word rolling text, not a usable subtitle track for page 888.
+        table = info.get('subtitles') or {}
+        lang = next((k for k in table if k == 'en' or k.startswith('en-')), None)
+        vtt = next((t for t in table.get(lang) or [] if t.get('ext') == 'vtt' and t.get('url')), None)
+        captions = (vtt['url'], lang) if vtt else None
+        expiry = [int(m) for f in (video, audio) if f for m in re.findall(r'[?&]expire=(\d+)', f.get('url', ''))]
+        hit = dict(duration=float(info.get('duration') or 0), audio=audio is not None, audio_index=None,
+                   video=dict(codec_name=(video.get('vcodec') or '').split('.')[0], width=video.get('width'),
+                              height=video.get('height'), sample_aspect_ratio='1:1'),
+                   input=video['url'], captions=captions)
+        if audio is not None and audio is not video:
+            hit['audio_input'] = audio['url']
+        until = min(expiry) - 900 if expiry else time.time() + 3 * 3600
+        with self.cache_lock:
+            self._youtube[video_id] = (until, hit)
+        return hit
+
     def probe(self, source):
+        if source.startswith('yt:'):
+            return self.youtube(source[3:])
         if source.startswith('plex:'):
             error = None
             for part in self.plex_parts(source[5:]):
@@ -519,7 +582,7 @@ class Channel:
         for p in cfg['programmes']:
             try:
                 source = p['source']
-                if not source.startswith('plex:'):
+                if not remote(source):
                     if portable() and not Path(source).is_absolute():
                         source = str(Path(media.s.get('data_root') or ROOT) / source)
                     media.key(source)
@@ -565,7 +628,7 @@ class Channel:
         nearest black frame within 90 s when the recording has one."""
         want = [p['duration'] * (k + 1) / (n + 1) for k in range(n)]
         black = []
-        if p['breaks'] == 'auto' and not p['source'].startswith('plex:'):
+        if p['breaks'] == 'auto' and not remote(p['source']):
             # only analysed recordings (pace_channels.py prepare): playout never blocks on it
             hit = self.media.cache.get(self.media.key(p['source']), {})
             black = [b - p['inpoint'] for b in hit.get('black', [])]
@@ -650,13 +713,98 @@ def read_lineup(path):
         folders = channel.get('interstitials', [])
         if not isinstance(folders, list) or not all(isinstance(f, str) for f in folders):
             raise ValueError(f'channel {i} needs a list of interstitial folders')
-        programmes = channel.get('programmes')
+        if channel.get('youtube') is not None and not isinstance(channel['youtube'], str):
+            raise ValueError(f'channel {i}: youtube must be a channel or playlist URL')
+        programmes = channel.get('programmes', [] if channel.get('youtube') else None)
         if not isinstance(programmes, list):
             raise ValueError(f'channel {i} needs a list of programmes')
         for j, p in enumerate(programmes, 1):
             if not isinstance(p, dict) or not all(isinstance(p.get(k), str) and p[k] for k in ('title', 'source')):
                 raise ValueError(f'channel {i}, programme {j} needs a title and source')
     return cfg
+
+
+# ------------------------------------------------------------------ YouTube channels
+# SD H.264 + AAC where YouTube has them (the transcode to MPEG-2/MP2 is lighter and needs no VP9
+# decode), otherwise the best stream at or below 576 lines.
+YOUTUBE_FORMAT = ('bv*[height<=576][vcodec^=avc1]+ba[ext=m4a]/bv*[height<=576]+ba/'
+                  'b[height<=576]/bv*+ba/b')
+YOUTUBE_REFRESH = 24 * 3600
+YOUTUBE_SHORTEST = 120          # Shorts and clips do not make programmes
+YOUTUBE_LONGEST = 4 * 3600
+
+
+def youtube_feed(url):
+    """The uploads list for a channel URL (its Videos tab, so Shorts and live streams are not in
+    it); playlist and other URLs unchanged."""
+    url = url.strip()
+    parts = urlsplit(url)
+    if parts.scheme not in ('http', 'https') or not (parts.hostname or '').endswith(('youtube.com', 'youtu.be')):
+        raise ValueError('YouTube channel needs a youtube.com channel or playlist URL')
+    path = parts.path.rstrip('/')
+    if re.fullmatch(r'/(@[^/]+|channel/[^/]+|c/[^/]+|user/[^/]+)', path):
+        return f'https://www.youtube.com{path}/videos'
+    return url
+
+
+def youtube_listing(url, settings, log=print, limit=300, force=False):
+    """{'title': channel/playlist name, 'videos': [[id, seconds, title], ...] newest first},
+    fetched with yt-dlp (a flat listing: one request, no per-video lookups) and kept in
+    youtube_channels.json beside the settings for a day. A failed refresh keeps the last list."""
+    feed = youtube_feed(url)
+    path = settings_path().with_name('youtube_channels.json')
+    try:
+        cache = read_json(path) if path.exists() else {}
+    except (OSError, ValueError):
+        cache = {}
+    hit = cache.get(feed) if isinstance(cache, dict) else None
+    if hit and not force and time.time() - hit.get('fetched', 0) < YOUTUBE_REFRESH:
+        return hit
+    out = subprocess.run(creationflags=NO_WINDOW, args=[
+        ytdlp_path(settings), '--flat-playlist', '--no-warnings', '--playlist-end', str(int(limit)),
+        '--print', '%(playlist_title)s\t%(id)s\t%(duration)s\t%(live_status)s\t%(availability)s\t%(title)s', feed],
+        capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=180)
+    rows = [line.split('\t', 5) for line in out.stdout.splitlines() if line.count('\t') >= 5]
+    if out.returncode or not rows:
+        reason = (out.stderr.strip().splitlines() or ['no videos listed'])[-1]
+        if hit:
+            log(f'YouTube list refresh failed ({reason}); using the list from '
+                f"{datetime.fromtimestamp(hit.get('fetched', 0)).strftime('%d %b %H:%M')}")
+            return hit
+        raise RuntimeError(reason)
+    videos = []
+    for playlist, vid, duration, live, availability, title in rows:
+        try:
+            seconds = float(duration)
+        except ValueError:
+            continue
+        if live in ('is_live', 'is_upcoming', 'post_live') or availability in (
+                'subscriber_only', 'premium_only', 'needs_auth'):
+            continue
+        if YOUTUBE_SHORTEST <= seconds <= YOUTUBE_LONGEST and re.fullmatch(r'[A-Za-z0-9_-]{11}', vid):
+            videos.append([vid, seconds, title.strip()])
+    name = re.sub(r'\s+-\s+Videos$', '', rows[0][0]).strip() if rows[0][0] not in ('NA', '') else ''
+    hit = dict(fetched=time.time(), title=name, videos=videos)
+    if isinstance(cache, dict):
+        cache[feed] = hit
+        write_json(path, cache, indent=1)
+    return hit
+
+
+def youtube_programmes(cfg, settings, log=print):
+    """A YouTube channel's programme list from its uploads, in the line-up's order."""
+    listing = youtube_listing(cfg['youtube'], settings, log, limit=int(cfg.get('limit', 300)))
+    videos = list(listing['videos'])
+    order = str(cfg.get('order', 'newest')).lower()
+    if order == 'oldest':
+        videos.reverse()
+    elif order == 'shuffle':
+        random.Random(cfg.get('name', '')).shuffle(videos)
+    if not videos:
+        raise ValueError('the channel has no videos long enough to schedule')
+    return [dict(title=title, source=f'yt:{vid}', inpoint=0, duration=seconds,
+                 summary=f"{listing.get('title') or cfg.get('name', '')} on YouTube")
+            for vid, seconds, title in videos]
 
 
 class RadioStation:
@@ -949,6 +1097,12 @@ def load_lineup(path, settings, log=print, *, cfg=None):
             except (KeyError, TypeError, ValueError) as e:
                 log(f"{c.get('name', 'channel')}: not broadcast: {e}")
             continue
+        if c.get('youtube'):
+            try:
+                c = {**c, 'programmes': youtube_programmes(c, settings, log)}
+            except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as e:
+                log(f"{c.get('name', 'channel')}: YouTube list unavailable - not broadcast: {e}")
+                continue
         if not c.get('programmes'):
             # nothing to schedule: leave it off air rather than fail every channel's guide
             log(f"{c.get('name', 'channel')}: no programmes yet - not broadcast")
@@ -1362,7 +1516,7 @@ def main():
             if c.style == 'bbc':
                 continue
             for p in c.programmes:
-                if p['breaks'] == 'auto' and not p['source'].startswith('plex:'):
+                if p['breaks'] == 'auto' and not remote(p['source']):
                     media.cuts(p['source'])
         print('prepared', sum(len(c.programmes) for c in chans), 'programmes')
         return
